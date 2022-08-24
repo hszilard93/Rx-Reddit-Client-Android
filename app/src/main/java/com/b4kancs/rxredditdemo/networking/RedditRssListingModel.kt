@@ -17,11 +17,13 @@ data class RedditPostModel(
 )
 
 data class RedditPostDataModel(
-    @SerializedName("author") val author: String,
-    @SerializedName("title") val title: String,
-    @SerializedName("subreddit") val subreddit: String,
+    val author: String,
+    val title: String,
+    val subreddit: String,
     @SerializedName("url_overridden_by_dest") val link: String,
-    @SerializedName("permalink") val permalink: String,
-    @SerializedName("domain") val domain: String,
+    val permalink: String,
+    val domain: String,
+    @SerializedName("created") val createdAt: Int,
+    @SerializedName("over_18") val nsfw: Boolean,
     @SerializedName("num_comments") val numOfComments: Int
 )

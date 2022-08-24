@@ -1,4 +1,8 @@
-import com.b4kancs.rxredditdemo.networking.RedditRssListingModel
+package com.b4kancs.rxredditdemo.networking
+
+import RedditRssFeed
+import com.google.gson.FieldNamingPolicy
+import com.google.gson.GsonBuilder
 import io.reactivex.rxjava3.core.Single
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -7,8 +11,8 @@ import retrofit2.Retrofit
 import retrofit2.adapter.rxjava3.RxJava3CallAdapterFactory
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.GET
-import retrofit2.http.Headers
 import retrofit2.http.Path
+import retrofit2.http.Query
 
 interface RedditRssService {
 
@@ -25,7 +29,13 @@ interface RedditRssService {
                 .baseUrl(RedditRssFeed.FEED_URL)
                 .client(client)
                 .addCallAdapterFactory(RxJava3CallAdapterFactory.create())
-                .addConverterFactory(GsonConverterFactory.create())
+                .addConverterFactory(
+                    GsonConverterFactory.create(
+                        GsonBuilder()
+                            .setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES)
+                            .create()
+                    )
+                )
                 .build()
 
             return retrofit.create(RedditRssService::class.java)
@@ -33,6 +43,8 @@ interface RedditRssService {
     }
 
     @GET("/r/{subreddit}/.json")
-    fun getSubredditJson(@Path("subreddit") subreddit: String): Single<Response<RedditRssListingModel>>
-//    fun getSubredditJson(@Path("subreddit")subreddit: String): Single<Response<String>>
+    fun getSubredditJson(
+        @Path("subreddit") subreddit: String,
+        @Query("limit") limit: Int = 100
+    ): Single<Response<RedditRssListingModel>>
 }

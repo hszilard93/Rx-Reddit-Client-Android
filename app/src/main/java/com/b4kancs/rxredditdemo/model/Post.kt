@@ -8,6 +8,8 @@ data class Post(
     val link: String,
     val permalink: String,
     val domain: String,
+    val createdAt: Int,
+    val nsfw: Boolean,
     val numOfComments: Int
 ) {
     companion object {
@@ -20,6 +22,8 @@ data class Post(
                     link,
                     permalink,
                     domain,
+                    createdAt,
+                    nsfw,
                     numOfComments
                 )
             }
