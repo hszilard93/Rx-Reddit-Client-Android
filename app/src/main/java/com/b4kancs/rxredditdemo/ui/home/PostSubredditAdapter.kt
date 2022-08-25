@@ -9,15 +9,31 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.b4kancs.rxredditdemo.R
+import com.b4kancs.rxredditdemo.utils.Orientation
+import com.b4kancs.rxredditdemo.utils.dpToPx
 import com.bumptech.glide.Glide
 import java.util.*
 
-class PostSubredditAdapter(private val posts: List<Post>, private val context: Context) : RecyclerView.Adapter<PostSubredditAdapter.PostSubredditViewHolder>() {
+class PostSubredditAdapter(private val posts: List<Post>, private val context: Context) :
+    RecyclerView.Adapter<PostSubredditAdapter.PostSubredditViewHolder>() {
+
+    private lateinit var orientation: Orientation
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PostSubredditViewHolder {
-        val view = LayoutInflater
-            .from(parent.context)
-            .inflate(R.layout.adapter_post_sub_row, parent, false)
+        orientation = Orientation.fromInt(context.resources.configuration.orientation)
+        val view =
+            when (orientation) {
+                Orientation.PORTRAIT ->
+                    LayoutInflater
+                        .from(parent.context)
+                        .inflate(R.layout.adapter_post_sub_row_large, parent, false)
+
+                Orientation.LANDSCAPE ->
+                    LayoutInflater
+                        .from(parent.context)
+                        .inflate(R.layout.adapter_post_sub_row, parent, false)
+            }
+
         return PostSubredditViewHolder(view)
     }
 
@@ -25,8 +41,9 @@ class PostSubredditAdapter(private val posts: List<Post>, private val context: C
         val post = posts[position]
         holder.titleTextView.text = post.title
 
-        val postAgeInMinutes = (Date().time - (post.createdAt * 1000L)) / (60 * 1000L) // time difference in ms divided by a minute's worth of ms
-        val postAge = when(postAgeInMinutes) {
+        val postAgeInMinutes =
+            (Date().time - (post.createdAt * 1000L)) / (60 * 1000L) // time difference in ms divided by a minute's worth of ms
+        val postAge = when (postAgeInMinutes) {
             in 0 until 60 -> postAgeInMinutes to "minute(s)"
             in 60 until 1440 -> postAgeInMinutes / 60 to "hour(s)"
             in 1440 until 525600 -> postAgeInMinutes / 1440 to "day(s)"
@@ -38,10 +55,11 @@ class PostSubredditAdapter(private val posts: List<Post>, private val context: C
         holder.commentsTextView.text = "${post.numOfComments} comments"
 
         Glide.with(context).load(post.link)
-            .override(120, 240)
-//            .placeholder(R.drawable.ic_download)
-//            .error(R.drawable.not_found_24)
+            .placeholder(R.drawable.ic_download)
+            .error(R.drawable.not_found_24)
+            .override(holder.imageView.width.dpToPx(context), 0)
             .into(holder.imageView)
+            .view.adjustViewBounds = true
     }
 
     override fun getItemCount(): Int {
@@ -62,5 +80,4 @@ class PostSubredditAdapter(private val posts: List<Post>, private val context: C
             commentsTextView = postView.findViewById(R.id.post_comments_text)
         }
     }
-
 }
