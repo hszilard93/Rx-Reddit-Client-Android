@@ -12,12 +12,14 @@ import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.utils.Orientation
 import com.b4kancs.rxredditdemo.utils.dpToPx
 import com.bumptech.glide.Glide
+import org.koin.java.KoinJavaComponent.inject
 import java.util.*
 
-class PostSubredditAdapter(private val posts: List<Post>, private val context: Context) :
+class PostSubredditAdapter(private val posts: List<Post>) :
     RecyclerView.Adapter<PostSubredditAdapter.PostSubredditViewHolder>() {
 
     private lateinit var orientation: Orientation
+    private val context: Context by inject(Context::class.java)
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PostSubredditViewHolder {
         orientation = Orientation.fromInt(context.resources.configuration.orientation)
@@ -54,7 +56,7 @@ class PostSubredditAdapter(private val posts: List<Post>, private val context: C
 
         holder.commentsTextView.text = "${post.numOfComments} comments"
 
-        Glide.with(context).load(post.link)
+        Glide.with(context).load(post.links?.first())
             .placeholder(R.drawable.ic_download)
             .error(R.drawable.not_found_24)
             .override(holder.imageView.width.dpToPx(context), 0)

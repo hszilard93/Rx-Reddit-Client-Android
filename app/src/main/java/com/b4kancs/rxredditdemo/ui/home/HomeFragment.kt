@@ -35,7 +35,7 @@ class HomeFragment : Fragment() {
         }
 
         homeViewModel.postsLiveData.observe(activity) {
-            binding.recyclerPosts.adapter = PostSubredditAdapter(homeViewModel.postsLiveData.value!!, requireContext())
+            binding.recyclerPosts.adapter = PostSubredditAdapter(homeViewModel.postsLiveData.value!!)
             binding.recyclerPosts.layoutManager = LinearLayoutManager(context)
             binding.progressCircular.visibility = View.GONE
         }

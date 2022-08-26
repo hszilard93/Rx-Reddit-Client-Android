@@ -4,6 +4,7 @@ import Post
 import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import com.b4kancs.rxredditdemo.networking.RedditRssFeed
 
 private const val LOG_TAG = "HomeViewModel"
 
@@ -19,13 +20,13 @@ class HomeViewModel : ViewModel() {
     val postsLiveData = MutableLiveData<List<Post>>()
 
     init {
-        RedditRssFeed.getPostsOnSub("EarthPorn")
+        RedditRssFeed.getPostsOnSub("pics")
             .subscribe { posts ->
                 subredditNameLiveData.postValue(posts.first().subreddit)
                 Log.d(LOG_TAG, "Current thread: " + Thread.currentThread().name)
                 posts.forEach {
                     this.posts.add(it)
-                    println("${it.title} ${it.author} ${it.link}")
+                    println("${it.title} ${it.author} ${it.url}")
                 }
                 postsLiveData.postValue(posts)
             }
