@@ -17,36 +17,36 @@ data class Post(
     companion object {
 
         fun from(dataModel: RedditPostDataModel): Post {
-            dataModel.also {
+            dataModel.also { postModel ->
                 val glideSupportedFileTypesPattern = """^.*\.(gif|jpg|jpeg|raw|png|webp)${'$'}""".toRegex()
                 val galleryPattern = """^https://www.reddit.com/gallery/(.+)$""".toRegex()
 
                 val links: List<String>? =
-                    if (glideSupportedFileTypesPattern.matches(it.url)) {
-                        listOf(it.url)
+                    if (glideSupportedFileTypesPattern.matches(postModel.url)) {
+                        listOf(postModel.url)
                     }
-                    else if(galleryPattern.matches(it.url)) {
-                        val id = galleryPattern.find(it.url)!!.groupValues[1]
-                        val url = "https://www.reddit.com/r/pics/comments/$id"
-                        val ids = RedditRssFeed.getPictureIdsFromGalleryPostAtUrl(url).blockingGet()
-                        ids.map { id -> "https://i.redd.it/$id.jpg" }
+                    else if(galleryPattern.matches(postModel.url)) {
+                        val galleryId = galleryPattern.find(postModel.url)!!.groupValues[1]
+                        val galleryPostUrl = "https://www.reddit.com/r/pics/comments/$galleryId"
+                        val ids = RedditRssFeed.getPictureIdsFromGalleryPostAtUrl(galleryPostUrl).blockingGet()
+                        ids.map { imageId -> "https://i.redd.it/$imageId.jpg" }
                     }
                     else {
                         null
                     }
 
                 return Post(
-                    it.author,
-                    it.title,
-                    it.subreddit,
-                    it.url,
+                    postModel.author,
+                    postModel.title,
+                    postModel.subreddit,
+                    postModel.url,
                     links,
-                    it.permalink,
-                    it.domain,
-                    it.score,
-                    it.createdAt,
-                    it.nsfw,
-                    it.numOfComments
+                    postModel.permalink,
+                    postModel.domain,
+                    postModel.score,
+                    postModel.createdAt,
+                    postModel.nsfw,
+                    postModel.numOfComments
                 )
             }
         }

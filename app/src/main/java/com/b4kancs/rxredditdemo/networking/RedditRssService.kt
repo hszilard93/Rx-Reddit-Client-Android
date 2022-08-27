@@ -12,10 +12,9 @@ interface RedditRssService {
     @GET("/r/{subreddit}/.json")
     fun getSubredditJson(
         @Path("subreddit") subreddit: String,
-        @Query("limit") limit: Int = 100
+        @Query("limit") limit: Int = 25
     ): Single<Response<RedditRssListingModel>>
 
     @GET
     fun getGalleryJson(@Url url: String): Single<Response<List<RedditGalleryListing>>>
-//    fun getGalleryJson(@Url url: String): Single<Response<List<RedditGalleryListingGenerated>>>
 }

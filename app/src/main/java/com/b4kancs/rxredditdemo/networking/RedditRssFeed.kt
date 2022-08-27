@@ -27,7 +27,6 @@ object RedditRssFeed {
                 println(response.body())
                 response.body()!!
                     .first().data.children.first().data.galleryData.items
-//                    .first().data!!.children.first().data!!.galleryData!!.items
             }
             .map { items ->
                 val ids = ArrayList<String>()

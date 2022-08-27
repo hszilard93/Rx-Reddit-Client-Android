@@ -5,6 +5,8 @@ import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.b4kancs.rxredditdemo.networking.RedditRssFeed
+import io.reactivex.rxjava3.disposables.CompositeDisposable
+import io.reactivex.rxjava3.kotlin.addTo
 
 private const val LOG_TAG = "HomeViewModel"
 
@@ -16,6 +18,7 @@ class HomeViewModel : ViewModel() {
 //    val text: LiveData<String> = _text
 
     private val posts = ArrayList<Post>()
+    private val disposables = CompositeDisposable()
     val subredditNameLiveData = MutableLiveData<String>("subreddit")
     val postsLiveData = MutableLiveData<List<Post>>()
 
@@ -30,5 +33,6 @@ class HomeViewModel : ViewModel() {
                 }
                 postsLiveData.postValue(posts)
             }
+            .addTo(disposables)
     }
 }

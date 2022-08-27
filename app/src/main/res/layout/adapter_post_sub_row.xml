@@ -8,19 +8,46 @@
     android:layout_marginTop="4dp"
     android:layout_marginEnd="8dp"
     android:layout_marginBottom="4dp"
+    android:animateLayoutChanges="true"
     android:background="@drawable/rounded_rectangle"
-    android:backgroundTint="?attr/colorSurfaceVariant"
-    >
+    android:backgroundTint="?attr/colorSurfaceVariant">
 
     <com.google.android.material.imageview.ShapeableImageView
         android:id="@+id/post_image_view"
         android:layout_width="240dp"
         android:layout_height="wrap_content"
         android:backgroundTint="?attr/colorImageBackground"
-        app:shapeAppearanceOverlay="@style/left_rounded_imageview"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent"
+        app:shapeAppearanceOverlay="@style/left_rounded_imageview" />
+
+
+    <ImageView
+        android:id="@+id/gallery_indicator_image_view"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:layout_marginRight="4dp"
+        android:layout_marginBottom="8dp"
+        android:alpha="0.7"
+        android:src="@drawable/gallery_icon_256"
+        android:visibility="invisible"
+        app:layout_constraintBottom_toBottomOf="@id/post_image_view"
+        app:layout_constraintRight_toLeftOf="@id/gallery_items_text_view" />
+
+    <com.google.android.material.textview.MaterialTextView
+        android:id="@+id/gallery_items_text_view"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginRight="8dp"
+        android:layout_marginBottom="12dp"
+        android:alpha="0.7"
+        android:text="0"
+        android:textColor="@color/md_theme_light_inversePrimary"
+        android:textSize="20sp"
+        android:visibility="invisible"
+        app:layout_constraintBottom_toBottomOf="@id/post_image_view"
+        app:layout_constraintRight_toRightOf="@id/post_image_view" />
 
     <com.google.android.material.textview.MaterialTextView
         android:id="@+id/post_text_view"
@@ -70,6 +97,6 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toEndOf="@id/post_date_author_text_view"
-        app:layout_constraintVertical_weight="2"/>
+        app:layout_constraintVertical_weight="2" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
