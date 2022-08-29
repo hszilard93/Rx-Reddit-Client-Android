@@ -1,7 +1,10 @@
+package com.b4kancs.rxredditdemo.model
+
 import com.b4kancs.rxredditdemo.networking.RedditRssFeed
 import com.b4kancs.rxredditdemo.networking.RedditRssListingModel.RedditPostDataModel
 
 data class Post(
+    val name: String,
     val author: String,
     val title: String,
     val subreddit: String,
@@ -36,6 +39,7 @@ data class Post(
                     }
 
                 return Post(
+                    postModel.name,
                     postModel.author,
                     postModel.title,
                     postModel.subreddit,

@@ -1,16 +1,17 @@
 package com.b4kancs.rxredditdemo.networking
 
-import Post
+import com.b4kancs.rxredditdemo.model.Post
 import io.reactivex.rxjava3.core.Single
 import io.reactivex.rxjava3.schedulers.Schedulers
 import org.koin.java.KoinJavaComponent.inject
 
 object RedditRssFeed {
     const val FEED_URL = "https://www.reddit.com"
+    const val PAGE_SIZE = 25
     private val service: RedditRssService by inject(RedditRssService::class.java)
 
-    fun getPostsOnSub(subreddit: String): Single<List<Post>> {
-        return service.getSubredditJson(subreddit)
+    fun getPostsOnSub(subreddit: String, after: String? = null): Single<List<Post>> {
+        return service.getSubredditJson(subreddit, 25, after)
             .map { response -> response.body()!!.data.children }
             .map { posts ->
                 posts

@@ -20,6 +20,7 @@ data class RedditRssListingModel(
 
     // "/data/children/data/"
     data class RedditPostDataModel(
+        val name: String,
         val author: String,
         val title: String,
         val subreddit: String,

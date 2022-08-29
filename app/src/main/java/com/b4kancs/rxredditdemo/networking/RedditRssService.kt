@@ -12,7 +12,8 @@ interface RedditRssService {
     @GET("/r/{subreddit}/.json")
     fun getSubredditJson(
         @Path("subreddit") subreddit: String,
-        @Query("limit") limit: Int = 25
+        @Query("limit") limit: Int,
+        @Query("after") after: String?
     ): Single<Response<RedditRssListingModel>>
 
     @GET

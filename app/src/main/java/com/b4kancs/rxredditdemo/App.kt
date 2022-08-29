@@ -19,7 +19,6 @@ class App : Application() {
 
     private val appModule = module {
         single { createRedditRssServiceInstant() }
-        single {  }
     }
 
     override fun onCreate() {
