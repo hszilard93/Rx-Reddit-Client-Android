@@ -1,7 +1,8 @@
 package com.b4kancs.rxredditdemo.model
 
-import com.b4kancs.rxredditdemo.networking.RedditRssFeed
 import com.b4kancs.rxredditdemo.networking.RedditRssListingModel.RedditPostDataModel
+import com.b4kancs.rxredditdemo.networking.RedditRssPagingSource
+import org.koin.java.KoinJavaComponent.inject
 
 data class Post(
     val name: String,
@@ -31,7 +32,7 @@ data class Post(
                     else if(galleryPattern.matches(postModel.url)) {
                         val galleryId = galleryPattern.find(postModel.url)!!.groupValues[1]
                         val galleryPostUrl = "https://www.reddit.com/r/pics/comments/$galleryId"
-                        val ids = RedditRssFeed.getPictureIdsFromGalleryPostAtUrl(galleryPostUrl).blockingGet()
+                        val ids = RedditRssPagingSource.getPictureIdsFromGalleryPostAtUrl(galleryPostUrl).blockingGet()
                         ids.map { imageId -> "https://i.redd.it/$imageId.jpg" }
                     }
                     else {

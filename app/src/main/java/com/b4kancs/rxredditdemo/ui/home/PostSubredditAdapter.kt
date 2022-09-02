@@ -1,6 +1,5 @@
 package com.b4kancs.rxredditdemo.ui.home
 
-import Post
 import android.animation.AnimatorSet
 import android.animation.ValueAnimator
 import android.annotation.SuppressLint
@@ -13,8 +12,11 @@ import android.view.animation.AccelerateDecelerateInterpolator
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
+import androidx.paging.PagingDataAdapter
+import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import com.b4kancs.rxredditdemo.R
+import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.utils.OnSwipeTouchListener
 import com.b4kancs.rxredditdemo.utils.Orientation
 import com.b4kancs.rxredditdemo.utils.dpToPx
@@ -34,17 +36,14 @@ import org.koin.java.KoinJavaComponent.inject
 import java.util.*
 
 
-class PostSubredditAdapter(private val posts: List<Post>) :
-    RecyclerView.Adapter<PostSubredditAdapter.PostSubredditViewHolder>() {
+class PostSubredditAdapter :
+//    RecyclerView.Adapter<PostSubredditAdapter.PostSubredditViewHolder>() {
+    PagingDataAdapter<Post, PostSubredditAdapter.PostSubredditViewHolder>(PostComparator) {
 
     private lateinit var orientation: Orientation
     private val disposables = CompositeDisposable()
     private val context: Context by inject(Context::class.java)
     private lateinit var postView: View
-
-    override fun getItemCount(): Int {
-        return posts.size
-    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PostSubredditViewHolder {
         orientation = Orientation.fromInt(context.resources.configuration.orientation)
@@ -65,157 +64,164 @@ class PostSubredditAdapter(private val posts: List<Post>) :
     }
 
     override fun onBindViewHolder(holder: PostSubredditViewHolder, position: Int) {
+        getItem(position)?.let { holder.bind(it) }
+    }
+
+    override fun onViewRecycled(holder: PostSubredditViewHolder) {
         // Resetting views before recyclerview reuses the ViewHolder
         holder.imageView.setImageDrawable(null)
         holder.imageView.resetOnTouchListener()
         holder.imageView.adjustViewBounds = true
         holder.galleryIndicatorImageView.visibility = View.INVISIBLE
         holder.galleryItemsTextView.visibility = View.INVISIBLE
-
-        val post = posts[position]
-        holder.titleTextView.text = post.title
-
-        val postAgeInMinutes = (Date().time - (post.createdAt * 1000L)) / (60 * 1000L) // time difference in ms divided by a minute
-        val postAge = when (postAgeInMinutes) {
-            in 0 until 60 -> postAgeInMinutes to "minute(s)"
-            in 60 until 1440 -> postAgeInMinutes / 60 to "hour(s)"
-            in 1440 until 525600 -> postAgeInMinutes / 1440 to "day(s)"
-            in 525600 until Long.MAX_VALUE -> postAgeInMinutes / 525600 to "year(s)"
-            else -> postAgeInMinutes to "ms"
-        }
-        holder.dateAuthorTextView.text = "posted ${postAge.first} ${postAge.second} ago by ${post.author}"
-
-        holder.commentsTextView.text = "${post.numOfComments} comments"
-
-        setUpImageView(post, holder)
+        super.onViewRecycled(holder)
     }
 
-    @SuppressLint("ClickableViewAccessibility")
-    private fun setUpImageView(post: Post, holder: PostSubredditViewHolder) {
-        var hasImageLoaded = false
-        var currentPos: Int? = null
-        val positionSubject = PublishSubject.create<Int>()
-        positionSubject
-            .subscribe { position ->
-                loadWithGlideInto(post.links!![position], holder.imageView, hasImageLoaded)
-                currentPos = position
+    inner class PostSubredditViewHolder(postView: View) : RecyclerView.ViewHolder(postView) {
+
+        val titleTextView: TextView = postView.findViewById(R.id.post_text_view)
+        val imageView: ImageView = postView.findViewById(R.id.post_image_view)
+        val dateAuthorTextView: TextView = postView.findViewById(R.id.post_date_author_text_view)
+        val commentsTextView: TextView = postView.findViewById(R.id.post_comments_text)
+        val galleryIndicatorImageView: ImageView = postView.findViewById(R.id.gallery_indicator_image_view)
+        val galleryItemsTextView: TextView = postView.findViewById(R.id.gallery_items_text_view)
+
+        fun bind(post: Post) {
+//            if (post == null) {
+//                titleTextView.text = "null"
+//                return
+//            }
+//
+            titleTextView.text = post.title
+
+            val postAgeInMinutes = (Date().time - (post.createdAt * 1000L)) / (60 * 1000L) // time difference in ms divided by a minute
+            val postAge = when (postAgeInMinutes) {
+                in 0 until 60 -> postAgeInMinutes to "minute(s)"
+                in 60 until 1440 -> postAgeInMinutes / 60 to "hour(s)"
+                in 1440 until 525600 -> postAgeInMinutes / 1440 to "day(s)"
+                in 525600 until Long.MAX_VALUE -> postAgeInMinutes / 525600 to "year(s)"
+                else -> postAgeInMinutes to "ms"
             }
-            .addTo(disposables)
+            dateAuthorTextView.text = "posted ${postAge.first} ${postAge.second} ago by ${post.author}"
 
-        positionSubject.onNext(0)
-        hasImageLoaded = true
+            commentsTextView.text = "${post.numOfComments} comments"
 
-        if (post.links?.size!! > 1) {
-            post.links.forEach {
-                Glide.with(context).downloadOnly().load(it).diskCacheStrategy(DiskCacheStrategy.RESOURCE)
+            setUpImageView(post, this)
+        }
+
+
+        @SuppressLint("ClickableViewAccessibility")
+        private fun setUpImageView(post: Post, holder: PostSubredditViewHolder) {
+            var hasImageLoaded = false
+            var currentPos: Int? = null
+            val positionSubject = PublishSubject.create<Int>()
+            positionSubject
+                .subscribe { position ->
+                    loadWithGlideInto(post.links!![position], holder.imageView, hasImageLoaded)
+                    currentPos = position
+                }
+                .addTo(disposables)
+
+            positionSubject.onNext(0)
+            hasImageLoaded = true
+
+            if (post.links?.size!! > 1) {
+                post.links.forEach {
+                    Glide.with(context).downloadOnly().load(it).diskCacheStrategy(DiskCacheStrategy.RESOURCE)
+                }
+
+                holder.galleryIndicatorImageView.visibility = View.VISIBLE
+                holder.galleryItemsTextView.visibility = View.VISIBLE
+                holder.galleryItemsTextView.text = post.links.size.toString()
+
+                holder.imageView.setOnTouchListener(object : OnSwipeTouchListener() {
+                    override fun onSwipeRight() {
+                        // Load previous item in the gallery
+                        if (currentPos in 1..post.links.size + 1) {
+                            positionSubject.onNext(currentPos!! - 1)
+                        }
+                        Toast.makeText(context, "Right", Toast.LENGTH_SHORT).show();
+                    }
+
+                    override fun onSwipeLeft() {
+                        // Load next item in the gallery
+                        if (currentPos in 0 until post.links.size - 1) {
+                            positionSubject.onNext(currentPos!! + 1)
+                        }
+                        Toast.makeText(context, "Left", Toast.LENGTH_SHORT).show();
+                    }
+                })
+            }
+        }
+
+        @SuppressLint("CheckResult")
+        private fun loadWithGlideInto(link: String, imageView: ImageView, updateExisting: Boolean) {
+            val builder = Glide.with(context).load(link)
+                .error(R.drawable.not_found_24)
+                .override(imageView.width.dpToPx(context), 0)
+                .addListener(object : RequestListener<Drawable> {
+                    override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>?, isFirstResource: Boolean) =
+                        false
+
+                    override fun onResourceReady(
+                        resource: Drawable?,
+                        model: Any?,
+                        target: Target<Drawable>?,
+                        dataSource: DataSource?,
+                        isFirstResource: Boolean
+                    ): Boolean {
+                        resource?.let {
+                            val oldImageViewWidth = imageView.measuredWidth
+                            val oldImageViewHeight = imageView.measuredHeight
+                            val width = resource.intrinsicWidth
+                            val height = resource.intrinsicHeight
+                            val newImageViewHeight = ((imageView.width.toFloat() / width) * height).toInt()
+
+                            animateViewLayoutChange(imageView, oldImageViewWidth, oldImageViewWidth, oldImageViewHeight, newImageViewHeight)
+                        }
+                        return false
+                    }
+                }).apply {
+                    if (updateExisting) {
+                        transition(
+                            DrawableTransitionOptions.withCrossFade(
+                                DrawableCrossFadeFactory.Builder().setCrossFadeEnabled(false).build()
+                            )
+                        )
+                    } else {
+                        placeholder(R.drawable.ic_download)
+                    }
+                    into(imageView)
+                }
+
+            imageView.adjustViewBounds = true
+        }
+
+        private fun animateViewLayoutChange(view: View, oldWidth: Int, newWidth: Int, oldHeight: Int, newHeight: Int) {
+
+            val slideAnimator = ValueAnimator
+                .ofInt(oldHeight, newHeight)
+                .setDuration(150)
+
+            slideAnimator.addUpdateListener { animation ->
+                // get the value the interpolator is at
+                val value = animation.animatedValue as Int
+                view.layoutParams.height = value
+                // force all layouts to see which ones are affected by this layouts height change
+                view.requestLayout()
             }
 
-            holder.galleryIndicatorImageView.visibility = View.VISIBLE
-            holder.galleryItemsTextView.visibility = View.VISIBLE
-            holder.galleryItemsTextView.text = post.links.size.toString()
-
-            holder.imageView.setOnTouchListener(object : OnSwipeTouchListener() {
-                override fun onSwipeRight() {
-                    // Load previous item in the gallery
-                    if (currentPos in 1..post.links.size + 1) {
-                        positionSubject.onNext(currentPos!! - 1)
-                    }
-                    Toast.makeText(context, "Right", Toast.LENGTH_SHORT).show();
-                }
-
-                override fun onSwipeLeft() {
-                    // Load next item in the gallery
-                    if (currentPos in 0 until post.links.size - 1) {
-                        positionSubject.onNext(currentPos!! + 1)
-                    }
-                    Toast.makeText(context, "Left", Toast.LENGTH_SHORT).show();
-                }
-            })
+            val animatorSet = AnimatorSet()
+            animatorSet.play(slideAnimator)
+            animatorSet.interpolator = AccelerateDecelerateInterpolator()
+            animatorSet.start()
         }
     }
 
-    private fun loadWithGlideInto(link: String, imageView: ImageView, updateExisting: Boolean = false) {
+    object PostComparator : DiffUtil.ItemCallback<Post>() {
 
-        val builder = Glide.with(context).load(link)
-            .error(R.drawable.not_found_24)
-            .override(imageView.width.dpToPx(context), 0)
+        override fun areItemsTheSame(oldItem: Post, newItem: Post): Boolean = oldItem.name == newItem.name
 
-        if (updateExisting) {
-            builder.addListener(object : RequestListener<Drawable> {
-                override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>?, isFirstResource: Boolean) =
-                    false
-
-                override fun onResourceReady(
-                    resource: Drawable?,
-                    model: Any?,
-                    target: Target<Drawable>?,
-                    dataSource: DataSource?,
-                    isFirstResource: Boolean
-                ): Boolean {
-                    resource?.let {
-                        val oldImageViewWidth = imageView.measuredWidth
-                        val oldImageViewHeight = imageView.measuredHeight
-                        val width = resource.intrinsicWidth
-                        val height = resource.intrinsicHeight
-                        val newImageViewHeight = ((imageView.width.toFloat() / width) * height).toInt()
-
-                        animateViewLayoutChange(imageView, oldImageViewWidth, oldImageViewWidth, oldImageViewHeight, newImageViewHeight)
-                    }
-                    return false
-                }
-            })
-                .transition(
-                    DrawableTransitionOptions.withCrossFade(
-                        DrawableCrossFadeFactory.Builder().setCrossFadeEnabled(false).build()
-                    )
-                )
-
-        } else {
-            builder.placeholder(R.drawable.ic_download)
-        }
-            .into(imageView)
-
-        imageView.adjustViewBounds = true
-        imageView.requestLayout()
-    }
-
-    fun animateViewLayoutChange(view: View, oldWidth: Int, newWidth: Int, oldHeight: Int, newHeight: Int) {
-
-        val slideAnimator = ValueAnimator
-            .ofInt(oldHeight, newHeight)
-            .setDuration(150)
-
-        slideAnimator.addUpdateListener { animation ->
-            // get the value the interpolator is at
-            val value = animation.animatedValue as Int
-            view.layoutParams.height = value
-            // force all layouts to see which ones are affected by
-            // this layouts height change
-            view.requestLayout()
-        }
-
-        val set = AnimatorSet()
-        set.play(slideAnimator)
-        set.interpolator = AccelerateDecelerateInterpolator()
-        set.start()
-    }
-
-    class PostSubredditViewHolder(postView: View) : RecyclerView.ViewHolder(postView) {
-
-        val titleTextView: TextView
-        val imageView: ImageView
-        val dateAuthorTextView: TextView
-        val commentsTextView: TextView
-        val galleryIndicatorImageView: ImageView
-        val galleryItemsTextView: TextView
-
-        init {
-            titleTextView = postView.findViewById(R.id.post_text_view)
-            dateAuthorTextView = postView.findViewById(R.id.post_date_author_text_view)
-            imageView = postView.findViewById(R.id.post_image_view)
-            commentsTextView = postView.findViewById(R.id.post_comments_text)
-            galleryIndicatorImageView = postView.findViewById(R.id.gallery_indicator_image_view)
-            galleryItemsTextView = postView.findViewById(R.id.gallery_items_text_view)
-        }
+        override fun areContentsTheSame(oldItem: Post, newItem: Post): Boolean = oldItem == newItem
     }
 }
