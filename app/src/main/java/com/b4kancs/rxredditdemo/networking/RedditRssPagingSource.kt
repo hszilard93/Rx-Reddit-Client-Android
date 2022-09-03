@@ -16,8 +16,8 @@ class RedditRssPagingSource(val subreddit: String) : RxPagingSource<String, Post
         const val LOG_TAG = "RedditRssPagingSource"
         const val FEED_URL = "https://www.reddit.com"
         const val PAGE_SIZE = 15
-//        const val DEFAULT_SUBREDDIT = "user/kjoneslol/m/sfwpornnetwork"
-        const val DEFAULT_SUBREDDIT = "r/hungary"
+        const val DEFAULT_SUBREDDIT = "user/kjoneslol/m/sfwpornnetwork"
+//        const val DEFAULT_SUBREDDIT = "r/hungary"
 
         private val service: RedditRssService by inject(RedditRssService::class.java)
 

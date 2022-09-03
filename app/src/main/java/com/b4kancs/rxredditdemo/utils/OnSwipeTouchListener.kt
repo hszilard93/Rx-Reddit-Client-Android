@@ -40,8 +40,8 @@ open class OnSwipeTouchListener : OnTouchListener {
     private lateinit var view: View
 
     companion object {
-        private const val SWIPE_THRESHOLD = 10
-        private const val SWIPE_VELOCITY_THRESHOLD = 10
+        private const val SWIPE_THRESHOLD = 20
+        private const val SWIPE_VELOCITY_THRESHOLD = 0
     }
 
     private val context: Context by inject(Context::class.java)

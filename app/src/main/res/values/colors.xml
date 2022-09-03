@@ -60,6 +60,7 @@
     <color name="md_theme_dark_shadow">#000000</color>
     <color name="md_theme_dark_surfaceTint">#67D3FF</color>
     <color name="md_theme_dark_surfaceTintColor">#67D3FF</color>
+    <color name="dark_statusBarColor">#003544</color>
 </resources>
 
 <!--<resources>-->
