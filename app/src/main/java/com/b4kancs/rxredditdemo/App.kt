@@ -1,6 +1,7 @@
 package com.b4kancs.rxredditdemo
 
 import android.app.Application
+import com.b4kancs.rxredditdemo.database.SubredditRoomDatabase
 import com.b4kancs.rxredditdemo.networking.RedditRssPagingSource
 import com.b4kancs.rxredditdemo.networking.RedditRssService
 import com.b4kancs.rxredditdemo.ui.home.HomeViewModel
@@ -21,7 +22,9 @@ class App : Application() {
 
     private val appModule = module {
         single { createRedditRssServiceInstant() }
+        single { SubredditRoomDatabase.fetchDatabase(this@App) }
         viewModel { HomeViewModel() }
+        single { assets }
     }
 
     override fun onCreate() {

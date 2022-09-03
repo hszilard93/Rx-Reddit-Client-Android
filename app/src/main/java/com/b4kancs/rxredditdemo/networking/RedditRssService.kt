@@ -9,7 +9,7 @@ import retrofit2.http.Url
 
 interface RedditRssService {
 
-    @GET("/r/{subreddit}/.json")
+    @GET("/{subreddit}/.json")
     fun getSubredditJson(
         @Path("subreddit") subreddit: String,
         @Query("limit") limit: Int,

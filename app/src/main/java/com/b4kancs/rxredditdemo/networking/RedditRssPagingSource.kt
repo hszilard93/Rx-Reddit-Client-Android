@@ -14,7 +14,8 @@ class RedditRssPagingSource(val subreddit: String) : RxPagingSource<String, Post
         private val service: RedditRssService by inject(RedditRssService::class.java)
         const val FEED_URL = "https://www.reddit.com"
         const val PAGE_SIZE = 15
-        const val DEFAULT_SUBREDDIT = "pics"
+        const val DEFAULT_SUBREDDIT = "user/kjoneslol/m/sfwpornnetwork"
+//        const val DEFAULT_SUBREDDIT = "r/pics"
 
         fun getPictureIdsFromGalleryPostAtUrl(url: String): Single<List<String>> {
             return service
