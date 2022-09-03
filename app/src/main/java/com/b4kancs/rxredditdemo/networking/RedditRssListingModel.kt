@@ -30,7 +30,14 @@ data class RedditRssListingModel(
         val score: Int,
         @SerializedName("created") val createdAt: Int,
         @SerializedName("over_18") val nsfw: Boolean,
-        @SerializedName("num_comments") val numOfComments: Int
+        @SerializedName("num_comments") val numOfComments: Int,
+        @SerializedName("crosspost_parent_list") val crosspostParents: List<RedditPostModelParent>?
+    )
+
+    // "/data/children/data/0/"
+    data class RedditPostModelParent(
+        val subreddit: String,
+        val url: String
     )
 }
 

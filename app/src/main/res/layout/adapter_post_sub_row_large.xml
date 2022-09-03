@@ -48,7 +48,7 @@
         app:layout_constraintRight_toRightOf="@id/post_image_view" />
 
     <com.google.android.material.textview.MaterialTextView
-        android:id="@+id/post_text_view"
+        android:id="@+id/post_title_text_view"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_margin="8dp"
@@ -70,17 +70,33 @@
         android:layout_marginEnd="8dp"
         android:layout_marginBottom="2dp"
         android:ellipsize="end"
-        android:maxLines="1"
+        android:maxLines="2"
         android:text="@string/date_author_placeholder_text"
         android:textColor="?attr/colorSecondary"
         android:textSize="12sp"
-        app:layout_constraintBottom_toTopOf="@id/post_comments_text"
-        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/post_comments_text_view"
         app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/post_cross_text_view"
         app:layout_constraintVertical_weight="2" />
 
     <com.google.android.material.textview.MaterialTextView
-        android:id="@+id/post_comments_text"
+        android:id="@+id/post_cross_text_view"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginBottom="2dp"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:text="xpost from ..."
+        android:textColor="?attr/colorSecondary"
+        android:textSize="12sp"
+        app:layout_constraintBaseline_toBaselineOf="@id/post_date_author_text_view"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/post_title_text_view" />
+
+    <com.google.android.material.textview.MaterialTextView
+        android:id="@+id/post_comments_text_view"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"

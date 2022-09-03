@@ -43,6 +43,7 @@ class App : Application() {
 
         val client = OkHttpClient.Builder()
             .addInterceptor(loggingInterceptor)
+            .followRedirects(true)
             .build()
 
         val retrofit = Retrofit.Builder()

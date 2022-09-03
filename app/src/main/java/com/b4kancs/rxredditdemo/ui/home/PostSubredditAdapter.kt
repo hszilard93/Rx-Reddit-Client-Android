@@ -5,6 +5,7 @@ import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.drawable.Drawable
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -23,22 +24,27 @@ import com.b4kancs.rxredditdemo.utils.dpToPx
 import com.b4kancs.rxredditdemo.utils.resetOnTouchListener
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.DataSource
-import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.bumptech.glide.load.engine.GlideException
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
 import com.bumptech.glide.request.RequestListener
+import com.bumptech.glide.request.RequestOptions
 import com.bumptech.glide.request.target.Target
 import com.bumptech.glide.request.transition.DrawableCrossFadeFactory
+import com.jakewharton.rxbinding4.view.clicks
 import io.reactivex.rxjava3.disposables.CompositeDisposable
+import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.kotlin.addTo
 import io.reactivex.rxjava3.subjects.PublishSubject
+import jp.wasabeef.glide.transformations.BlurTransformation
 import org.koin.java.KoinJavaComponent.inject
 import java.util.*
 
-
 class PostSubredditAdapter :
-//    RecyclerView.Adapter<PostSubredditAdapter.PostSubredditViewHolder>() {
     PagingDataAdapter<Post, PostSubredditAdapter.PostSubredditViewHolder>(PostComparator) {
+
+    companion object {
+        const val LOG_TAG = "PostSubredditAdapter"
+    }
 
     private lateinit var orientation: Orientation
     private val disposables = CompositeDisposable()
@@ -79,10 +85,11 @@ class PostSubredditAdapter :
 
     inner class PostSubredditViewHolder(postView: View) : RecyclerView.ViewHolder(postView) {
 
-        val titleTextView: TextView = postView.findViewById(R.id.post_text_view)
+        val titleTextView: TextView = postView.findViewById(R.id.post_title_text_view)
         val imageView: ImageView = postView.findViewById(R.id.post_image_view)
         val dateAuthorTextView: TextView = postView.findViewById(R.id.post_date_author_text_view)
-        val commentsTextView: TextView = postView.findViewById(R.id.post_comments_text)
+        val crossPostTextView: TextView = postView.findViewById(R.id.post_cross_text_view)
+        val commentsTextView: TextView = postView.findViewById(R.id.post_comments_text_view)
         val galleryIndicatorImageView: ImageView = postView.findViewById(R.id.gallery_indicator_image_view)
         val galleryItemsTextView: TextView = postView.findViewById(R.id.gallery_items_text_view)
 
@@ -91,8 +98,15 @@ class PostSubredditAdapter :
 //                titleTextView.text = "null"
 //                return
 //            }
-//
             titleTextView.text = post.title
+
+            if (post.crossPostFrom != null) {
+                crossPostTextView.visibility = View.VISIBLE
+                crossPostTextView.text = "xpost from r/${post.crossPostFrom}"
+            } else {
+                crossPostTextView.visibility = View.GONE
+            }
+            commentsTextView.text = "${post.numOfComments} comments"
 
             val postAgeInMinutes = (Date().time - (post.createdAt * 1000L)) / (60 * 1000L) // time difference in ms divided by a minute
             val postAge = when (postAgeInMinutes) {
@@ -104,8 +118,6 @@ class PostSubredditAdapter :
             }
             dateAuthorTextView.text = "posted ${postAge.first} ${postAge.second} ago by ${post.author}"
 
-            commentsTextView.text = "${post.numOfComments} comments"
-
             setUpImageView(post, this)
         }
 
@@ -115,19 +127,32 @@ class PostSubredditAdapter :
             var hasImageLoaded = false
             var currentPos: Int? = null
             val positionSubject = PublishSubject.create<Int>()
+            var isNsfw = post.nsfw
+
             positionSubject
                 .subscribe { position ->
-                    loadWithGlideInto(post.links!![position], holder.imageView, hasImageLoaded)
+                    loadWithGlideInto(post.links!![position], imageView, hasImageLoaded, isNsfw)
                     currentPos = position
                 }
                 .addTo(disposables)
+
+            if (isNsfw) {
+                imageView.clicks()
+                    .doOnSubscribe { Log.d(LOG_TAG, "Subscribing for imageView clicks.") }
+                    .subscribe {
+                        Log.d(LOG_TAG, "Unblurring.")
+                        isNsfw = false
+                        positionSubject.onNext(currentPos)
+                    }
+                    .addTo(disposables)
+            }
 
             positionSubject.onNext(0)
             hasImageLoaded = true
 
             if (post.links?.size!! > 1) {
                 post.links.forEach {
-                    Glide.with(context).downloadOnly().load(it).diskCacheStrategy(DiskCacheStrategy.RESOURCE)
+                    Glide.with(context).downloadOnly().load(it)
                 }
 
                 holder.galleryIndicatorImageView.visibility = View.VISIBLE
@@ -135,6 +160,7 @@ class PostSubredditAdapter :
                 holder.galleryItemsTextView.text = post.links.size.toString()
 
                 holder.imageView.setOnTouchListener(object : OnSwipeTouchListener() {
+
                     override fun onSwipeRight() {
                         // Load previous item in the gallery
                         if (currentPos in 1..post.links.size + 1) {
@@ -150,12 +176,13 @@ class PostSubredditAdapter :
                         }
                         Toast.makeText(context, "Left", Toast.LENGTH_SHORT).show();
                     }
+
                 })
             }
         }
 
         @SuppressLint("CheckResult")
-        private fun loadWithGlideInto(link: String, imageView: ImageView, updateExisting: Boolean) {
+        private fun loadWithGlideInto(link: String, imageView: ImageView, updateExisting: Boolean, nsfw: Boolean) {
             val builder = Glide.with(context).load(link)
                 .error(R.drawable.not_found_24)
                 .override(imageView.width.dpToPx(context), 0)
@@ -190,6 +217,9 @@ class PostSubredditAdapter :
                         )
                     } else {
                         placeholder(R.drawable.ic_download)
+                    }
+                    if (nsfw) {
+                        apply(RequestOptions.bitmapTransform(BlurTransformation(25, 10)))
                     }
                     into(imageView)
                 }

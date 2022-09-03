@@ -1,8 +1,10 @@
 package com.b4kancs.rxredditdemo.networking
 
+import android.util.Log
 import androidx.paging.PagingState
 import androidx.paging.rxjava3.RxPagingSource
 import com.b4kancs.rxredditdemo.model.Post
+import io.reactivex.rxjava3.core.Maybe
 import io.reactivex.rxjava3.core.Single
 import io.reactivex.rxjava3.schedulers.Schedulers
 import io.reactivex.rxjava3.subjects.PublishSubject
@@ -11,24 +13,34 @@ import org.koin.java.KoinJavaComponent.inject
 class RedditRssPagingSource(val subreddit: String) : RxPagingSource<String, Post>() {
 
     companion object {
-        private val service: RedditRssService by inject(RedditRssService::class.java)
+        const val LOG_TAG = "RedditRssPagingSource"
         const val FEED_URL = "https://www.reddit.com"
         const val PAGE_SIZE = 15
-        const val DEFAULT_SUBREDDIT = "user/kjoneslol/m/sfwpornnetwork"
-//        const val DEFAULT_SUBREDDIT = "r/pics"
+//        const val DEFAULT_SUBREDDIT = "user/kjoneslol/m/sfwpornnetwork"
+        const val DEFAULT_SUBREDDIT = "r/hungary"
 
-        fun getPictureIdsFromGalleryPostAtUrl(url: String): Single<List<String>> {
+        private val service: RedditRssService by inject(RedditRssService::class.java)
+
+        fun getPictureIdsFromGalleryPostAtUrl(url: String): Maybe<List<String>> {
             return service
                 .getGalleryJson("$url/.json")
+                .subscribeOn(Schedulers.io())
                 .map { response ->
-                    println(response.body())
+                    if (!response.isSuccessful) {
+                        Log.e(LOG_TAG, "Error getting gallery items for $url. Error: ${response.code()}")
+                        return@map emptyList()
+                    }
                     response.body()!!
                         .first().data.children.first().data.galleryData.items
                 }
-                .map { items ->
+                .flatMapMaybe { items ->
                     val ids = ArrayList<String>()
-                    items.forEach { ids.add(it.mediaId) }
-                    ids
+                    if (items.isEmpty()) {
+                        Maybe.empty()
+                    } else {
+                        items.forEach { ids.add(it.mediaId) }
+                        Maybe.just(ids)
+                    }
                 }
         }
     }
@@ -39,7 +51,6 @@ class RedditRssPagingSource(val subreddit: String) : RxPagingSource<String, Post
             params.loadSize,
             params.key
         )
-//            .subscribeOn(Schedulers.io())
             .map { response -> response.body()!!.data.children }
             .map { posts ->
                 posts
@@ -59,21 +70,3 @@ class RedditRssPagingSource(val subreddit: String) : RxPagingSource<String, Post
         return null
     }
 }
-//
-//object RedditRssFeed {
-//    const val FEED_URL = "https://www.reddit.com"
-//    private const val PAGE_SIZE = 5
-//    private val service: RedditRssService by inject(RedditRssService::class.java)
-//
-//    fun getPostsOnSub(subreddit: String, after: String? = null): Single<List<Post>> {
-//        return service.getSubredditJson(subreddit, PAGE_SIZE, after)
-//            .map { response -> response.body()!!.data.children }
-//            .map { posts ->
-//                posts
-//                    .map { Post.from(it.data) }
-//                    .filter { it.links != null }        // The links of all posts that are not picture or gallery posts is null
-//            }
-//            .subscribeOn(Schedulers.io())
-//    }
-//
-//}

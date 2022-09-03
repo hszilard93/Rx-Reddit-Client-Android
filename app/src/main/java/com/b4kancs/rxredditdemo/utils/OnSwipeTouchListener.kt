@@ -37,6 +37,8 @@ Usage:
 
 open class OnSwipeTouchListener : OnTouchListener {
 
+    private lateinit var view: View
+
     companion object {
         private const val SWIPE_THRESHOLD = 10
         private const val SWIPE_VELOCITY_THRESHOLD = 10
@@ -51,6 +53,7 @@ open class OnSwipeTouchListener : OnTouchListener {
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouch(view: View, motionEvent: MotionEvent): Boolean {
+        this.view = view
         return gestureDetector.onTouchEvent(motionEvent)
     }
 
@@ -58,6 +61,11 @@ open class OnSwipeTouchListener : OnTouchListener {
 
         override fun onDown(e: MotionEvent): Boolean {
             return true
+        }
+
+        override fun onSingleTapUp(e: MotionEvent?): Boolean {
+            view.performClick()
+            return super.onSingleTapUp(e)
         }
 
         // Determines the fling velocity and then fires the appropriate swipe event accordingly
@@ -73,6 +81,7 @@ open class OnSwipeTouchListener : OnTouchListener {
                         } else {
                             onSwipeLeft()
                         }
+//                        hasSwiped = true
                     }
                 } else {
                     if (abs(diffY) > SWIPE_THRESHOLD && abs(velocityY) > SWIPE_VELOCITY_THRESHOLD) {
@@ -81,6 +90,7 @@ open class OnSwipeTouchListener : OnTouchListener {
                         } else {
                             onSwipeUp()
                         }
+//                        hasSwiped = true
                     }
                 }
             } catch (exception: Exception) {
