@@ -28,7 +28,7 @@
         android:layout_marginBottom="8dp"
         android:layout_marginRight="4dp"
         android:alpha="0.7"
-        android:src="@drawable/gallery_icon_256"
+        android:src="@drawable/ic_gallery_256"
         android:visibility="invisible"
         app:layout_constraintBottom_toBottomOf="@id/post_image_view"
         app:layout_constraintRight_toLeftOf="@id/gallery_items_text_view" />

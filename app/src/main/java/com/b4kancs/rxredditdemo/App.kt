@@ -2,7 +2,7 @@ package com.b4kancs.rxredditdemo
 
 import android.app.Application
 import com.b4kancs.rxredditdemo.database.SubredditRoomDatabase
-import com.b4kancs.rxredditdemo.networking.RedditRssPagingSource
+import com.b4kancs.rxredditdemo.networking.RedditRssFeedPagingSource
 import com.b4kancs.rxredditdemo.networking.RedditRssService
 import com.b4kancs.rxredditdemo.ui.home.HomeViewModel
 import com.google.gson.FieldNamingPolicy
@@ -47,7 +47,7 @@ class App : Application() {
             .build()
 
         val retrofit = Retrofit.Builder()
-            .baseUrl(RedditRssPagingSource.FEED_URL)
+            .baseUrl(RedditRssFeedPagingSource.FEED_URL)
             .client(client)
             .addCallAdapterFactory(RxJava3CallAdapterFactory.create())
             .addConverterFactory(

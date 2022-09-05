@@ -4,20 +4,19 @@ import android.util.Log
 import androidx.paging.PagingState
 import androidx.paging.rxjava3.RxPagingSource
 import com.b4kancs.rxredditdemo.model.Post
+import com.b4kancs.rxredditdemo.model.Subreddit
 import io.reactivex.rxjava3.core.Maybe
 import io.reactivex.rxjava3.core.Single
 import io.reactivex.rxjava3.schedulers.Schedulers
-import io.reactivex.rxjava3.subjects.PublishSubject
 import org.koin.java.KoinJavaComponent.inject
 
-class RedditRssPagingSource(val subreddit: String) : RxPagingSource<String, Post>() {
+class RedditRssFeedPagingSource(val subreddit: String) : RxPagingSource<String, Post>() {
 
     companion object {
         const val LOG_TAG = "RedditRssPagingSource"
         const val FEED_URL = "https://www.reddit.com"
         const val PAGE_SIZE = 15
-        const val DEFAULT_SUBREDDIT = "user/kjoneslol/m/sfwpornnetwork"
-//        const val DEFAULT_SUBREDDIT = "r/hungary"
+        val defaultSubreddit = Subreddit( "SFWPornNetwork", "user/kjoneslol/m/sfwpornnetwork")
 
         private val service: RedditRssService by inject(RedditRssService::class.java)
 

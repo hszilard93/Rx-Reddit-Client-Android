@@ -2,7 +2,7 @@ package com.b4kancs.rxredditdemo.model
 
 import android.util.Log
 import com.b4kancs.rxredditdemo.networking.RedditRssListingModel.RedditPostDataModel
-import com.b4kancs.rxredditdemo.networking.RedditRssPagingSource
+import com.b4kancs.rxredditdemo.networking.RedditRssFeedPagingSource
 
 data class Post(
     val name: String,
@@ -50,7 +50,7 @@ data class Post(
                             LOG_TAG,
                             "Attempting to get links to gallery items on post $name $title; gallery url $url; request url $galleryPostUrl."
                         )
-                        val ids: List<String>? = RedditRssPagingSource.getPictureIdsFromGalleryPostAtUrl(galleryPostUrl)
+                        val ids: List<String>? = RedditRssFeedPagingSource.getPictureIdsFromGalleryPostAtUrl(galleryPostUrl)
                             .blockingGet()
                         ids?.map { imageId -> "https://i.redd.it/$imageId.jpg" }
                     }

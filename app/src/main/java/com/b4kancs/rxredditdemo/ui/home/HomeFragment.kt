@@ -1,18 +1,17 @@
 package com.b4kancs.rxredditdemo.ui.home
 
-import android.annotation.SuppressLint
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
-import androidx.lifecycle.distinctUntilChanged
+import androidx.paging.LoadState
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.b4kancs.rxredditdemo.MainActivity
+import com.b4kancs.rxredditdemo.ui.MainActivity
 import com.b4kancs.rxredditdemo.databinding.FragmentHomeBinding
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
-import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.addTo
 import org.koin.androidx.viewmodel.ext.android.viewModel
@@ -35,7 +34,6 @@ class HomeFragment : Fragment() {
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
 
 //        homeViewModel = ViewModelProvider(this)[HomeViewModel::class.java]
-
         return binding.root
     }
 
@@ -43,36 +41,50 @@ class HomeFragment : Fragment() {
         super.onResume()
         val activity = activity as MainActivity
 
-        val adapter = PostSubredditAdapter()
-        homeViewModel.cachedFlowable
-            .subscribe { pagingData ->
-                try {
-                    adapter.let {
-                        binding.recyclerPosts.adapter = it
-                        it.submitData(viewLifecycleOwner.lifecycle, pagingData)
+        binding.apply {
+            val pagingAdapter = PostSubredditAdapter()
+
+            homeViewModel.cachedPagingObservable
+                .subscribe { pagingData ->
+                    try {
+                        pagingAdapter.let {
+                            if (recyclerPosts.adapter == null) {
+                                recyclerPosts.adapter = it
+                                recyclerPosts.layoutManager = LinearLayoutManager(context)
+                            }
+                            it.submitData(viewLifecycleOwner.lifecycle, pagingData)
+                        }
+                        recyclerPosts.isVisible = true
+                    } catch (e: Exception) {
+                        // There might be a weird NullPointerException happening sometimes that doesn't really seem to do anything
+                        Log.e(LOG_TAG, e.stackTraceToString())
                     }
-                    binding.recyclerPosts.layoutManager = LinearLayoutManager(context)
-                    binding.progressCircular.visibility = View.GONE
-                } catch (e: Exception) {
-                    // There might be a weird NullPointerException happening sometimes that doesn't really seem to do anything
-                    Log.e(LOG_TAG, e.stackTraceToString())
                 }
-            }
-            .addTo(disposables)
+                .addTo(disposables)
 
-        homeViewModel.subredditNameLiveData.observe(activity) { subredditName ->
-            activity.supportActionBar?.title = subredditName
-        }
-
-        homeViewModel.subredditChangedSubject
-            .subscribe {
-                adapter.refresh()
+            pagingAdapter.addLoadStateListener { combinedLoadStates ->
+                progressBar.isVisible = combinedLoadStates.refresh is LoadState.Loading
             }
 
-        binding.swipeRefreshLayout.apply {
-            setOnRefreshListener {
-                adapter.refresh()
-                isRefreshing = false
+            homeViewModel.subredditNameLiveData.observe(activity) { subredditName ->
+                activity.supportActionBar?.title = subredditName
+            }
+
+            activity.subredditSelectedChangedSubject
+                .debounce(1, TimeUnit.SECONDS)
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe { sub ->
+                    recyclerPosts.isVisible = false
+                    homeViewModel.changeSubreddit(sub)
+                    pagingAdapter.refresh()
+                }
+                .addTo(disposables)
+
+            swipeRefreshLayout.apply {
+                setOnRefreshListener {
+                    pagingAdapter.refresh()
+                    isRefreshing = false
+                }
             }
         }
     }

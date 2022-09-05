@@ -32,7 +32,6 @@ import com.bumptech.glide.request.target.Target
 import com.bumptech.glide.request.transition.DrawableCrossFadeFactory
 import com.jakewharton.rxbinding4.view.clicks
 import io.reactivex.rxjava3.disposables.CompositeDisposable
-import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.kotlin.addTo
 import io.reactivex.rxjava3.subjects.PublishSubject
 import jp.wasabeef.glide.transformations.BlurTransformation
@@ -116,13 +115,13 @@ class PostSubredditAdapter :
                 in 525600 until Long.MAX_VALUE -> postAgeInMinutes / 525600 to "year(s)"
                 else -> postAgeInMinutes to "ms"
             }
-            dateAuthorTextView.text = "posted ${postAge.first} ${postAge.second} ago by ${post.author}"
+            dateAuthorTextView.text = "posted ${postAge.first} ${postAge.second} ago by ${post.author} to r/${post.subreddit}"
 
             setUpImageView(post, this)
         }
 
 
-        @SuppressLint("ClickableViewAccessibility")
+        @SuppressLint("ClickableViewAccessibility", "CheckResult")
         private fun setUpImageView(post: Post, holder: PostSubredditViewHolder) {
             var hasImageLoaded = false
             var currentPos: Int? = null
@@ -166,7 +165,7 @@ class PostSubredditAdapter :
                         if (currentPos in 1..post.links.size + 1) {
                             positionSubject.onNext(currentPos!! - 1)
                         }
-                        Toast.makeText(context, "Right", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(context, "Right", Toast.LENGTH_SHORT).show()
                     }
 
                     override fun onSwipeLeft() {
@@ -174,7 +173,7 @@ class PostSubredditAdapter :
                         if (currentPos in 0 until post.links.size - 1) {
                             positionSubject.onNext(currentPos!! + 1)
                         }
-                        Toast.makeText(context, "Left", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(context, "Left", Toast.LENGTH_SHORT).show()
                     }
 
                 })
@@ -183,8 +182,8 @@ class PostSubredditAdapter :
 
         @SuppressLint("CheckResult")
         private fun loadWithGlideInto(link: String, imageView: ImageView, updateExisting: Boolean, nsfw: Boolean) {
-            val builder = Glide.with(context).load(link)
-                .error(R.drawable.not_found_24)
+            Glide.with(context).load(link)
+                .error(R.drawable.ic_not_found_24)
                 .override(imageView.width.dpToPx(context), 0)
                 .addListener(object : RequestListener<Drawable> {
                     override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>?, isFirstResource: Boolean) =
