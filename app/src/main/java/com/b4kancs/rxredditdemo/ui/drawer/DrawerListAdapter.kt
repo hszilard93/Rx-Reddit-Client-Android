@@ -2,18 +2,15 @@ package com.b4kancs.rxredditdemo.ui.drawer
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
+import android.view.*
 import android.widget.ArrayAdapter
 import android.widget.ImageView
+import android.widget.PopupWindow
 import android.widget.TextView
-import androidx.core.view.isVisible
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.model.Subreddit
 import com.google.android.material.textview.MaterialTextView
 import com.jakewharton.rxbinding4.view.clicks
-import com.jakewharton.rxbinding4.view.visibility
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.addTo
 
@@ -114,6 +111,18 @@ class DrawerListAdapter(
                 notifyDataSetChanged()
             }
             .addTo(disposables)
+
+        viewHolder.optionsImageView.clicks()
+            .subscribe {
+                val popupView = inflater.inflate(R.layout.popup_drawer_options_list, parent, false)
+                val popupWindow = PopupWindow(
+                    popupView,
+                    WindowManager.LayoutParams.WRAP_CONTENT,
+                    WindowManager.LayoutParams.WRAP_CONTENT,
+                    true
+                )
+                popupWindow.showAsDropDown(listViewItem, 0, 0, Gravity.RIGHT)
+            }
 
         return listViewItem
     }

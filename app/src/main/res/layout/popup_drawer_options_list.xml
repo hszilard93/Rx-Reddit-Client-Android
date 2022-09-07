@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="250dp"
+    android:layout_height="wrap_content"
+    android:background="?attr/colorSurfaceVariant"
+    android:orientation="vertical">
+
+    <com.google.android.material.textview.MaterialTextView
+        android:id="@+id/option_remove_your_text_view"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="sans-serif-light"
+        android:gravity="center"
+        android:padding="8dp"
+        android:text="Remove from Your subreddits"
+        android:textSize="15sp"
+        android:textColor="?attr/colorTertiary"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <com.google.android.material.divider.MaterialDivider
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        app:dividerColor="?attr/colorControlHighlight"
+        app:dividerThickness="0.1dp"
+        app:layout_constraintEnd_toEndOf="@id/option_remove_your_text_view"
+        app:layout_constraintStart_toStartOf="@id/option_remove_your_text_view"
+        app:layout_constraintTop_toBottomOf="@id/option_remove_your_text_view" />
+
+    <com.google.android.material.textview.MaterialTextView
+        android:id="@+id/option_delete_sub_text_view"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:fontFamily="sans-serif-light"
+        android:gravity="center"
+        android:padding="8dp"
+        android:text="Delete from Subreddits"
+        android:textSize="15sp"
+        android:textColor="?attr/colorTertiary"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/option_remove_your_text_view" />
+
+    <com.google.android.material.divider.MaterialDivider
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        app:dividerColor="?attr/colorControlHighlight"
+        app:dividerThickness="0.1dp"
+        app:layout_constraintEnd_toEndOf="@id/option_delete_sub_text_view"
+        app:layout_constraintStart_toStartOf="@id/option_delete_sub_text_view"
+        app:layout_constraintTop_toBottomOf="@id/option_delete_sub_text_view" />
+
+    <com.google.android.material.textview.MaterialTextView
+        android:id="@+id/option_set_default_sub_text_view"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:fontFamily="sans-serif-light"
+        android:gravity="center"
+        android:padding="8dp"
+        android:text="Set as the default subreddit"
+        android:textSize="15sp"
+        android:textColor="?attr/colorTertiary"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/option_delete_sub_text_view" />
+</androidx.constraintlayout.widget.ConstraintLayout>
