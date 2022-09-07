@@ -10,8 +10,8 @@ import javax.xml.parsers.DocumentBuilderFactory
 
 @Entity
 data class Subreddit(
-    @PrimaryKey val name: String,
-    val address: String,
+    val name: String,
+    @PrimaryKey val address: String,
     val isFavorite: Boolean = false,
     val isDefault: Boolean = false
 ) {

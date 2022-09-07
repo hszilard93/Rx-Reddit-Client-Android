@@ -27,6 +27,8 @@ object SubredditRoomDatabase {
                     }
                 })
                 .build()
+            // This is here because the db doesn't get initialized until the first transaction happens
+            localDatabase.subredditDao().getSubreddits()
             database = localDatabase
             localDatabase
         }
