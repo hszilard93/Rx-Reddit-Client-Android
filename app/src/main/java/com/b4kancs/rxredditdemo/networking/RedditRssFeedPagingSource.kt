@@ -13,10 +13,11 @@ import org.koin.java.KoinJavaComponent.inject
 class RedditRssFeedPagingSource(val subreddit: String) : RxPagingSource<String, Post>() {
 
     companion object {
-        const val LOG_TAG = "RedditRssPagingSource"
+        private const val LOG_TAG = "RedditRssPagingSource"
         const val FEED_URL = "https://www.reddit.com"
         const val PAGE_SIZE = 15
         const val defaultSubredditPreferenceKey = "default_subreddit"
+        const val defaultSubredditPreferenceValue = "user/kjoneslol/m/sfwpornnetwork"
         var defaultSubreddit = Subreddit( "SFWPornNetwork", "user/kjoneslol/m/sfwpornnetwork")
 
         private val service: RedditRssService by inject(RedditRssService::class.java)

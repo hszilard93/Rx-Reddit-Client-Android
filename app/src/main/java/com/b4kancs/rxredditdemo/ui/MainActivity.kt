@@ -10,7 +10,6 @@ import androidx.navigation.findNavController
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.navigation.ui.setupWithNavController
-import androidx.preference.PreferenceManager
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.database.SubredditDatabase
 import com.b4kancs.rxredditdemo.databinding.ActivityMainBinding
@@ -37,10 +36,10 @@ class MainActivity : AppCompatActivity() {
     val subredditSelectedChangedSubject: PublishSubject<Subreddit> = PublishSubject.create()
 
     private val subredditDatabase: SubredditDatabase by inject()
+    private val rxSharedPreferences: RxSharedPreferences by inject()
     private val disposables = CompositeDisposable()
 
     private lateinit var binding: ActivityMainBinding
-    private lateinit var rxSharedPreferences: RxSharedPreferences
     private lateinit var drawerListAdapter: DrawerListAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -78,19 +77,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setUpSubredditDrawer() {
-        var listOfSubreddits: List<Subreddit>
-        // This is here because the room db doesn't get initialized in time on the first startup
-        while (true) {
-            listOfSubreddits = subredditDatabase.subredditDao().getSubreddits()
-                .subscribeOn(Schedulers.io())
-                .blockingGet()
-            if (listOfSubreddits.isNotEmpty())
-                break
-        }
-
         drawerListAdapter = DrawerListAdapter(
             this,
-            listOfSubreddits,
             onClickCallback = { sub ->
                 subredditSelectedChangedSubject.onNext(sub)
             },
@@ -123,25 +111,35 @@ class MainActivity : AppCompatActivity() {
                 rxSharedPreferences
                     .getString(RedditRssFeedPagingSource.defaultSubredditPreferenceKey)
                     .set(sub.address)
-                Toast.makeText(applicationContext, "${sub.address} is set as the default subreddit!", Toast.LENGTH_SHORT).show()
+                subredditDatabase.subredditDao().insertSubreddit(sub)
+                    .subscribeOn(Schedulers.io())
+                    .subscribe()
+                    .addTo(disposables)
+                Toast.makeText(this, "${sub.address} is set as the default subreddit!", Toast.LENGTH_SHORT).show()
             }
         )
         binding.drawerListView.adapter = drawerListAdapter
     }
 
     private fun setUpDefaultSubredditSharedPreferences() {
-        rxSharedPreferences = RxSharedPreferences.create(PreferenceManager.getDefaultSharedPreferences(applicationContext))
         val defaultSubredditPreference = rxSharedPreferences.getString(
             RedditRssFeedPagingSource.defaultSubredditPreferenceKey,
             RedditRssFeedPagingSource.defaultSubreddit.address
         )
+
         defaultSubredditPreference.asObservable().toV3Observable()
             .subscribe { address ->
-                RedditRssFeedPagingSource.defaultSubreddit = subredditDatabase.subredditDao().getSubredditByAddress(address)
-                    .subscribeOn(Schedulers.io())
-                    .blockingGet()
-                Log.d(LOG_TAG, "$address is made the default subreddit!")
+                try {
+                    RedditRssFeedPagingSource.defaultSubreddit = subredditDatabase.subredditDao().getSubredditByAddress(address)
+                        .subscribeOn(Schedulers.io())
+                        .blockingGet()
+                    Log.d(LOG_TAG, "$address is made the default subreddit!")
+                }
+                catch (e: Exception) {
+                    Log.e(LOG_TAG, "Could not get subreddit by address $address from database.")
+                }
             }
             .addTo(disposables)
+
     }
 }

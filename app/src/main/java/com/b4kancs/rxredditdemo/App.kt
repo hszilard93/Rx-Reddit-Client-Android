@@ -1,10 +1,13 @@
 package com.b4kancs.rxredditdemo
 
 import android.app.Application
+import android.os.StrictMode
+import androidx.preference.PreferenceManager
 import com.b4kancs.rxredditdemo.database.SubredditRoomDatabase
 import com.b4kancs.rxredditdemo.networking.RedditRssFeedPagingSource
 import com.b4kancs.rxredditdemo.networking.RedditRssService
 import com.b4kancs.rxredditdemo.ui.home.HomeViewModel
+import com.f2prateek.rx.preferences2.RxSharedPreferences
 import com.google.gson.FieldNamingPolicy
 import com.google.gson.GsonBuilder
 import okhttp3.OkHttpClient
@@ -23,12 +26,16 @@ class App : Application() {
     private val appModule = module {
         single { createRedditRssServiceInstant() }
         single { SubredditRoomDatabase.fetchDatabase(this@App) }
+        single { RxSharedPreferences.create(PreferenceManager.getDefaultSharedPreferences(this@App)) }
         viewModel { HomeViewModel() }
         single { assets }
     }
 
     override fun onCreate() {
         super.onCreate()
+
+        if(BuildConfig.DEBUG)
+            StrictMode.enableDefaults()
 
         startKoin {
             androidLogger()

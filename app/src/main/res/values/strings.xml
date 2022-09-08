@@ -8,4 +8,6 @@
     <string name="comments_placeholder_text">0 comments</string>
     <string name="your_subreddits">Your subreddits</string>
     <string name="default_subreddits">Default image subreddits</string>
+    <string name="your_subreddits_header">Your subreddits</string>
+    <string name="default_subreddits_header">Default subreddits</string>
 </resources>
