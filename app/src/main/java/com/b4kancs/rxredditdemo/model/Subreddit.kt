@@ -13,7 +13,7 @@ data class Subreddit(
     val name: String,
     @PrimaryKey val address: String,
     val isFavorite: Boolean = false,
-    val isDefault: Boolean = false
+    val isInDefaultList: Boolean = false
 ) {
     companion object {
         private val assets: AssetManager by inject(AssetManager::class.java)
@@ -32,7 +32,7 @@ data class Subreddit(
                 val element = nodeList.item(i) as Element
                 val name = element.getAttribute("name") ?: ""
                 val address = element.textContent
-                subreddits.add(Subreddit(name, address, isDefault = true))
+                subreddits.add(Subreddit(name, address, isInDefaultList = true))
             }
 
             return subreddits

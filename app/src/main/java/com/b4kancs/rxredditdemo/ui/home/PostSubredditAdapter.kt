@@ -18,10 +18,7 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.model.Post
-import com.b4kancs.rxredditdemo.utils.OnSwipeTouchListener
-import com.b4kancs.rxredditdemo.utils.Orientation
-import com.b4kancs.rxredditdemo.utils.dpToPx
-import com.b4kancs.rxredditdemo.utils.resetOnTouchListener
+import com.b4kancs.rxredditdemo.utils.*
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.DataSource
 import com.bumptech.glide.load.engine.GlideException
@@ -74,11 +71,13 @@ class PostSubredditAdapter :
 
     override fun onViewRecycled(holder: PostSubredditViewHolder) {
         // Resetting views before recyclerview reuses the ViewHolder
-        holder.imageView.setImageDrawable(null)
-        holder.imageView.resetOnTouchListener()
-        holder.imageView.adjustViewBounds = true
-        holder.galleryIndicatorImageView.visibility = View.INVISIBLE
-        holder.galleryItemsTextView.visibility = View.INVISIBLE
+        with(holder) {
+            imageView.setImageDrawable(null)
+            imageView.resetOnTouchListener()
+            imageView.layoutParams.height = dpToPixel(250, context)
+            galleryIndicatorImageView.visibility = View.INVISIBLE
+            galleryItemsTextView.visibility = View.INVISIBLE
+        }
         super.onViewRecycled(holder)
     }
 

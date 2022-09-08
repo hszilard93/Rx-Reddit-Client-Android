@@ -63,6 +63,7 @@
     <color name="md_theme_dark_surfaceTint">#67D3FF</color>
     <color name="md_theme_dark_surfaceTintColor">#67D3FF</color>
     <color name="md_theme_dark_statusBarColor">#003546</color>
+    <color name="gold">#FFE600</color>
 </resources>
 
 <!--<resources>-->

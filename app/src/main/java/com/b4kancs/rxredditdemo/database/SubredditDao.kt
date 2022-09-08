@@ -17,6 +17,9 @@ interface SubredditDao {
     @Query("SELECT * FROM subreddit ORDER BY name")
     fun getSubreddits(): Single<List<Subreddit>>
 
+    @Query("SELECT * FROM subreddit WHERE address = :address")
+    fun getSubredditByAddress(address: String): Single<Subreddit>
+
     @Delete
     fun deleteSubreddit(subreddit: Subreddit): Completable
 }

@@ -5,6 +5,8 @@ import android.content.res.Configuration
 import android.view.View
 import android.view.animation.Animation
 import android.view.animation.Transformation
+import hu.akarnokd.rxjava3.bridge.RxJavaBridge
+import io.reactivex.Observable
 
 
 enum class Orientation {
@@ -27,3 +29,6 @@ fun Int.dpToPx(context: Context): Int = dpToPixel(this, context)
 fun View.resetOnTouchListener() {
     this.setOnTouchListener(object : OnSwipeTouchListener() {})
 }
+
+fun <T : Any> Observable<T>.toV3Observable() : io.reactivex.rxjava3.core.Observable<T> =
+    RxJavaBridge.toV3Observable(this)

@@ -63,7 +63,7 @@ open class OnSwipeTouchListener : OnTouchListener {
             return true
         }
 
-        override fun onSingleTapUp(e: MotionEvent?): Boolean {
+        override fun onSingleTapUp(e: MotionEvent): Boolean {
             view.performClick()
             return super.onSingleTapUp(e)
         }
