@@ -11,8 +11,10 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.widget.ImageView
+import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
+import androidx.core.view.isVisible
 import androidx.paging.PagingDataAdapter
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
@@ -36,10 +38,12 @@ import org.koin.java.KoinJavaComponent.inject
 import java.util.*
 
 class PostSubredditAdapter :
-    PagingDataAdapter<Post, PostSubredditAdapter.PostSubredditViewHolder>(PostComparator) {
+    PagingDataAdapter<Post, RecyclerView.ViewHolder>(PostComparator) {
 
     companion object {
-        const val LOG_TAG = "PostSubredditAdapter"
+        private const val LOG_TAG = "PostSubredditAdapter"
+        private const val ITEM_VIEW_TYPE_POST = 1
+        private const val ITEM_VIEW_TYPE_LOAD = 2
     }
 
     private lateinit var orientation: Orientation
@@ -47,7 +51,12 @@ class PostSubredditAdapter :
     private val context: Context by inject(Context::class.java)
     private lateinit var postView: View
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PostSubredditViewHolder {
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+        if (viewType == ITEM_VIEW_TYPE_LOAD) {
+            val view = LayoutInflater.from(parent.context).inflate(R.layout.adapter_post_loading_list_item, parent, false)
+            return SmallBottomLoadingIndicatorViewHolder(view).apply { setIsRecyclable(false) }
+        }
+
         orientation = Orientation.fromInt(context.resources.configuration.orientation)
         val view =
             when (orientation) {
@@ -65,20 +74,32 @@ class PostSubredditAdapter :
         return PostSubredditViewHolder(view)
     }
 
-    override fun onBindViewHolder(holder: PostSubredditViewHolder, position: Int) {
-        getItem(position)?.let { holder.bind(it) }
+    override fun getItemViewType(position: Int): Int = if (position == itemCount - 1) ITEM_VIEW_TYPE_LOAD else ITEM_VIEW_TYPE_POST
+
+    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+        if (holder is PostSubredditViewHolder)
+            getItem(position)?.let { holder.bind(it) }
+        else
+            (holder as SmallBottomLoadingIndicatorViewHolder).bind(itemCount >= 0)
     }
 
-    override fun onViewRecycled(holder: PostSubredditViewHolder) {
-        // Resetting views before recyclerview reuses the ViewHolder
-        with(holder) {
-            imageView.setImageDrawable(null)
-            imageView.resetOnTouchListener()
-            imageView.layoutParams.height = dpToPixel(250, context)
-            galleryIndicatorImageView.visibility = View.INVISIBLE
-            galleryItemsTextView.visibility = View.INVISIBLE
+    override fun onViewRecycled(holder: RecyclerView.ViewHolder) {
+        if (holder is PostSubredditViewHolder) {
+            // Resetting views before recyclerview reuses the ViewHolder
+            with(holder) {
+                imageView.setImageDrawable(null)
+                imageView.resetOnTouchListener()
+                imageView.layoutParams.height = dpToPixel(250, context)
+                galleryIndicatorImageView.isVisible = false
+                galleryItemsTextView.isVisible = false
+                nsfwTagTextView.isVisible = false
+            }
         }
         super.onViewRecycled(holder)
+    }
+
+    override fun getItemCount(): Int {
+        return super.getItemCount() + 1     // Plus one for the bottom loading indicator
     }
 
     inner class PostSubredditViewHolder(postView: View) : RecyclerView.ViewHolder(postView) {
@@ -90,12 +111,9 @@ class PostSubredditAdapter :
         val commentsTextView: TextView = postView.findViewById(R.id.post_comments_text_view)
         val galleryIndicatorImageView: ImageView = postView.findViewById(R.id.gallery_indicator_image_view)
         val galleryItemsTextView: TextView = postView.findViewById(R.id.gallery_items_text_view)
+        val nsfwTagTextView: TextView = postView.findViewById(R.id.post_nsfw_tag_text_view)
 
         fun bind(post: Post) {
-//            if (post == null) {
-//                titleTextView.text = "null"
-//                return
-//            }
             titleTextView.text = post.title
 
             if (post.crossPostFrom != null) {
@@ -140,7 +158,13 @@ class PostSubredditAdapter :
                     .subscribe {
                         Log.d(LOG_TAG, "Unblurring.")
                         isNsfw = false
+                        nsfwTagTextView.isVisible = false
                         positionSubject.onNext(currentPos)
+                    }
+                    .addTo(disposables)
+                nsfwTagTextView.clicks()
+                    .subscribe {
+                        imageView.performClick()
                     }
                     .addTo(disposables)
             }
@@ -218,6 +242,7 @@ class PostSubredditAdapter :
                     }
                     if (nsfw) {
                         apply(RequestOptions.bitmapTransform(BlurTransformation(25, 10)))
+                        nsfwTagTextView.isVisible = true
                     }
                     into(imageView)
                 }
@@ -243,6 +268,14 @@ class PostSubredditAdapter :
             animatorSet.play(slideAnimator)
             animatorSet.interpolator = AccelerateDecelerateInterpolator()
             animatorSet.start()
+        }
+    }
+
+    inner class SmallBottomLoadingIndicatorViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+        private val smallBottomLoadingProgressBar: ProgressBar = view.findViewById(R.id.small_progress_bar)
+
+        fun bind(makeVisible: Boolean) {
+            smallBottomLoadingProgressBar.isVisible = makeVisible
         }
     }
 

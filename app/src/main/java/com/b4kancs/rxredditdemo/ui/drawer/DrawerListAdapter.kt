@@ -109,7 +109,7 @@ class DrawerListAdapter(
         val listViewItem = inflater.inflate(R.layout.drawer_subreddit_list_item, parent, false)
         val viewHolder = ViewHolder()
         with(viewHolder) {
-            actionImageView = listViewItem.findViewById<ImageView?>(R.id.subreddit_action_image_view)
+            actionImageView = listViewItem.findViewById<ImageView?>(R.id.subreddit_action_image_view)!!
                 .also {
                     when {
                         sub == homeSubreddit -> {

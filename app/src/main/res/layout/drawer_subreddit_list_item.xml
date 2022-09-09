@@ -17,7 +17,7 @@
 
     <com.google.android.material.textview.MaterialTextView
         android:id="@+id/subreddit_name_text_view"
-        android:layout_width="wrap_content"
+        android:layout_width="0dp"
         android:layout_height="0dp"
         android:ellipsize="end"
         android:fontFamily="sans-serif-light"

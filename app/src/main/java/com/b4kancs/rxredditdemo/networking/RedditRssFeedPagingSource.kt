@@ -56,7 +56,7 @@ class RedditRssFeedPagingSource(val subreddit: String) : RxPagingSource<String, 
             .map { posts ->
                 posts
                     .map { Post.from(it.data) }
-                    .filter { it.links != null }        // The links of all posts that are not picture or gallery posts is null
+                    .filter { it.links != null }        // The 'links' of all posts that are not picture or gallery posts is null
             }
             .map { posts ->
                 LoadResult.Page(

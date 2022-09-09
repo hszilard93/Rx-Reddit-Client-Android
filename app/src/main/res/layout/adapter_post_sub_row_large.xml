@@ -21,12 +21,27 @@
         app:layout_constraintTop_toTopOf="parent"
         app:shapeAppearanceOverlay="@style/top_rounded_imageview" />
 
+    <com.google.android.material.textview.MaterialTextView
+        android:id="@+id/post_nsfw_tag_text_view"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/nsfw_tag"
+        android:textColor="?attr/colorErrorContainer"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:visibility="gone"
+        android:background="@drawable/sh_rectangle_half_rounded"
+        app:layout_constraintBottom_toBottomOf="@id/post_image_view"
+        app:layout_constraintEnd_toEndOf="@id/post_image_view"
+        app:layout_constraintStart_toStartOf="@id/post_image_view"
+        app:layout_constraintTop_toTopOf="@id/post_image_view" />
+
     <ImageView
         android:id="@+id/gallery_indicator_image_view"
         android:layout_width="36dp"
         android:layout_height="36dp"
-        android:layout_marginBottom="8dp"
         android:layout_marginRight="4dp"
+        android:layout_marginBottom="8dp"
         android:alpha="0.7"
         android:src="@drawable/ic_gallery_256"
         android:visibility="invisible"
@@ -74,8 +89,8 @@
         android:textColor="?attr/colorSecondary"
         android:textSize="12sp"
         app:layout_constraintBottom_toTopOf="@id/post_comments_text_view"
-        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toStartOf="@id/post_cross_text_view"
+        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintVertical_weight="2" />
 
     <com.google.android.material.textview.MaterialTextView

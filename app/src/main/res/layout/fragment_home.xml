@@ -22,11 +22,10 @@
             android:clipToPadding="false"
             android:paddingTop="4dp"
             app:layout_behavior="@string/appbar_scrolling_view_behavior" />
-
     </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
     <ProgressBar
-        android:id="@+id/progress_bar"
+        android:id="@+id/large_progress_bar"
         style="?attr/progressBarStyle"
         android:layout_width="120dp"
         android:layout_height="120dp"
@@ -34,5 +33,4 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
-
 </androidx.constraintlayout.widget.ConstraintLayout>
