@@ -57,7 +57,6 @@ class DrawerListAdapter(
             RedditRssFeedPagingSource.defaultSubredditPreferenceKey,
             RedditRssFeedPagingSource.defaultSubredditPreferenceValue
         ).get()
-//        val homeSubredditAddress = RedditRssFeedPagingSource.defaultSubreddit.address
         homeSubreddit = database.subredditDao().getSubredditByAddress(homeSubredditAddress)
             .subscribeOn(Schedulers.io())
             .onErrorResumeWith { RedditRssFeedPagingSource.defaultSubreddit }
@@ -85,13 +84,13 @@ class DrawerListAdapter(
         val inflater = LayoutInflater.from(c)
         // Let's figure out if the view needs to be a header
         if (position == 0) {
-            val headerViewItem = inflater.inflate(R.layout.header_list_view_item, parent, false)
+            val headerViewItem = inflater.inflate(R.layout.drawer_header_list_view_item, parent, false)
             val headerTextView = headerViewItem.findViewById<MaterialTextView>(R.id.subreddit_header_text_view)
             headerTextView.text = context.getString(R.string.your_subreddits_header)
             return headerViewItem
         }
         if (subreddits.count { !it.isInDefaultList || it.isFavorite || it == homeSubreddit } + 1 == position) {
-            val headerViewItem = inflater.inflate(R.layout.header_list_view_item, parent, false)
+            val headerViewItem = inflater.inflate(R.layout.drawer_header_list_view_item, parent, false)
             val headerTextView = headerViewItem.findViewById<MaterialTextView>(R.id.subreddit_header_text_view)
             headerTextView.text = context.getString(R.string.default_subreddits_header)
             return headerViewItem

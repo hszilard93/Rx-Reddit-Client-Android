@@ -4,11 +4,11 @@
     <string name="title_dashboard">Favorites</string>
     <string name="title_notifications">Subscriptions</string>
     <string name="post_text_placeholder_text">Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</string>
-    <string name="date_author_placeholder_text">submitted ... by ...</string>
+    <string name="date_author_placeholder_text">submitted … by …</string>
     <string name="comments_placeholder_text">0 comments</string>
-    <string name="your_subreddits">Your subreddits</string>
     <string name="default_subreddits">Default image subreddits</string>
     <string name="your_subreddits_header">Your subreddits</string>
-    <string name="default_subreddits_header">Default subreddits</string>
+    <string name="default_subreddits_header">Recommended subreddits</string>
     <string name="nsfw_tag">NSFW</string>
+    <string name="drawer_title_subreddits">Subreddits</string>
 </resources>
