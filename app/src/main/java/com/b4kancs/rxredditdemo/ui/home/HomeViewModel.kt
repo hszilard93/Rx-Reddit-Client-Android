@@ -7,16 +7,12 @@ import androidx.lifecycle.viewModelScope
 import androidx.paging.*
 import androidx.paging.rxjava3.cachedIn
 import androidx.paging.rxjava3.observable
-import com.b4kancs.rxredditdemo.database.SubredditDatabase
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.model.Subreddit
-import com.b4kancs.rxredditdemo.networking.RedditRssFeedPagingSource
+import com.b4kancs.rxredditdemo.networking.RedditJsonPagingSource
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.CompositeDisposable
-import io.reactivex.rxjava3.kotlin.addTo
-import io.reactivex.rxjava3.subjects.PublishSubject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import org.koin.java.KoinJavaComponent.inject
 
 private const val LOG_TAG = "HomeViewModel"
 
@@ -29,7 +25,7 @@ class HomeViewModel : ViewModel() {
 //    val text: LiveData<String> = _text
 
     private val disposables = CompositeDisposable()
-    private val subredditLiveData = MutableLiveData(RedditRssFeedPagingSource.defaultSubreddit)
+    private val subredditLiveData = MutableLiveData(RedditJsonPagingSource.defaultSubreddit)
     private val _subredditNameLiveData = MutableLiveData(subredditLiveData.value?.name!!)
     val subredditNameLiveData: LiveData<String> = _subredditNameLiveData
     val cachedPagingObservable: Observable<PagingData<Post>>
@@ -37,10 +33,10 @@ class HomeViewModel : ViewModel() {
 
     init {
         val pager = Pager(PagingConfig(
-            pageSize = RedditRssFeedPagingSource.PAGE_SIZE,
+            pageSize = RedditJsonPagingSource.PAGE_SIZE,
             prefetchDistance = 5,
-            initialLoadSize = RedditRssFeedPagingSource.PAGE_SIZE
-        )) { RedditRssFeedPagingSource(subredditAddress!!) }
+            initialLoadSize = RedditJsonPagingSource.PAGE_SIZE
+        )) { RedditJsonPagingSource(subredditAddress!!) }
         cachedPagingObservable = pager.observable.cachedIn(this.viewModelScope)
     }
 

@@ -3,6 +3,7 @@ package com.b4kancs.rxredditdemo.model
 import android.content.res.AssetManager
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.b4kancs.rxredditdemo.networking.RedditSubredditsListingModel
 import org.koin.java.KoinJavaComponent.inject
 import org.w3c.dom.Element
 import java.io.InputStream
@@ -12,9 +13,12 @@ import javax.xml.parsers.DocumentBuilderFactory
 data class Subreddit(
     val name: String,
     @PrimaryKey val address: String,
-    val isFavorite: Boolean = false,
-    val isInDefaultList: Boolean = false
+    val status: Status,
+    val nsfw: Boolean = false
 ) {
+
+    enum class Status { NOT_IN_DB, IN_DEFAULTS_LIST, IN_USER_LIST, FAVORITED }
+
     companion object {
         private val assets: AssetManager by inject(AssetManager::class.java)
 
@@ -32,10 +36,18 @@ data class Subreddit(
                 val element = nodeList.item(i) as Element
                 val name = element.getAttribute("name") ?: ""
                 val address = element.textContent
-                subreddits.add(Subreddit(name, address, isInDefaultList = true))
+                subreddits.add(Subreddit(name, address, Status.IN_DEFAULTS_LIST))
             }
 
             return subreddits
         }
+
+        fun fromSubredditJsonModel(model: RedditSubredditsListingModel.RedditSubredditDataChildData) =
+            Subreddit(
+                name = model.name,
+                address = model.url.drop(1).dropLast(1),   // turns '/r/pics/' into 'r/pics'
+                status = Status.NOT_IN_DB,
+                nsfw = model.nsfw
+            )
     }
 }

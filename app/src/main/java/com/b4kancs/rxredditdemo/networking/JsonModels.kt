@@ -3,7 +3,7 @@ package com.b4kancs.rxredditdemo.networking
 import com.google.gson.annotations.SerializedName
 
 // Main listing
-data class RedditRssListingModel(
+data class RedditJsonListingModel(
     val kind: String,
     val data: ListingDataModel
 ) {
@@ -42,7 +42,7 @@ data class RedditRssListingModel(
 }
 
 // A post's listing. Contains the pictures from the gallery.
-data class RedditGalleryListing(
+data class RedditGalleryListingModel(
     val data: RedditGalleryPostData
 ) {
 
@@ -72,3 +72,23 @@ data class RedditGalleryListing(
     )
 }
 
+// Represents a list of subreddits (the results of a search).
+data class RedditSubredditsListingModel(
+    val data: RedditSubredditData
+) {
+    // "/data"
+    data class RedditSubredditData(
+        val children: List<RedditSubredditDataChild>
+    )
+    // "/data/children/0/"
+    data class RedditSubredditDataChild(
+        val data: RedditSubredditDataChildData
+    )
+    // "/data/children/0/data"
+    // Represents a single subreddits' data.
+    data class RedditSubredditDataChildData(
+        val url: String,
+        @SerializedName("display_name") val name: String,
+        @SerializedName("over18") val nsfw: Boolean
+    )
+}

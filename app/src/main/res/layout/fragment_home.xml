@@ -6,6 +6,20 @@
     android:layout_height="match_parent"
     tools:context=".ui.home.HomeFragment">
 
+    <com.google.android.material.textview.MaterialTextView
+        android:id="@+id/no_media_in_sub_info_text_view"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="16dp"
+        android:text="@string/no_media_in_sub_info"
+        android:textAlignment="center"
+        android:textColor="?attr/colorPrimary"
+        android:textSize="20sp"
+        android:visibility="gone"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"/>
+
     <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
         android:id="@+id/swipe_refresh_layout"
         android:layout_width="0dp"

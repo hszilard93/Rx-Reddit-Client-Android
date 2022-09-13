@@ -1,5 +1,6 @@
 package com.b4kancs.rxredditdemo.networking
 
+import android.accounts.NetworkErrorException
 import android.util.Log
 import androidx.paging.PagingState
 import androidx.paging.rxjava3.RxPagingSource
@@ -10,17 +11,17 @@ import io.reactivex.rxjava3.core.Single
 import io.reactivex.rxjava3.schedulers.Schedulers
 import org.koin.java.KoinJavaComponent.inject
 
-class RedditRssFeedPagingSource(val subreddit: String) : RxPagingSource<String, Post>() {
+class RedditJsonPagingSource(val subreddit: String) : RxPagingSource<String, Post>() {
 
-    companion object {
+    companion object RedditJsonClient {
         private const val LOG_TAG = "RedditRssPagingSource"
         const val FEED_URL = "https://www.reddit.com"
-        const val PAGE_SIZE = 15
+        const val PAGE_SIZE = 50
         const val defaultSubredditPreferenceKey = "default_subreddit"
         const val defaultSubredditPreferenceValue = "user/kjoneslol/m/sfwpornnetwork"
-        var defaultSubreddit = Subreddit( "SFWPornNetwork", "user/kjoneslol/m/sfwpornnetwork")
+        var defaultSubreddit = Subreddit("SFWPornNetwork", "user/kjoneslol/m/sfwpornnetwork", Subreddit.Status.FAVORITED)
 
-        private val service: RedditRssService by inject(RedditRssService::class.java)
+        private val service: RedditJsonService by inject(RedditJsonService::class.java)
 
         fun getPictureIdsFromGalleryPostAtUrl(url: String): Maybe<List<String>> {
             return service
@@ -29,7 +30,7 @@ class RedditRssFeedPagingSource(val subreddit: String) : RxPagingSource<String, 
                 .map { response ->
                     if (!response.isSuccessful) {
                         Log.e(LOG_TAG, "Error getting gallery items for $url. Error: ${response.code()}")
-                        return@map emptyList()
+                        return@map emptyList<RedditGalleryListingModel.RedditPostDataChildDataGalleryDataItem>()
                     }
                     response.body()!!
                         .first().data.children.first().data.galleryData.items
@@ -44,8 +45,29 @@ class RedditRssFeedPagingSource(val subreddit: String) : RxPagingSource<String, 
                     }
                 }
         }
+
+        fun getSubredditsByKeyword(keyword: String): Single<List<Subreddit>> {
+            return service.searchSubredditsByKeyword(keyword)
+                .map { response -> response.body()!! }
+                .map { subsModel ->
+                    subsModel.data.children
+                }
+                .map { listOfSubData ->
+                    val subreddits = ArrayList<Subreddit>()
+                    listOfSubData.forEach {
+                        subreddits.add(Subreddit.fromSubredditJsonModel(it.data))
+                    }
+                    subreddits
+                }
+                .flatMap { Single.just(it.toList()) }
+                .onErrorReturn {
+                    Log.e(LOG_TAG, it.message.toString())
+                    emptyList()
+                }
+        }
     }
 
+    // Load the posts of a given subreddit into a PagingSource.LoadResult
     override fun loadSingle(params: LoadParams<String>): Single<LoadResult<String, Post>> {
         return service.getSubredditJson(
             subreddit,
@@ -62,7 +84,7 @@ class RedditRssFeedPagingSource(val subreddit: String) : RxPagingSource<String, 
                 LoadResult.Page(
                     data = posts,
                     prevKey = null,
-                    nextKey = posts.last().name,
+                    nextKey = if (posts.isNotEmpty()) posts.last().name else null
                 )
             }
     }

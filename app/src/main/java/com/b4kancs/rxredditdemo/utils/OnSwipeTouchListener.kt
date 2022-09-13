@@ -35,7 +35,7 @@ Usage:
     })
 */
 
-open class OnSwipeTouchListener : OnTouchListener {
+open class OnSwipeTouchListener(context: Context) : OnTouchListener {
 
     private lateinit var view: View
 
@@ -44,7 +44,6 @@ open class OnSwipeTouchListener : OnTouchListener {
         private const val SWIPE_VELOCITY_THRESHOLD = 0
     }
 
-    private val context: Context by inject(Context::class.java)
     private val gestureDetector: GestureDetector
 
     init {

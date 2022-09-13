@@ -1,7 +1,5 @@
 package com.b4kancs.rxredditdemo.ui.home
 
-import android.animation.AnimatorSet
-import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.drawable.Drawable
@@ -9,7 +7,6 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.view.animation.AccelerateDecelerateInterpolator
 import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
@@ -34,10 +31,9 @@ import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.addTo
 import io.reactivex.rxjava3.subjects.PublishSubject
 import jp.wasabeef.glide.transformations.BlurTransformation
-import org.koin.java.KoinJavaComponent.inject
 import java.util.*
 
-class PostSubredditAdapter :
+class PostSubredditAdapter(private val context: Context) :
     PagingDataAdapter<Post, RecyclerView.ViewHolder>(PostComparator) {
 
     companion object {
@@ -48,7 +44,6 @@ class PostSubredditAdapter :
 
     private lateinit var orientation: Orientation
     private val disposables = CompositeDisposable()
-    private val context: Context by inject(Context::class.java)
     private lateinit var postView: View
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
@@ -80,7 +75,7 @@ class PostSubredditAdapter :
         if (holder is PostSubredditViewHolder)
             getItem(position)?.let { holder.bind(it) }
         else
-            (holder as SmallBottomLoadingIndicatorViewHolder).bind(itemCount >= 0)
+            (holder as SmallBottomLoadingIndicatorViewHolder).bind(itemCount > 1)
     }
 
     override fun onViewRecycled(holder: RecyclerView.ViewHolder) {
@@ -88,7 +83,7 @@ class PostSubredditAdapter :
             // Resetting views before recyclerview reuses the ViewHolder
             with(holder) {
                 imageView.setImageDrawable(null)
-                imageView.resetOnTouchListener()
+                imageView.resetOnTouchListener(context)
                 imageView.layoutParams.height = dpToPixel(250, context)
                 galleryIndicatorImageView.isVisible = false
                 galleryItemsTextView.isVisible = false
@@ -181,7 +176,7 @@ class PostSubredditAdapter :
                 holder.galleryItemsTextView.visibility = View.VISIBLE
                 holder.galleryItemsTextView.text = post.links.size.toString()
 
-                holder.imageView.setOnTouchListener(object : OnSwipeTouchListener() {
+                holder.imageView.setOnTouchListener(object : OnSwipeTouchListener(context) {
 
                     override fun onSwipeRight() {
                         // Load previous item in the gallery
@@ -226,7 +221,7 @@ class PostSubredditAdapter :
                             val height = resource.intrinsicHeight
                             val newImageViewHeight = ((imageView.width.toFloat() / width) * height).toInt()
 
-                            animateViewLayoutChange(imageView, oldImageViewWidth, oldImageViewWidth, oldImageViewHeight, newImageViewHeight)
+                            animateViewLayoutHeightChange(imageView, oldImageViewHeight, newImageViewHeight, 150)
                         }
                         return false
                     }
@@ -248,26 +243,6 @@ class PostSubredditAdapter :
                 }
 
             imageView.adjustViewBounds = true
-        }
-
-        private fun animateViewLayoutChange(view: View, oldWidth: Int, newWidth: Int, oldHeight: Int, newHeight: Int) {
-
-            val slideAnimator = ValueAnimator
-                .ofInt(oldHeight, newHeight)
-                .setDuration(150)
-
-            slideAnimator.addUpdateListener { animation ->
-                // get the value the interpolator is at
-                val value = animation.animatedValue as Int
-                view.layoutParams.height = value
-                // force all layouts to see which ones are affected by this layouts height change
-                view.requestLayout()
-            }
-
-            val animatorSet = AnimatorSet()
-            animatorSet.play(slideAnimator)
-            animatorSet.interpolator = AccelerateDecelerateInterpolator()
-            animatorSet.start()
         }
     }
 

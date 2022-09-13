@@ -20,6 +20,9 @@ interface SubredditDao {
     @Query("SELECT * FROM subreddit WHERE address = :address")
     fun getSubredditByAddress(address: String): Single<Subreddit>
 
+    @Query("SELECT * FROM subreddit WHERE name LIKE :name")
+    fun getSubredditsByNameLike(name: String): Single<List<Subreddit>>
+
     @Delete
     fun deleteSubreddit(subreddit: Subreddit): Completable
 }

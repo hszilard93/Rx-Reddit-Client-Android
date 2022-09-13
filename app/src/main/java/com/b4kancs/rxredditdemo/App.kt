@@ -4,8 +4,8 @@ import android.app.Application
 import android.os.StrictMode
 import androidx.preference.PreferenceManager
 import com.b4kancs.rxredditdemo.database.SubredditRoomDatabase
-import com.b4kancs.rxredditdemo.networking.RedditRssFeedPagingSource
-import com.b4kancs.rxredditdemo.networking.RedditRssService
+import com.b4kancs.rxredditdemo.networking.RedditJsonPagingSource
+import com.b4kancs.rxredditdemo.networking.RedditJsonService
 import com.b4kancs.rxredditdemo.ui.home.HomeViewModel
 import com.f2prateek.rx.preferences2.RxSharedPreferences
 import com.google.gson.FieldNamingPolicy
@@ -44,7 +44,7 @@ class App : Application() {
         }
     }
 
-    private fun createRedditRssServiceInstant(): RedditRssService {
+    private fun createRedditRssServiceInstant(): RedditJsonService {
         val loggingInterceptor = HttpLoggingInterceptor()
         loggingInterceptor.level = HttpLoggingInterceptor.Level.BODY
 
@@ -54,7 +54,7 @@ class App : Application() {
             .build()
 
         val retrofit = Retrofit.Builder()
-            .baseUrl(RedditRssFeedPagingSource.FEED_URL)
+            .baseUrl(RedditJsonPagingSource.FEED_URL)
             .client(client)
             .addCallAdapterFactory(RxJava3CallAdapterFactory.create())
             .addConverterFactory(
@@ -66,6 +66,6 @@ class App : Application() {
             )
             .build()
 
-        return retrofit.create(RedditRssService::class.java)
+        return retrofit.create(RedditJsonService::class.java)
     }
 }

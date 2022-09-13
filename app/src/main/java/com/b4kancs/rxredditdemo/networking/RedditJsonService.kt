@@ -7,15 +7,18 @@ import retrofit2.http.Path
 import retrofit2.http.Query
 import retrofit2.http.Url
 
-interface RedditRssService {
+interface RedditJsonService {
 
     @GET("/{subreddit}/.json")
     fun getSubredditJson(
         @Path("subreddit") subreddit: String,
         @Query("limit") limit: Int,
         @Query("after") after: String?
-    ): Single<Response<RedditRssListingModel>>
+    ): Single<Response<RedditJsonListingModel>>
 
     @GET
-    fun getGalleryJson(@Url url: String): Single<Response<List<RedditGalleryListing>>>
+    fun getGalleryJson(@Url url: String): Single<Response<List<RedditGalleryListingModel>>>
+
+    @GET("subreddits/search.json")
+    fun searchSubredditsByKeyword(@Query("q") keyword: String): Single<Response<RedditSubredditsListingModel>>
 }
