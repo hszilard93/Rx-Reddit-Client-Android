@@ -7,6 +7,7 @@ import com.b4kancs.rxredditdemo.database.SubredditRoomDatabase
 import com.b4kancs.rxredditdemo.networking.RedditJsonPagingSource
 import com.b4kancs.rxredditdemo.networking.RedditJsonService
 import com.b4kancs.rxredditdemo.ui.home.HomeViewModel
+import com.b4kancs.rxredditdemo.ui.postviewer.PostViewerViewModel
 import com.f2prateek.rx.preferences2.RxSharedPreferences
 import com.google.gson.FieldNamingPolicy
 import com.google.gson.GsonBuilder
@@ -28,6 +29,7 @@ class App : Application() {
         single { SubredditRoomDatabase.fetchDatabase(this@App) }
         single { RxSharedPreferences.create(PreferenceManager.getDefaultSharedPreferences(this@App)) }
         viewModel { HomeViewModel() }
+        viewModel  { PostViewerViewModel(get()) }
         single { assets }
     }
 

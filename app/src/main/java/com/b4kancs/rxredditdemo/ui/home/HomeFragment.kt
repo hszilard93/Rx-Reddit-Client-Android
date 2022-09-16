@@ -8,10 +8,13 @@ import android.view.ViewGroup
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.observe
+import androidx.navigation.fragment.findNavController
 import androidx.paging.LoadState
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.ui.MainActivity
 import com.b4kancs.rxredditdemo.databinding.FragmentHomeBinding
+import com.b4kancs.rxredditdemo.model.Post
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.CompositeDisposable
@@ -108,7 +111,18 @@ class HomeFragment : Fragment() {
                     isRefreshing = false
                 }
             }
+
+            pagingAdapter.postClickedSubject
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe {
+                    createNewPostViewFragmentWithPost(it)
+                }.addTo(disposables)
         }
+    }
+
+    private fun createNewPostViewFragmentWithPost(post: Post) {
+        val action = HomeFragmentDirections.actionOpenPostViewer(post, homeViewModel.javaClass.simpleName)
+        findNavController().navigate(action)
     }
 
     override fun onDestroyView() {

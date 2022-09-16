@@ -17,6 +17,7 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.model.Post
+import com.b4kancs.rxredditdemo.ui.PostComparator
 import com.b4kancs.rxredditdemo.utils.*
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.DataSource
@@ -42,6 +43,7 @@ class PostSubredditAdapter(private val context: Context) :
         private const val ITEM_VIEW_TYPE_LOAD = 2
     }
 
+    val postClickedSubject = PublishSubject.create<Post>()
     private lateinit var orientation: Orientation
     private val disposables = CompositeDisposable()
     private lateinit var postView: View
@@ -132,7 +134,6 @@ class PostSubredditAdapter(private val context: Context) :
             setUpImageView(post, this)
         }
 
-
         @SuppressLint("ClickableViewAccessibility", "CheckResult")
         private fun setUpImageView(post: Post, holder: PostSubredditViewHolder) {
             var hasImageLoaded = false
@@ -149,7 +150,7 @@ class PostSubredditAdapter(private val context: Context) :
 
             if (isNsfw) {
                 imageView.clicks()
-                    .doOnSubscribe { Log.d(LOG_TAG, "Subscribing for imageView clicks.") }
+                    .doOnSubscribe { Log.d(LOG_TAG, "Subscribing for nsfw imageview clicks.") }
                     .subscribe {
                         Log.d(LOG_TAG, "Unblurring.")
                         isNsfw = false
@@ -162,6 +163,14 @@ class PostSubredditAdapter(private val context: Context) :
                         imageView.performClick()
                     }
                     .addTo(disposables)
+            }
+            else {
+                imageView.clicks()
+                    .doOnSubscribe { Log.d(LOG_TAG, "Subscribing for regular post imageview clicks.") }
+                    .subscribe {
+                        Log.d(LOG_TAG, "Image clicked in post ${post.toString()}. Forwarding to postClickedSubject.")
+                        postClickedSubject.onNext(post)
+                    }.addTo(disposables)
             }
 
             positionSubject.onNext(0)
@@ -252,12 +261,5 @@ class PostSubredditAdapter(private val context: Context) :
         fun bind(makeVisible: Boolean) {
             smallBottomLoadingProgressBar.isVisible = makeVisible
         }
-    }
-
-    object PostComparator : DiffUtil.ItemCallback<Post>() {
-
-        override fun areItemsTheSame(oldItem: Post, newItem: Post): Boolean = oldItem.name == newItem.name
-
-        override fun areContentsTheSame(oldItem: Post, newItem: Post): Boolean = oldItem == newItem
     }
 }

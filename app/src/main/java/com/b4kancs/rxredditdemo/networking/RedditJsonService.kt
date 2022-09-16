@@ -16,6 +16,8 @@ interface RedditJsonService {
         @Query("after") after: String?
     ): Single<Response<RedditJsonListingModel>>
 
+
+
     @GET
     fun getGalleryJson(@Url url: String): Single<Response<List<RedditGalleryListingModel>>>
 

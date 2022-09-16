@@ -10,6 +10,7 @@ import androidx.paging.rxjava3.observable
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.model.Subreddit
 import com.b4kancs.rxredditdemo.networking.RedditJsonPagingSource
+import com.b4kancs.rxredditdemo.ui.postviewer.PostPagingDataObservableProvider
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -17,7 +18,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 private const val LOG_TAG = "HomeViewModel"
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class HomeViewModel : ViewModel() {
+class HomeViewModel : ViewModel(), PostPagingDataObservableProvider {
 
 //    private val _text = MutableLiveData<String>().apply {
 //        value = "This is home Fragment"
@@ -45,4 +46,6 @@ class HomeViewModel : ViewModel() {
         _subredditNameLiveData.postValue(newSub.name)
         subredditAddress = newSub.address
     }
+
+    override fun cachedPagingObservable(): Observable<PagingData<Post>> = cachedPagingObservable
 }
