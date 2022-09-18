@@ -35,8 +35,15 @@ class HomeFragment : Fragment() {
     // This property is only valid between onCreateView and onDestroyView.
     private val binding get() = _binding!!
     private val disposables = CompositeDisposable()
+    private var positionToNavigateTo: Int? = null
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
+        Log.d(LOG_TAG, "Current backstack: ${
+            findNavController().backQueue
+                .map { it.destination }
+                .joinToString("\n ", "\n ")
+        }")
+        positionToNavigateTo = findNavController().currentBackStackEntry?.savedStateHandle?.get<Int>("position")
 
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
 
@@ -69,7 +76,7 @@ class HomeFragment : Fragment() {
                                     binding.noMediaInSubInfoTextView.isVisible = true
                                 else {
                                     binding.noMediaInSubInfoTextView.isVisible = false
-                                    recyclerPosts.scrollToPosition(0)
+                                    recyclerPosts.scrollToPosition(positionToNavigateTo ?: 0)
                                     // This stops the flickering after a change
                                     recyclerPosts.visibility = View.INVISIBLE
                                     Observable.timer(150, TimeUnit.MILLISECONDS)
@@ -114,14 +121,14 @@ class HomeFragment : Fragment() {
 
             pagingAdapter.postClickedSubject
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe {
-                    createNewPostViewFragmentWithPost(it)
+                .subscribe { position ->
+                    createNewPostViewFragmentWithPost(position)
                 }.addTo(disposables)
         }
     }
 
-    private fun createNewPostViewFragmentWithPost(post: Post) {
-        val action = HomeFragmentDirections.actionOpenPostViewer(post, homeViewModel.javaClass.simpleName)
+    private fun createNewPostViewFragmentWithPost(position: Int) {
+        val action = HomeFragmentDirections.actionOpenPostViewer(position, homeViewModel.javaClass.simpleName)
         findNavController().navigate(action)
     }
 

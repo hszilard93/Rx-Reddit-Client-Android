@@ -4,7 +4,14 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.util.Log
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
+import android.view.ViewTreeObserver
+import android.widget.ScrollView
+import androidx.core.view.doOnLayout
+import androidx.core.view.doOnNextLayout
+import androidx.core.view.isVisible
+import androidx.core.widget.NestedScrollView
 import androidx.paging.PagingDataAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.b4kancs.rxredditdemo.R
@@ -15,14 +22,18 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions
 import com.jakewharton.rxbinding4.view.clicks
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
+import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.addTo
 import io.reactivex.rxjava3.subjects.PublishSubject
+import java.util.concurrent.TimeUnit
 
 class PostViewerAdapter(private val context: Context) : PagingDataAdapter<Post, PostViewerAdapter.PostViewerViewHolder>(PostComparator) {
     companion object {
         private const val LOG_TAG = "PostViewerAdapter"
     }
+
+    var latestPosition: Int? = null
 
     private val positionSubject = PublishSubject.create<Int>()
     private val disposables = CompositeDisposable()
@@ -43,6 +54,7 @@ class PostViewerAdapter(private val context: Context) : PagingDataAdapter<Post, 
 
     override fun onBindViewHolder(holder: PostViewerViewHolder, position: Int) {
         val post = getItem(position)?.let(holder::bind)
+        latestPosition = position
     }
 
     override fun onViewRecycled(holder: PostViewerViewHolder) {
@@ -52,24 +64,30 @@ class PostViewerAdapter(private val context: Context) : PagingDataAdapter<Post, 
     inner class PostViewerViewHolder(val binding: PostViewerListItemBinding) : RecyclerView.ViewHolder(binding.root) {
 
         init {
-            binding.root.viewTreeObserver.addOnGlobalLayoutListener {
-                // I was not able to get a reliable window measurement with any method I tried,
-                // therefore this hack to make the imageview correctly fill the screen.
-                val imageViewContainer = binding.postLargeItemImageViewConstraintLayout
-                val imageViewNewHeight = imageViewContainer.height
-                Log.d(LOG_TAG, "The imageview's height will be set to: $imageViewNewHeight")
-                imageViewContainer.layoutParams.height = imageViewNewHeight
-                Log.d(LOG_TAG, "The imageview's height is ${imageViewContainer.height}")
-//                postView.findViewById<LinearLayout>(R.id.post_large_item_outer_linear_layout)
-//                    .layoutParams.height = WindowManager.LayoutParams.WRAP_CONTENT
-
-//                postView.findViewById<ConstraintLayout>(R.id.post_large_item_comments_constraint_layout).isVisible = true
-//                postView.invalidate()
-            }
+            // In order to have the imageview fill the screen, I make it the size of the window's height minus the status bar height.
+            val statusBarId = context.resources.getIdentifier("status_bar_height", "dimen", "android")
+            val statusBarHeight = context.resources.getDimensionPixelSize(statusBarId)
+            val navBarId = context.resources.getIdentifier("navigation_bar_height", "dimen", "android")
+            val navBarHeight = context.resources.getDimension(navBarId)
+            Log.d(LOG_TAG, "status bar height: $statusBarHeight; nav bar height: $navBarHeight")
+            val imageViewNewHeight =
+                context.resources.displayMetrics.heightPixels -
+                        statusBarHeight +
+                        if (navBarHeight > 0) 0 else 100
+            Log.d(LOG_TAG, "The imageview's height will be set to: $imageViewNewHeight")
+            binding.postLargeItemImageView.layoutParams.height = imageViewNewHeight
         }
 
         fun bind(post: Post) {
             setUpImageView(post, this)
+            // The ScrollView simply does not work. I've tried 20 different solutions.
+            binding.postLargeScrollView.apply {
+                doOnLayout {
+                    fling(0)
+                    fullScroll(View.FOCUS_UP)
+                    scrollTo(0, 0)
+                }
+            }
         }
 
         @SuppressLint("CheckResult")

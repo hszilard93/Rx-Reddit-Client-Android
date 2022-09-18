@@ -5,8 +5,10 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.activity.addCallback
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
+import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import androidx.paging.LoadState
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -41,16 +43,17 @@ class PostViewerFragment : Fragment() {
     @Suppress("DEPRECATION")
     override fun onResume() {
         super.onResume()
+
         (activity as MainActivity).apply {
             supportActionBar?.hide()
             findViewById<BottomNavigationView>(R.id.nav_view).isVisible = false
             window.decorView.apply { systemUiVisibility = View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION }
         }
-        val post = args.post
-        Log.d(LOG_TAG, "Post received: $post")
-        setUpViewModel()
 
-        setUpRecyclerView()
+        val position = args.position
+        setUpViewModel()
+        setUpRecyclerView(position)
+        setUpOnBackPressedCallback()
     }
 
     override fun onPause() {
@@ -61,7 +64,7 @@ class PostViewerFragment : Fragment() {
         }
     }
 
-    private fun setUpRecyclerView() {
+    private fun setUpRecyclerView(position: Int) {
         val activity = activity as MainActivity
         val pagingAdapter = PostViewerAdapter(activity)
         with(binding) {
@@ -80,7 +83,7 @@ class PostViewerFragment : Fragment() {
                         .filter { loadStates -> loadStates.refresh is LoadState.NotLoading }
                         .take(1)
                         .onEach {
-                            recyclerPostViewer.scrollToPosition(45)
+                            recyclerPostViewer.scrollToPosition(position)
                             recyclerPostViewer.isVisible = true
                         }
                         .launchIn(MainScope())
@@ -97,5 +100,14 @@ class PostViewerFragment : Fragment() {
                 throw IllegalArgumentException()
         viewModel = viewModel<PostViewerViewModel> { parametersOf(pagingDataObservableProvider.value) }.value
         viewModel.hello()
+    }
+
+    private fun setUpOnBackPressedCallback() {
+        (activity as MainActivity).onBackPressedDispatcher.addCallback {
+            (binding.recyclerPostViewer.adapter as PostViewerAdapter).latestPosition?.let {
+                findNavController().previousBackStackEntry?.savedStateHandle?.set("position", it)
+            }
+            findNavController().popBackStack()
+        }
     }
 }

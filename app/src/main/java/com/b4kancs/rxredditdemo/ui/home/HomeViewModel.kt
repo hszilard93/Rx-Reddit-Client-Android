@@ -15,11 +15,11 @@ import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 
-private const val LOG_TAG = "HomeViewModel"
-
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeViewModel : ViewModel(), PostPagingDataObservableProvider {
-
+    companion object {
+        private const val LOG_TAG = "HomeViewModel"
+    }
 //    private val _text = MutableLiveData<String>().apply {
 //        value = "This is home Fragment"
 //    }

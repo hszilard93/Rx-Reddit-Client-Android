@@ -35,10 +35,9 @@
         tools:layout="@layout/fragment_post_viewer">
 
         <argument
-            android:name="post"
-            android:defaultValue="@null"
-            app:argType="com.b4kancs.rxredditdemo.model.Post"
-            app:nullable="true" />
+            android:name="position"
+            app:argType="integer"
+            android:defaultValue="0" />
 
         <argument
             android:name="pagingDataObservableProvider"

@@ -43,7 +43,7 @@ class PostSubredditAdapter(private val context: Context) :
         private const val ITEM_VIEW_TYPE_LOAD = 2
     }
 
-    val postClickedSubject = PublishSubject.create<Post>()
+    val postClickedSubject = PublishSubject.create<Int>()
     private lateinit var orientation: Orientation
     private val disposables = CompositeDisposable()
     private lateinit var postView: View
@@ -169,7 +169,7 @@ class PostSubredditAdapter(private val context: Context) :
                     .doOnSubscribe { Log.d(LOG_TAG, "Subscribing for regular post imageview clicks.") }
                     .subscribe {
                         Log.d(LOG_TAG, "Image clicked in post ${post.toString()}. Forwarding to postClickedSubject.")
-                        postClickedSubject.onNext(post)
+                        postClickedSubject.onNext(position)
                     }.addTo(disposables)
             }
 
