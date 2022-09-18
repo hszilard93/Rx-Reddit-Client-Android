@@ -22,6 +22,20 @@
         app:layout_constraintTop_toTopOf="parent"
         app:shapeAppearanceOverlay="@style/left_rounded_imageview" />
 
+    <com.google.android.material.textview.MaterialTextView
+        android:id="@+id/post_nsfw_tag_text_view"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/nsfw_tag"
+        android:textColor="?attr/colorErrorContainer"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:visibility="gone"
+        android:background="@drawable/sh_rectangle_half_rounded"
+        app:layout_constraintBottom_toBottomOf="@id/post_image_view"
+        app:layout_constraintEnd_toEndOf="@id/post_image_view"
+        app:layout_constraintStart_toStartOf="@id/post_image_view"
+        app:layout_constraintTop_toTopOf="@id/post_image_view" />
 
     <ImageView
         android:id="@+id/gallery_indicator_image_view"

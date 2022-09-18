@@ -30,7 +30,6 @@ import io.reactivex.rxjava3.core.Single
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.functions.BiFunction
 import io.reactivex.rxjava3.kotlin.addTo
-import io.reactivex.rxjava3.kotlin.toObservable
 import io.reactivex.rxjava3.schedulers.Schedulers
 import io.reactivex.rxjava3.subjects.PublishSubject
 import org.koin.android.ext.android.inject
@@ -97,17 +96,24 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
+    override fun onBackPressed() {
+        if (binding.drawerLayout.isDrawerOpen(GravityCompat.START))
+            binding.drawerLayout.closeDrawer(GravityCompat.START)
+        else
+            super.onBackPressed()
+    }
+
     private val genericOnClickCallback: (Subreddit) -> Unit = { sub ->
         selectedSubredditChangedSubject.onNext(sub)
     }
 
     private val genericOnActionClickedCallback: (Subreddit) -> Subreddit = { sub ->
         val newStatus = when (sub.status) {
-                Subreddit.Status.NOT_IN_DB -> Subreddit.Status.IN_USER_LIST
-                Subreddit.Status.IN_DEFAULTS_LIST -> Subreddit.Status.IN_USER_LIST
-                Subreddit.Status.IN_USER_LIST -> Subreddit.Status.FAVORITED
-                Subreddit.Status.FAVORITED -> Subreddit.Status.IN_USER_LIST
-            }
+            Subreddit.Status.NOT_IN_DB -> Subreddit.Status.IN_USER_LIST
+            Subreddit.Status.IN_DEFAULTS_LIST -> Subreddit.Status.IN_USER_LIST
+            Subreddit.Status.IN_USER_LIST -> Subreddit.Status.FAVORITED
+            Subreddit.Status.FAVORITED -> Subreddit.Status.IN_USER_LIST
+        }
         val newSub = Subreddit(sub.name, sub.address, newStatus, sub.nsfw)
 
         subredditDatabase.subredditDao().insertSubreddit(newSub)
@@ -164,8 +170,7 @@ class MainActivity : AppCompatActivity() {
                 if (keyword.isEmpty()) {
                     searchResults = emptyList()
                     searchResultsChanged.onNext(Unit)
-                }
-                else {
+                } else {
                     val dbResultSingle = subredditDatabase.subredditDao().getSubredditsByNameLike("%${keyword}%")
                         .toObservable()
                         .subscribeOn(Schedulers.io())

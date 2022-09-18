@@ -8,10 +8,13 @@ import android.view.ViewGroup
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.observe
+import androidx.navigation.fragment.findNavController
 import androidx.paging.LoadState
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.ui.MainActivity
 import com.b4kancs.rxredditdemo.databinding.FragmentHomeBinding
+import com.b4kancs.rxredditdemo.model.Post
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.CompositeDisposable
@@ -32,8 +35,15 @@ class HomeFragment : Fragment() {
     // This property is only valid between onCreateView and onDestroyView.
     private val binding get() = _binding!!
     private val disposables = CompositeDisposable()
+    private var positionToNavigateTo: Int? = null
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
+        Log.d(LOG_TAG, "Current backstack: ${
+            findNavController().backQueue
+                .map { it.destination }
+                .joinToString("\n ", "\n ")
+        }")
+        positionToNavigateTo = findNavController().currentBackStackEntry?.savedStateHandle?.get<Int>("position")
 
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
 
@@ -66,7 +76,7 @@ class HomeFragment : Fragment() {
                                     binding.noMediaInSubInfoTextView.isVisible = true
                                 else {
                                     binding.noMediaInSubInfoTextView.isVisible = false
-                                    recyclerPosts.scrollToPosition(0)
+                                    recyclerPosts.scrollToPosition(positionToNavigateTo ?: 0)
                                     // This stops the flickering after a change
                                     recyclerPosts.visibility = View.INVISIBLE
                                     Observable.timer(150, TimeUnit.MILLISECONDS)
@@ -108,7 +118,18 @@ class HomeFragment : Fragment() {
                     isRefreshing = false
                 }
             }
+
+            pagingAdapter.postClickedSubject
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe { position ->
+                    createNewPostViewFragmentWithPost(position)
+                }.addTo(disposables)
         }
+    }
+
+    private fun createNewPostViewFragmentWithPost(position: Int) {
+        val action = HomeFragmentDirections.actionOpenPostViewer(position, homeViewModel.javaClass.simpleName)
+        findNavController().navigate(action)
     }
 
     override fun onDestroyView() {

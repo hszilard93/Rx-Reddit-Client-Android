@@ -9,7 +9,12 @@
         android:id="@+id/navigation_subreddit"
         android:name="com.b4kancs.rxredditdemo.ui.home.HomeFragment"
         android:label="@string/title_home"
-        tools:layout="@layout/fragment_home" />
+        tools:layout="@layout/fragment_home">
+
+        <action
+            android:id="@+id/action_open_post_viewer"
+            app:destination="@+id/navigation_post_viewer" />
+    </fragment>
 
     <fragment
         android:id="@+id/navigation_favorites"
@@ -22,4 +27,21 @@
         android:name="com.b4kancs.rxredditdemo.ui.subscriptions.SubscriptionsFragment"
         android:label="@string/title_notifications"
         tools:layout="@layout/fragment_subscriptions" />
+
+    <fragment
+        android:id="@+id/navigation_post_viewer"
+        android:name="com.b4kancs.rxredditdemo.ui.postviewer.PostViewerFragment"
+        android:label="@string/title_post_viewer"
+        tools:layout="@layout/fragment_post_viewer">
+
+        <argument
+            android:name="position"
+            app:argType="integer"
+            android:defaultValue="0" />
+
+        <argument
+            android:name="pagingDataObservableProvider"
+            app:argType="string"
+            android:defaultValue="HomeViewModel" />
+    </fragment>
 </navigation>

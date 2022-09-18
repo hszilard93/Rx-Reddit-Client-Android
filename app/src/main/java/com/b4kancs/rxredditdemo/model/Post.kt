@@ -1,9 +1,13 @@
 package com.b4kancs.rxredditdemo.model
 
+import android.os.Parcelable
 import android.util.Log
 import com.b4kancs.rxredditdemo.networking.RedditJsonListingModel.RedditPostDataModel
 import com.b4kancs.rxredditdemo.networking.RedditJsonPagingSource
+import kotlinx.parcelize.Parcelize
+import kotlinx.serialization.Serializable
 
+@Parcelize
 data class Post(
     val name: String,
     val author: String,
@@ -18,7 +22,7 @@ data class Post(
     val createdAt: Int,
     val nsfw: Boolean,
     val numOfComments: Int
-) {
+) : Parcelable {
     companion object {
 
         private const val LOG_TAG = "Post"
