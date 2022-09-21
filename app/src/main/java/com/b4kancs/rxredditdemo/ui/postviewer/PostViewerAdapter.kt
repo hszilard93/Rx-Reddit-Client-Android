@@ -4,31 +4,29 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.util.Log
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
-import android.view.ViewTreeObserver
-import android.widget.ScrollView
 import androidx.core.view.doOnLayout
-import androidx.core.view.doOnNextLayout
-import androidx.core.view.isVisible
-import androidx.core.widget.NestedScrollView
 import androidx.paging.PagingDataAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.databinding.PostViewerListItemBinding
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.ui.PostComparator
+import com.b4kancs.rxredditdemo.utils.resetOnTouchListener
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions
 import com.jakewharton.rxbinding4.view.clicks
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
-import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.addTo
 import io.reactivex.rxjava3.subjects.PublishSubject
-import java.util.concurrent.TimeUnit
 
-class PostViewerAdapter(private val context: Context) : PagingDataAdapter<Post, PostViewerAdapter.PostViewerViewHolder>(PostComparator) {
+class PostViewerAdapter(
+    private val context: Context,
+    private val onPositionChangedCallback: (Int) -> Unit
+) : PagingDataAdapter<Post, PostViewerAdapter.PostViewerViewHolder>(PostComparator) {
     companion object {
         private const val LOG_TAG = "PostViewerAdapter"
     }
@@ -42,9 +40,8 @@ class PostViewerAdapter(private val context: Context) : PagingDataAdapter<Post, 
         positionSubject
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe { nextPosition ->
-                recyclerView.scrollToPosition(nextPosition)
+                onPositionChangedCallback(nextPosition)
             }.addTo(disposables)
-
         super.onAttachedToRecyclerView(recyclerView)
     }
 
@@ -52,13 +49,9 @@ class PostViewerAdapter(private val context: Context) : PagingDataAdapter<Post, 
         return PostViewerViewHolder(PostViewerListItemBinding.inflate(LayoutInflater.from(context), parent, false))
     }
 
-    override fun onBindViewHolder(holder: PostViewerViewHolder, position: Int) {
-        val post = getItem(position)?.let(holder::bind)
+    override fun onBindViewHolder(viewHolder: PostViewerViewHolder, position: Int) {
+        val post = getItem(position)?.let(viewHolder::bind)
         latestPosition = position
-    }
-
-    override fun onViewRecycled(holder: PostViewerViewHolder) {
-        super.onViewRecycled(holder)
     }
 
     inner class PostViewerViewHolder(val binding: PostViewerListItemBinding) : RecyclerView.ViewHolder(binding.root) {
@@ -105,7 +98,9 @@ class PostViewerAdapter(private val context: Context) : PagingDataAdapter<Post, 
                 .into(imageView)
 
             imageView.clicks()
-                .subscribe { positionSubject.onNext(layoutPosition + 1) }
+                .subscribe {
+                    positionSubject.onNext(layoutPosition + 1)
+                }
         }
     }
 }

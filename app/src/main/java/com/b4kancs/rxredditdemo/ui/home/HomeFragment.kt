@@ -11,6 +11,7 @@ import androidx.lifecycle.observe
 import androidx.navigation.fragment.findNavController
 import androidx.paging.LoadState
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.LinearSnapHelper
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.ui.MainActivity
 import com.b4kancs.rxredditdemo.databinding.FragmentHomeBinding
@@ -56,23 +57,23 @@ class HomeFragment : Fragment() {
         val activity = activity as MainActivity
 
         binding.apply {
-            val pagingAdapter = PostSubredditAdapter(activity)
-
+            var pagingAdapter: PostSubredditAdapter? = null
+            recyclerPosts.layoutManager = LinearLayoutManager(context)
             homeViewModel.cachedPagingObservable
                 .subscribe { pagingData ->
                     try {
                         if (recyclerPosts.adapter == null) {
-                            recyclerPosts.adapter = pagingAdapter
-                            recyclerPosts.layoutManager = LinearLayoutManager(context)
+                            recyclerPosts.adapter = PostSubredditAdapter(activity)
                         }
-                        pagingAdapter.submitData(viewLifecycleOwner.lifecycle, pagingData)
+                        pagingAdapter = recyclerPosts.adapter as PostSubredditAdapter
+                        pagingAdapter!!.submitData(viewLifecycleOwner.lifecycle, pagingData)
                         // Make the recyclerview visible and scroll to the top only when the new data has been loaded!
-                        pagingAdapter.loadStateFlow
+                        pagingAdapter!!.loadStateFlow
                             .filter { loadStates -> loadStates.refresh is LoadState.NotLoading }
                             .take(1)
                             .onEach {
                                 // If the subreddit feed contains no displayable posts (images etc.), display a textview
-                                if(pagingAdapter.itemCount == 1)    // The 1 is because of the always present bottom loading indicator
+                                if(pagingAdapter!!.itemCount == 1)    // The 1 is because of the always present bottom loading indicator
                                     binding.noMediaInSubInfoTextView.isVisible = true
                                 else {
                                     binding.noMediaInSubInfoTextView.isVisible = false
@@ -94,7 +95,7 @@ class HomeFragment : Fragment() {
                 }
                 .addTo(disposables)
 
-            pagingAdapter.addLoadStateListener { combinedLoadStates ->
+            pagingAdapter!!.addLoadStateListener { combinedLoadStates ->
                 largeProgressBar.isVisible = combinedLoadStates.refresh is LoadState.Loading
             }
 
@@ -108,18 +109,18 @@ class HomeFragment : Fragment() {
                 .subscribe { sub ->
                     recyclerPosts.isVisible = false
                     homeViewModel.changeSubreddit(sub)
-                    pagingAdapter.refresh()
+                    pagingAdapter!!.refresh()
                 }
                 .addTo(disposables)
 
             swipeRefreshLayout.apply {
                 setOnRefreshListener {
-                    pagingAdapter.refresh()
+                    pagingAdapter!!.refresh()
                     isRefreshing = false
                 }
             }
 
-            pagingAdapter.postClickedSubject
+            pagingAdapter!!.postClickedSubject
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe { position ->
                     createNewPostViewFragmentWithPost(position)
