@@ -18,6 +18,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.ui.PostComparator
+import com.b4kancs.rxredditdemo.ui.postviewer.PostViewerAdapter
 import com.b4kancs.rxredditdemo.utils.*
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.DataSource
@@ -43,7 +44,7 @@ class PostSubredditAdapter(private val context: Context) :
         private const val ITEM_VIEW_TYPE_LOAD = 2
     }
 
-    val postClickedSubject = PublishSubject.create<Int>()
+    val postClickedSubject = PublishSubject.create<Pair<Int, View>>()
     private lateinit var orientation: Orientation
     private val disposables = CompositeDisposable()
     private lateinit var postView: View
@@ -136,10 +137,17 @@ class PostSubredditAdapter(private val context: Context) :
 
         @SuppressLint("ClickableViewAccessibility", "CheckResult")
         private fun setUpImageView(post: Post, holder: PostSubredditViewHolder) {
+            imageView.transitionName = post.links!!.first()
+            Log.d(LOG_TAG, "Transition name for home image view set: ${imageView.transitionName}")
+
             var hasImageLoaded = false
             var currentPos: Int? = null
             val positionSubject = PublishSubject.create<Int>()
             var isNsfw = post.nsfw
+
+            post.links.forEach {
+                Glide.with(context).downloadOnly().load(it)
+            }
 
             positionSubject
                 .subscribe { position ->
@@ -169,7 +177,7 @@ class PostSubredditAdapter(private val context: Context) :
                     .doOnSubscribe { Log.d(LOG_TAG, "Subscribing for regular post imageview clicks.") }
                     .subscribe {
                         Log.d(LOG_TAG, "Image clicked in post ${post.toString()}. Forwarding to postClickedSubject.")
-                        postClickedSubject.onNext(position)
+                        postClickedSubject.onNext(position to imageView)
                     }.addTo(disposables)
             }
 
@@ -177,10 +185,6 @@ class PostSubredditAdapter(private val context: Context) :
             hasImageLoaded = true
 
             if (post.links?.size!! > 1) {
-                post.links.forEach {
-                    Glide.with(context).downloadOnly().load(it)
-                }
-
                 holder.galleryIndicatorImageView.visibility = View.VISIBLE
                 holder.galleryItemsTextView.visibility = View.VISIBLE
                 holder.galleryItemsTextView.text = post.links.size.toString()

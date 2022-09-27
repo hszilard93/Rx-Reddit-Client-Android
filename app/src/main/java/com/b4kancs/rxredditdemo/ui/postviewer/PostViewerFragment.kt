@@ -3,10 +3,12 @@ package com.b4kancs.rxredditdemo.ui.postviewer
 import android.content.Context
 import android.os.Bundle
 import android.util.DisplayMetrics
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.activity.addCallback
+import androidx.core.view.doOnPreDraw
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
@@ -16,6 +18,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.LinearSmoothScroller
 import androidx.recyclerview.widget.LinearSnapHelper
 import androidx.recyclerview.widget.RecyclerView
+import androidx.transition.*
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.databinding.FragmentPostViewerBinding
 import com.b4kancs.rxredditdemo.ui.MainActivity
@@ -46,9 +49,20 @@ class PostViewerFragment : Fragment() {
     private lateinit var binding: FragmentPostViewerBinding
     private lateinit var viewModel: PostViewerViewModel
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         binding = FragmentPostViewerBinding.inflate(inflater, container, false)
+        sharedElementEnterTransition = ChangeImageTransform()
+        Log.d(LOG_TAG, "shared element transition: $sharedElementEnterTransition")
+        Log.d(LOG_TAG, "Calling postponeEnterTransition().")
+        postponeEnterTransition()
         return binding.root
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        val position = args.position
+        setUpViewModel()
+        setUpRecyclerView(position)
+        setUpOnBackPressedCallback()
     }
 
     @Suppress("DEPRECATION")
@@ -60,15 +74,6 @@ class PostViewerFragment : Fragment() {
             findViewById<BottomNavigationView>(R.id.nav_view).isVisible = false
             window.decorView.apply { systemUiVisibility = View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION }
         }
-
-        val position = args.position
-        setUpViewModel()
-        // Lesson learned:
-        // Using a RecyclerView here was a mistake.
-        // I should have used a ViewPager instead.
-        // I hate RecyclerViews now.
-        setUpRecyclerView(position)
-        setUpOnBackPressedCallback()
     }
 
     override fun onPause() {
@@ -79,6 +84,10 @@ class PostViewerFragment : Fragment() {
         }
     }
 
+    // Lesson learned:
+    // Using a RecyclerView here was a mistake.
+    // I should have used a ViewPager instead.
+    // I hate RecyclerViews now.
     private fun setUpRecyclerView(position: Int) {
         /* (⊙_◎) */
         // In order to achieve the desired behaviour of the recyclerview only scrolling on specific button clicks,
@@ -145,6 +154,15 @@ class PostViewerFragment : Fragment() {
                         }
                         .launchIn(MainScope())
                 }
+            if (sharedElementEnterTransition != null) {
+                pagingAdapter.isReadyToBeDrawnSubject
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe {
+                        Log.d(LOG_TAG, "Calling startPostponedEnterTransition().")
+                        startPostponedEnterTransition()
+                    }
+                    .addTo(disposables)
+            }
         }
     }
 

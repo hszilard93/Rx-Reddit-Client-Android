@@ -8,6 +8,7 @@ import android.view.ViewGroup
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.observe
+import androidx.navigation.fragment.FragmentNavigatorExtras
 import androidx.navigation.fragment.findNavController
 import androidx.paging.LoadState
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -73,7 +74,7 @@ class HomeFragment : Fragment() {
                             .take(1)
                             .onEach {
                                 // If the subreddit feed contains no displayable posts (images etc.), display a textview
-                                if(pagingAdapter!!.itemCount == 1)    // The 1 is because of the always present bottom loading indicator
+                                if (pagingAdapter!!.itemCount == 1)    // The 1 is because of the always present bottom loading indicator
                                     binding.noMediaInSubInfoTextView.isVisible = true
                                 else {
                                     binding.noMediaInSubInfoTextView.isVisible = false
@@ -122,15 +123,16 @@ class HomeFragment : Fragment() {
 
             pagingAdapter!!.postClickedSubject
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe { position ->
-                    createNewPostViewFragmentWithPost(position)
+                .subscribe { (position, view) ->
+                    createNewPostViewFragmentWithPost(position, view)
                 }.addTo(disposables)
         }
     }
 
-    private fun createNewPostViewFragmentWithPost(position: Int) {
+    private fun createNewPostViewFragmentWithPost(position: Int, sharedView: View) {
+        val sharedElementExtras = FragmentNavigatorExtras(sharedView to sharedView.transitionName)
         val action = HomeFragmentDirections.actionOpenPostViewer(position, homeViewModel.javaClass.simpleName)
-        findNavController().navigate(action)
+        findNavController().navigate(action, sharedElementExtras)
     }
 
     override fun onDestroyView() {

@@ -2,6 +2,7 @@ package com.b4kancs.rxredditdemo.ui.postviewer
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.graphics.drawable.Drawable
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.MotionEvent
@@ -14,9 +15,14 @@ import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.databinding.PostViewerListItemBinding
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.ui.PostComparator
+import com.b4kancs.rxredditdemo.utils.animateViewLayoutHeightChange
 import com.b4kancs.rxredditdemo.utils.resetOnTouchListener
 import com.bumptech.glide.Glide
+import com.bumptech.glide.load.DataSource
+import com.bumptech.glide.load.engine.GlideException
+import com.bumptech.glide.request.RequestListener
 import com.bumptech.glide.request.RequestOptions
+import com.bumptech.glide.request.target.Target
 import com.jakewharton.rxbinding4.view.clicks
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.disposables.CompositeDisposable
@@ -32,6 +38,7 @@ class PostViewerAdapter(
     }
 
     var latestPosition: Int? = null
+    val isReadyToBeDrawnSubject = PublishSubject.create<Unit>()
 
     private val positionSubject = PublishSubject.create<Int>()
     private val disposables = CompositeDisposable()
@@ -50,7 +57,8 @@ class PostViewerAdapter(
     }
 
     override fun onBindViewHolder(viewHolder: PostViewerViewHolder, position: Int) {
-        val post = getItem(position)?.let(viewHolder::bind)
+        val post = getItem(position)
+        post?.let(viewHolder::bind)
         latestPosition = position
     }
 
@@ -73,7 +81,7 @@ class PostViewerAdapter(
 
         fun bind(post: Post) {
             setUpImageView(post, this)
-            // The ScrollView simply does not work. I've tried 20 different solutions.
+            // The ScrollView simply cannot be made to scroll programmatically. I've tried 20 different solutions.
             binding.postLargeScrollView.apply {
                 doOnLayout {
                     fling(0)
@@ -85,16 +93,34 @@ class PostViewerAdapter(
 
         @SuppressLint("CheckResult")
         private fun setUpImageView(post: Post, holder: PostViewerViewHolder) {
+            binding.postLargeItemImageView.transitionName = post.links!!.first()
+            Log.d(LOG_TAG, "Transition name for post viewer image view set: ${binding.postLargeItemImageView.transitionName}")
+
             var hasImageLoaded = false
             val imageView = binding.postLargeItemImageView
-            val link = post.links?.get(0)
+            val link = post.links[0]
             Glide.with(context).load(link)
                 .apply(
                     RequestOptions()
                         .error(R.drawable.ic_not_found_24)
                         .placeholder(R.drawable.ic_download)
-                        .fitCenter()
+                        .dontTransform()
                 )
+                .addListener(object : RequestListener<Drawable> {
+                    override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>?, isFirstResource: Boolean) =
+                        false
+
+                    override fun onResourceReady(
+                        resource: Drawable?,
+                        model: Any?,
+                        target: Target<Drawable>?,
+                        dataSource: DataSource?,
+                        isFirstResource: Boolean
+                    ): Boolean {
+                        isReadyToBeDrawnSubject.onNext(Unit)
+                        return false
+                    }
+                })
                 .into(imageView)
 
             imageView.clicks()
