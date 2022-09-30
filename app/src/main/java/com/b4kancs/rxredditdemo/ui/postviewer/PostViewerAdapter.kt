@@ -5,7 +5,6 @@ import android.content.Context
 import android.graphics.drawable.Drawable
 import android.util.Log
 import android.view.LayoutInflater
-import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.view.doOnLayout
@@ -15,8 +14,6 @@ import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.databinding.PostViewerListItemBinding
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.ui.PostComparator
-import com.b4kancs.rxredditdemo.utils.animateViewLayoutHeightChange
-import com.b4kancs.rxredditdemo.utils.resetOnTouchListener
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.DataSource
 import com.bumptech.glide.load.engine.GlideException
@@ -38,10 +35,11 @@ class PostViewerAdapter(
     }
 
     var latestPosition: Int? = null
-    val isReadyToBeDrawnSubject = PublishSubject.create<Unit>()
+    var latestViewHolder: PostViewerViewHolder? = null
+    val readyToBeDrawnSubject = PublishSubject.create<Unit>()
 
+    val disposables = CompositeDisposable()
     private val positionSubject = PublishSubject.create<Int>()
-    private val disposables = CompositeDisposable()
 
     override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
         positionSubject
@@ -60,6 +58,7 @@ class PostViewerAdapter(
         val post = getItem(position)
         post?.let(viewHolder::bind)
         latestPosition = position
+        latestViewHolder = viewHolder
     }
 
     inner class PostViewerViewHolder(val binding: PostViewerListItemBinding) : RecyclerView.ViewHolder(binding.root) {
@@ -94,7 +93,7 @@ class PostViewerAdapter(
         @SuppressLint("CheckResult")
         private fun setUpImageView(post: Post, holder: PostViewerViewHolder) {
             binding.postLargeItemImageView.transitionName = post.links!!.first()
-            Log.d(LOG_TAG, "Transition name for post viewer image view set: ${binding.postLargeItemImageView.transitionName}")
+            Log.i(LOG_TAG, "Transition name for post viewer image view set: ${binding.postLargeItemImageView.transitionName}")
 
             var hasImageLoaded = false
             val imageView = binding.postLargeItemImageView
@@ -117,7 +116,7 @@ class PostViewerAdapter(
                         dataSource: DataSource?,
                         isFirstResource: Boolean
                     ): Boolean {
-                        isReadyToBeDrawnSubject.onNext(Unit)
+                        readyToBeDrawnSubject.onNext(Unit)
                         return false
                     }
                 })

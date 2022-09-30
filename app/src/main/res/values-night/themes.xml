@@ -20,7 +20,7 @@
         <item name="colorOnErrorContainer">@color/md_theme_dark_onErrorContainer</item>
         <item name="android:colorBackground">@color/md_theme_dark_background</item>
         <item name="colorOnBackground">@color/md_theme_dark_onBackground</item>
-        <item name="colorSurface">@color/md_theme_dark_surface</item>
+        <item name="colorSurface">@color/md_theme_dark_inverseOnSurface</item>
         <item name="colorOnSurface">@color/md_theme_dark_onSurface</item>
         <item name="colorSurfaceVariant">@color/md_theme_dark_surfaceVariant</item>
         <item name="colorOnSurfaceVariant">@color/md_theme_dark_onSurfaceVariant</item>
@@ -30,5 +30,7 @@
         <item name="colorPrimaryInverse">@color/md_theme_dark_inversePrimary</item>
         <item name="android:editTextColor">@color/md_theme_dark_tertiary</item>
         <item name="colorImageBackground">@color/md_theme_dark_inverseOnSurface</item>
+        <item name="colorMenuBackground">@color/md_theme_dark_surface</item>
+        <item name="colorHomeBackground">@color/md_theme_dark_surface</item>
     </style>
 </resources>

@@ -12,17 +12,18 @@ import androidx.navigation.fragment.FragmentNavigatorExtras
 import androidx.navigation.fragment.findNavController
 import androidx.paging.LoadState
 import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.LinearSnapHelper
-import com.b4kancs.rxredditdemo.R
-import com.b4kancs.rxredditdemo.ui.MainActivity
+import androidx.transition.ChangeImageTransform
 import com.b4kancs.rxredditdemo.databinding.FragmentHomeBinding
-import com.b4kancs.rxredditdemo.model.Post
+import com.b4kancs.rxredditdemo.ui.MainActivity
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.addTo
 import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.take
 import org.koin.androidx.viewmodel.ext.android.viewModel
 import java.util.concurrent.TimeUnit
 
@@ -33,9 +34,7 @@ class HomeFragment : Fragment() {
 
     private val homeViewModel: HomeViewModel by viewModel()
     private var _binding: FragmentHomeBinding? = null
-
-    // This property is only valid between onCreateView and onDestroyView.
-    private val binding get() = _binding!!
+    private val binding get() = _binding!!  // This property is only valid between onCreateView and onDestroyView.
     private val disposables = CompositeDisposable()
     private var positionToNavigateTo: Int? = null
 
@@ -49,12 +48,16 @@ class HomeFragment : Fragment() {
 
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
 
+//        sharedElementEnterTransition = ChangeImageTransform()
+        sharedElementReturnTransition = ChangeImageTransform()
+        Log.i(LOG_TAG, "Calling postponeEnterTransition().")
+        postponeEnterTransition()
+
 //        homeViewModel = ViewModelProvider(this)[HomeViewModel::class.java]
         return binding.root
     }
 
-    override fun onResume() {
-        super.onResume()
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         val activity = activity as MainActivity
 
         binding.apply {
@@ -124,12 +127,26 @@ class HomeFragment : Fragment() {
             pagingAdapter!!.postClickedSubject
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe { (position, view) ->
-                    createNewPostViewFragmentWithPost(position, view)
+                    createNewPostViewerFragmentWithPost(position, view)
+
+                    // By disposing of the subscriptions here, we stop the user from accidentally clicking on a post
+                    // while the transition takes place.
+                    pagingAdapter?.disposables?.dispose()
+                }.addTo(disposables)
+
+            pagingAdapter!!.readyToBeDrawnSubject
+                .observeOn(AndroidSchedulers.mainThread())
+                .take(1)
+                .subscribe {
+                    Log.i(LOG_TAG, "Calling startPostponedEnterTransition().")
+                    startPostponedEnterTransition()
+                    activity.animateShowActionBar()
+                    activity.animateShowBottomNavBar()
                 }.addTo(disposables)
         }
     }
 
-    private fun createNewPostViewFragmentWithPost(position: Int, sharedView: View) {
+    private fun createNewPostViewerFragmentWithPost(position: Int, sharedView: View) {
         val sharedElementExtras = FragmentNavigatorExtras(sharedView to sharedView.transitionName)
         val action = HomeFragmentDirections.actionOpenPostViewer(position, homeViewModel.javaClass.simpleName)
         findNavController().navigate(action, sharedElementExtras)

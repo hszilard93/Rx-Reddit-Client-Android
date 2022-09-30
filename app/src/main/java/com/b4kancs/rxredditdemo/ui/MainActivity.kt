@@ -3,10 +3,12 @@ package com.b4kancs.rxredditdemo.ui
 import android.os.Bundle
 import android.util.Log
 import android.view.View
+import android.view.ViewGroup
 import android.widget.Toast
 import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GravityCompat
+import androidx.core.view.isVisible
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.navigation.findNavController
 import androidx.navigation.ui.AppBarConfiguration
@@ -19,6 +21,7 @@ import com.b4kancs.rxredditdemo.model.Subreddit
 import com.b4kancs.rxredditdemo.networking.RedditJsonPagingSource
 import com.b4kancs.rxredditdemo.ui.drawer.DrawerListAdapter
 import com.b4kancs.rxredditdemo.ui.drawer.DrawerSearchListAdapter
+import com.b4kancs.rxredditdemo.utils.ANIMATION_DURATION_LONG
 import com.b4kancs.rxredditdemo.utils.animateViewLayoutHeightChange
 import com.b4kancs.rxredditdemo.utils.dpToPixel
 import com.b4kancs.rxredditdemo.utils.toV3Observable
@@ -40,6 +43,8 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val LOG_TAG = "MainActivity"
+        private const val IS_ACTION_BAR_SHOWING_KEY = "isActionBarShowing"
+        private const val IS_NAV_BAR_SHOWING_KEY = "isNavBarShowing"
     }
 
     val selectedSubredditChangedSubject = PublishSubject.create<Subreddit>()
@@ -49,51 +54,59 @@ class MainActivity : AppCompatActivity() {
     private val rxSharedPreferences: RxSharedPreferences by inject()
     private val disposables = CompositeDisposable()
     private val searchResultsChangedSubject = PublishSubject.create<List<Subreddit>>()
-
+    private var isActionBarShowing = true   // The ActionBar's isShowing method didn't return the correct answer
+    private var isNavBarShowing = true
     private lateinit var binding: ActivityMainBinding
     private lateinit var drawerListAdapter: DrawerListAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        savedInstanceState?.let {
+            isActionBarShowing = it.getBoolean(IS_ACTION_BAR_SHOWING_KEY)
+            isNavBarShowing = it.getBoolean(IS_NAV_BAR_SHOWING_KEY)
+        }
 
         setUpDefaultSubredditSharedPreferences()
         binding = ActivityMainBinding.inflate(layoutInflater)
-        setContentView(binding.root)
+        with(binding) {
+            setContentView(root)
 
-        val navView = binding.navView
+            setSupportActionBar(toolbar)
+            ActionBarDrawerToggle(this@MainActivity, drawerLayout, toolbar, R.string.app_name, R.string.app_name)
 
-        setSupportActionBar(binding.toolbar)
-        ActionBarDrawerToggle(this, binding.drawerLayout, binding.toolbar, R.string.app_name, R.string.app_name)
+            val navController = findNavController(R.id.nav_host_fragment_activity_main)
+            // Passing each menu ID as a set of Ids because each  menu should be considered as top level destinations.
+            val appBarConfiguration = AppBarConfiguration(
+                setOf(
+                    R.id.navigation_subreddit, R.id.navigation_favorites, R.id.navigation_subscriptions
+                ),
+                drawerLayout
+            )
+            setupActionBarWithNavController(navController, appBarConfiguration)
+            navView.setupWithNavController(navController)
 
-        val navController = findNavController(R.id.nav_host_fragment_activity_main)
-        // Passing each menu ID as a set of Ids because each  menu should be considered as top level destinations.
-        val appBarConfiguration = AppBarConfiguration(
-            setOf(
-                R.id.navigation_subreddit, R.id.navigation_favorites, R.id.navigation_subscriptions
-            ),
-            binding.drawerLayout
-        )
-        setupActionBarWithNavController(navController, appBarConfiguration)
-        navView.setupWithNavController(navController)
-        setUpSubredditDrawer()
+            if (!isActionBarShowing) supportActionBar?.hide()
+            if (!isNavBarShowing) navView.isVisible = false
 
-        setUpDrawerSearchViewAndList()
+            setUpSubredditDrawer()
+            setUpDrawerSearchViewAndList()
 
-        selectedSubredditChangedSubject
-            .observeOn(AndroidSchedulers.mainThread())
-            .subscribe {
-                Observable.timer(400, TimeUnit.MILLISECONDS)
-                    .subscribe {
-                        binding.drawerLayout.closeDrawer(GravityCompat.START)
-                    }
-                    .addTo(disposables)
-            }
+            selectedSubredditChangedSubject
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe {
+                    Observable.timer(400, TimeUnit.MILLISECONDS)
+                        .subscribe {
+                            drawerLayout.closeDrawer(GravityCompat.START)
+                        }
+                        .addTo(disposables)
+                }
 
-        binding.drawerLayout.addDrawerListener(object : DrawerLayout.SimpleDrawerListener() {
-            override fun onDrawerClosed(drawerView: View) {
-                binding.drawerSearchView.setQuery("", true)
-            }
-        })
+            drawerLayout.addDrawerListener(object : DrawerLayout.SimpleDrawerListener() {
+                override fun onDrawerClosed(drawerView: View) {
+                    drawerSearchView.setQuery("", true)
+                }
+            })
+        }
     }
 
     override fun onBackPressed() {
@@ -101,6 +114,12 @@ class MainActivity : AppCompatActivity() {
             binding.drawerLayout.closeDrawer(GravityCompat.START)
         else
             super.onBackPressed()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean(IS_ACTION_BAR_SHOWING_KEY, isActionBarShowing)
+        outState.putBoolean(IS_NAV_BAR_SHOWING_KEY, isNavBarShowing)
     }
 
     private val genericOnClickCallback: (Subreddit) -> Unit = { sub ->
@@ -236,5 +255,101 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             .addTo(disposables)
+    }
+
+    fun animateHideActionBar(viewToSynchronizeWith: View? = null) {
+        val actionBar = supportActionBar!!
+        if (isActionBarShowing) {
+            binding.toolbar.animate()
+                .translationY(actionBar.height * -1f)
+                .setDuration(ANIMATION_DURATION_LONG)
+                .withEndAction {
+                    actionBar.hide()
+                    isActionBarShowing = false
+                }.start()
+
+            // We also animate the position of the view below the ActionBar so that the whole thing doesn't jerk upwards suddenly
+            // when the ActionBar's visibility is gone
+            viewToSynchronizeWith?.let {
+                it.animate()
+                    .translationY(actionBar.height * -1f)
+                    .setDuration(ANIMATION_DURATION_LONG)
+                    .withEndAction {
+                        it.y = 0f
+                    }
+                    .start()
+            }
+        }
+    }
+
+    fun animateShowActionBar(viewToSynchronizeWith: View? = null) {
+        val actionBar = supportActionBar!!
+        if (!isActionBarShowing) {
+            actionBar.show()
+            isActionBarShowing = true
+            binding.toolbar.animate()
+                .translationY(0f)
+                .setDuration(ANIMATION_DURATION_LONG)
+                .start()
+
+//            viewToSynchronizeWith?.let {
+//                it.animate()
+//                    .translationY(actionBar.height.toFloat())
+//                    .setDuration(ANIMATION_DURATION_LONG)
+//                    .start()
+//            }
+        }
+    }
+
+    fun animateHideBottomNavBar(viewToSynchronizeWith: View? = null) {
+        if (isNavBarShowing) {
+            binding.navView.let {
+                it.animate()
+                    .translationYBy(it.height.toFloat())
+                    .setDuration(ANIMATION_DURATION_LONG)
+                    .withEndAction {
+                        it.isVisible = false
+                        isNavBarShowing = false
+                    }
+                    .start()
+            }
+
+            viewToSynchronizeWith?.let {
+                animateViewLayoutHeightChange(
+                    it,
+                    it.height,
+                    it.height + binding.navView.height,
+                    ANIMATION_DURATION_LONG,
+                    endWithThis = {
+                        it.layoutParams.height = ViewGroup.LayoutParams.MATCH_PARENT
+                    }
+                )
+            }
+        }
+    }
+
+    fun animateShowBottomNavBar(viewToSynchronizeWith: View? = null) {
+        if (!isNavBarShowing) {
+            binding.navView.let {
+                it.isVisible = true
+                isNavBarShowing = true
+                it.animate()
+                    .translationYBy(it.height * -1f)
+                    .setDuration(ANIMATION_DURATION_LONG)
+                    .start()
+            }
+
+//            viewToSynchronizeWith?.let {
+//                animateViewLayoutHeightChange(
+//                    it,
+//                    it.height,
+//                    it.height - binding.navView.height,
+//                    ANIMATION_DURATION_LONG,
+//                    endWithThis = {
+//
+//                    }
+//                )
+//            }
+        }
     }
 }

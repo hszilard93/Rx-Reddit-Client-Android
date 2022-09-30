@@ -23,7 +23,7 @@
         app:shapeAppearanceOverlay="@style/left_rounded_imageview" />
 
     <com.google.android.material.textview.MaterialTextView
-        android:id="@+id/post_nsfw_tag_text_view"
+        android:id="@+id/nsfw_tag_text_view"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/nsfw_tag"
@@ -64,7 +64,7 @@
         app:layout_constraintRight_toRightOf="@id/post_image_view" />
 
     <com.google.android.material.textview.MaterialTextView
-        android:id="@+id/post_title_text_view"
+        android:id="@+id/title_text_view"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_margin="8dp"
@@ -73,7 +73,7 @@
         android:text="@string/post_text_placeholder_text"
         android:textColor="?attr/colorPrimary"
         android:textSize="22sp"
-        app:layout_constraintBottom_toTopOf="@id/post_date_author_text_view"
+        app:layout_constraintBottom_toTopOf="@id/date_author_text_view"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintVertical_bias="0.0"
@@ -81,23 +81,7 @@
         app:layout_constraintTop_toTopOf="parent" />
 
     <com.google.android.material.textview.MaterialTextView
-        android:id="@+id/post_cross_text_view"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="8dp"
-        android:layout_marginEnd="8dp"
-        android:layout_marginBottom="2dp"
-        android:ellipsize="end"
-        android:maxLines="1"
-        android:text="xpost from ..."
-        android:textColor="?attr/colorSecondary"
-        android:textSize="12sp"
-        app:layout_constraintBaseline_toBaselineOf="@id/post_date_author_text_view"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/post_title_text_view" />
-
-    <com.google.android.material.textview.MaterialTextView
-        android:id="@+id/post_date_author_text_view"
+        android:id="@+id/date_author_text_view"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
@@ -108,13 +92,29 @@
         android:text="@string/date_author_placeholder_text"
         android:textColor="?attr/colorSecondary"
         android:textSize="12sp"
-        app:layout_constraintBottom_toTopOf="@id/post_comments_text_view"
+        app:layout_constraintBottom_toTopOf="@id/comments_text_view"
         app:layout_constraintStart_toEndOf="@id/post_image_view"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintVertical_weight="2" />
 
     <com.google.android.material.textview.MaterialTextView
-        android:id="@+id/post_comments_text_view"
+        android:id="@+id/cross_post_text_view"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginBottom="2dp"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:text="xpost from ..."
+        android:textColor="?attr/colorSecondary"
+        android:textSize="12sp"
+        app:layout_constraintBaseline_toBaselineOf="@id/date_author_text_view"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/title_text_view" />
+
+    <com.google.android.material.textview.MaterialTextView
+        android:id="@+id/comments_text_view"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"

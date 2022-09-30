@@ -1,17 +1,17 @@
 package com.b4kancs.rxredditdemo.utils
 
+import android.animation.Animator
 import android.animation.AnimatorSet
 import android.animation.ValueAnimator
 import android.content.Context
 import android.content.res.Configuration
 import android.view.View
 import android.view.animation.AccelerateDecelerateInterpolator
-import android.view.animation.Animation
-import android.view.animation.Transformation
 import hu.akarnokd.rxjava3.bridge.RxJavaBridge
 import io.reactivex.Observable
-import java.time.Duration
 
+const val ANIMATION_DURATION_LONG = 500L
+const val ANIMATION_DURATION_SHORT = 300L
 
 enum class Orientation {
     LANDSCAPE, PORTRAIT;
@@ -30,7 +30,7 @@ fun dpToPixel(dp: Int, context: Context): Int = (dp * context.resources.displayM
 
 fun Int.dpToPx(context: Context): Int = dpToPixel(this, context)
 
-fun animateViewLayoutHeightChange(view: View, oldHeight: Int, newHeight: Int, duration: Long) {
+fun animateViewLayoutHeightChange(view: View, oldHeight: Int, newHeight: Int, duration: Long, endWithThis: () -> Unit = {}) {
 
     val slideAnimator = ValueAnimator
         .ofInt(oldHeight, newHeight)
@@ -47,6 +47,15 @@ fun animateViewLayoutHeightChange(view: View, oldHeight: Int, newHeight: Int, du
     val animatorSet = AnimatorSet()
     animatorSet.play(slideAnimator)
     animatorSet.interpolator = AccelerateDecelerateInterpolator()
+    animatorSet.addListener(object : Animator.AnimatorListener {
+        override fun onAnimationEnd(animation: Animator?) {
+            endWithThis()
+        }
+        override fun onAnimationStart(animation: Animator?) { }
+        override fun onAnimationCancel(animation: Animator?) { }
+        override fun onAnimationRepeat(animation: Animator?) { }
+
+    } )
     animatorSet.start()
 }
 

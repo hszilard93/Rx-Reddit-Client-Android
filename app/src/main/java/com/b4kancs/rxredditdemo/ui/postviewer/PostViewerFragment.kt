@@ -8,7 +8,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.activity.addCallback
-import androidx.core.view.doOnPreDraw
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
@@ -51,10 +50,13 @@ class PostViewerFragment : Fragment() {
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         binding = FragmentPostViewerBinding.inflate(inflater, container, false)
+
         sharedElementEnterTransition = ChangeImageTransform()
-        Log.d(LOG_TAG, "shared element transition: $sharedElementEnterTransition")
-        Log.d(LOG_TAG, "Calling postponeEnterTransition().")
+        sharedElementReturnTransition = ChangeImageTransform()
+        Log.i(LOG_TAG, "shared element transition: $sharedElementEnterTransition")
+        Log.i(LOG_TAG, "Calling postponeEnterTransition().")
         postponeEnterTransition()
+
         return binding.root
     }
 
@@ -63,17 +65,6 @@ class PostViewerFragment : Fragment() {
         setUpViewModel()
         setUpRecyclerView(position)
         setUpOnBackPressedCallback()
-    }
-
-    @Suppress("DEPRECATION")
-    override fun onResume() {
-        super.onResume()
-
-        (activity as MainActivity).apply {
-            supportActionBar?.hide()
-            findViewById<BottomNavigationView>(R.id.nav_view).isVisible = false
-            window.decorView.apply { systemUiVisibility = View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION }
-        }
     }
 
     override fun onPause() {
@@ -119,10 +110,10 @@ class PostViewerFragment : Fragment() {
                         if (newState == RecyclerView.SCROLL_STATE_IDLE) {
                             scrollStoppedTimedDisposable =
                                 Observable.timer(100, TimeUnit.MILLISECONDS)
-                                .observeOn(AndroidSchedulers.mainThread())
-                                .subscribe {
-                                    recyclerViewLayoutManager.canScrollHorizontally = false
-                                }.addTo(disposables)
+                                    .observeOn(AndroidSchedulers.mainThread())
+                                    .subscribe {
+                                        recyclerViewLayoutManager.canScrollHorizontally = false
+                                    }.addTo(disposables)
 
                         }
                         // ... but only when the view has snapped into place.
@@ -135,17 +126,17 @@ class PostViewerFragment : Fragment() {
         }
         /* ¯\(°_o)/¯ */
 
-        val pagingAdapter = PostViewerAdapter(requireContext(), onPositionChangedCallback)
+        val postViewerAdapter = PostViewerAdapter(requireContext(), onPositionChangedCallback)
         with(binding) {
             recyclerViewPostViewer.isVisible = false
-            recyclerViewPostViewer.adapter = pagingAdapter
+            recyclerViewPostViewer.adapter = postViewerAdapter
             recyclerViewPostViewer.layoutManager = CustomLinearLayoutManager(requireContext())
             LinearSnapHelper().attachToRecyclerView(recyclerViewPostViewer)
             viewModel.pagingDataObservable
                 .subscribe { pagingData ->
-                    pagingAdapter.submitData(viewLifecycleOwner.lifecycle, pagingData)
+                    postViewerAdapter.submitData(viewLifecycleOwner.lifecycle, pagingData)
                     // Initial setup. Let's scroll to the right position as soon as the pagingAdapter has done loading.
-                    pagingAdapter.loadStateFlow
+                    postViewerAdapter.loadStateFlow
                         .filter { loadStates -> loadStates.refresh is LoadState.NotLoading }
                         .take(1)
                         .onEach {
@@ -154,14 +145,18 @@ class PostViewerFragment : Fragment() {
                         }
                         .launchIn(MainScope())
                 }
+
             if (sharedElementEnterTransition != null) {
-                pagingAdapter.isReadyToBeDrawnSubject
+                postViewerAdapter.readyToBeDrawnSubject
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe {
-                        Log.d(LOG_TAG, "Calling startPostponedEnterTransition().")
+                        (activity as MainActivity).apply {
+                            animateHideActionBar(root)
+                            animateHideBottomNavBar(root)
+                        }
+                        Log.i(LOG_TAG, "Calling startPostponedEnterTransition().")
                         startPostponedEnterTransition()
-                    }
-                    .addTo(disposables)
+                    }.addTo(disposables)
             }
         }
     }
@@ -179,15 +174,19 @@ class PostViewerFragment : Fragment() {
 
     private fun setUpOnBackPressedCallback() {
         (activity as MainActivity).onBackPressedDispatcher.addCallback {
-            (binding.recyclerViewPostViewer.adapter as PostViewerAdapter).latestPosition?.let {
-                findNavController().previousBackStackEntry?.savedStateHandle?.set("position", it)
+            (binding.recyclerViewPostViewer.adapter as PostViewerAdapter).let { adapter ->
+                // Stops the user from clicking on anything while the transition takes place.
+                adapter.disposables.dispose()
+                adapter.latestPosition?.let {
+                    findNavController().previousBackStackEntry?.savedStateHandle?.set("position", it)
+                }
             }
             findNavController().popBackStack()
         }
     }
 
     // Custom layout manager for manipulating the RecyclerView's scroll ability for our own nefarious ends.
-    // Now it also comes with a slower default smoothscrolling speed!
+// Now it also comes with a slower default smoothscrolling speed!
     inner class CustomLinearLayoutManager(context: Context) : LinearLayoutManager(context, HORIZONTAL, false) {
         var canScrollHorizontally = false
         var scrollSpeedInMillisecondsPerInch = 50f  // This provides a slower scrolling speed. Default is 25f.

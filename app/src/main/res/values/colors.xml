@@ -3,8 +3,8 @@
 <resources>
     <color name="seed">#263238</color>
     <color name="md_theme_light_primary">#006684</color>
-    <color name="md_theme_light_primaryDark">#468598</color>014154
-    <color name="md_theme_light_onPrimary">#E0F7FF</color>
+    <color name="md_theme_light_primaryDark">#468598</color>
+    <color name="md_theme_light_onPrimary">#C8EBF5</color>
     <color name="md_theme_light_primaryContainer">#BDE9FF</color>
     <color name="md_theme_light_onPrimaryContainer">#001F2A</color>
     <color name="md_theme_light_secondary">#006783</color>
