@@ -282,7 +282,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    fun animateShowActionBar(viewToSynchronizeWith: View? = null) {
+    fun animateShowActionBar() {
         val actionBar = supportActionBar!!
         if (!isActionBarShowing) {
             actionBar.show()
@@ -291,13 +291,6 @@ class MainActivity : AppCompatActivity() {
                 .translationY(0f)
                 .setDuration(ANIMATION_DURATION_LONG)
                 .start()
-
-//            viewToSynchronizeWith?.let {
-//                it.animate()
-//                    .translationY(actionBar.height.toFloat())
-//                    .setDuration(ANIMATION_DURATION_LONG)
-//                    .start()
-//            }
         }
     }
 
@@ -328,7 +321,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    fun animateShowBottomNavBar(viewToSynchronizeWith: View? = null) {
+    fun animateShowBottomNavBar() {
         if (!isNavBarShowing) {
             binding.navView.let {
                 it.isVisible = true
@@ -338,18 +331,6 @@ class MainActivity : AppCompatActivity() {
                     .setDuration(ANIMATION_DURATION_LONG)
                     .start()
             }
-
-//            viewToSynchronizeWith?.let {
-//                animateViewLayoutHeightChange(
-//                    it,
-//                    it.height,
-//                    it.height - binding.navView.height,
-//                    ANIMATION_DURATION_LONG,
-//                    endWithThis = {
-//
-//                    }
-//                )
-//            }
         }
     }
 }

@@ -30,7 +30,13 @@ fun dpToPixel(dp: Int, context: Context): Int = (dp * context.resources.displayM
 
 fun Int.dpToPx(context: Context): Int = dpToPixel(this, context)
 
-fun animateViewLayoutHeightChange(view: View, oldHeight: Int, newHeight: Int, duration: Long, endWithThis: () -> Unit = {}) {
+fun animateViewLayoutHeightChange(
+    view: View,
+    oldHeight: Int,
+    newHeight: Int,
+    duration: Long,
+    endWithThis: () -> Unit = {}
+) {
 
     val slideAnimator = ValueAnimator
         .ofInt(oldHeight, newHeight)
@@ -60,6 +66,7 @@ fun animateViewLayoutHeightChange(view: View, oldHeight: Int, newHeight: Int, du
 }
 
 fun View.resetOnTouchListener(context: Context) {
+    // TODO
     this.setOnTouchListener(object : OnSwipeTouchListener(context) {})
 }
 

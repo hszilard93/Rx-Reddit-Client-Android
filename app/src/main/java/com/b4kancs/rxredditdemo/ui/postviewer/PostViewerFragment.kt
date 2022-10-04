@@ -17,7 +17,8 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.LinearSmoothScroller
 import androidx.recyclerview.widget.LinearSnapHelper
 import androidx.recyclerview.widget.RecyclerView
-import androidx.transition.*
+import androidx.transition.AutoTransition
+import androidx.transition.Transition
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.databinding.FragmentPostViewerBinding
 import com.b4kancs.rxredditdemo.ui.MainActivity
@@ -51,9 +52,31 @@ class PostViewerFragment : Fragment() {
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         binding = FragmentPostViewerBinding.inflate(inflater, container, false)
 
-        sharedElementEnterTransition = ChangeImageTransform()
-        sharedElementReturnTransition = ChangeImageTransform()
-        Log.i(LOG_TAG, "shared element transition: $sharedElementEnterTransition")
+        sharedElementEnterTransition = AutoTransition()
+        sharedElementReturnTransition = AutoTransition().apply {
+            addListener(object : Transition.TransitionListener {
+                override fun onTransitionStart(transition: Transition) {
+                    Log.i(LOG_TAG, "onTransitionStart")
+                }
+
+                override fun onTransitionEnd(transition: Transition) {
+                    Log.i(LOG_TAG, "onTransitionEnd")
+                }
+
+                override fun onTransitionCancel(transition: Transition) {
+                    Log.i(LOG_TAG, "onTransitionCancel")
+                }
+
+                override fun onTransitionPause(transition: Transition) {
+                    Log.i(LOG_TAG, "onTransitionPause")
+                }
+
+                override fun onTransitionResume(transition: Transition) {
+                    Log.i(LOG_TAG, "onTransitionResume")
+                }
+            })
+        }
+
         Log.i(LOG_TAG, "Calling postponeEnterTransition().")
         postponeEnterTransition()
 
@@ -79,7 +102,7 @@ class PostViewerFragment : Fragment() {
     // Using a RecyclerView here was a mistake.
     // I should have used a ViewPager instead.
     // I hate RecyclerViews now.
-    private fun setUpRecyclerView(position: Int) {
+    private fun setUpRecyclerView(initialPosition: Int) {
         /* (⊙_◎) */
         // In order to achieve the desired behaviour of the recyclerview only scrolling on specific button clicks,
         // we disable scrollability of the rv in our CustomLinearLayoutManager. Just before requesting a smooth scroll, we
@@ -140,24 +163,24 @@ class PostViewerFragment : Fragment() {
                         .filter { loadStates -> loadStates.refresh is LoadState.NotLoading }
                         .take(1)
                         .onEach {
-                            recyclerViewPostViewer.scrollToPosition(position)
+                            recyclerViewPostViewer.scrollToPosition(initialPosition)
                             recyclerViewPostViewer.isVisible = true
                         }
                         .launchIn(MainScope())
                 }
 
-            if (sharedElementEnterTransition != null) {
-                postViewerAdapter.readyToBeDrawnSubject
-                    .observeOn(AndroidSchedulers.mainThread())
-                    .subscribe {
-                        (activity as MainActivity).apply {
-                            animateHideActionBar(root)
-                            animateHideBottomNavBar(root)
-                        }
-                        Log.i(LOG_TAG, "Calling startPostponedEnterTransition().")
-                        startPostponedEnterTransition()
-                    }.addTo(disposables)
-            }
+            postViewerAdapter.readyToBeDrawnSubject
+                .observeOn(AndroidSchedulers.mainThread())
+                .filter { it == initialPosition }
+                .take(1)
+                .subscribe {
+                    (activity as MainActivity).apply {
+                        animateHideActionBar(root)
+                        animateHideBottomNavBar(root)
+                    }
+                    Log.i(LOG_TAG, "startPostponedEnterTransition()")
+                    startPostponedEnterTransition()
+                }.addTo(disposables)
         }
     }
 
@@ -174,19 +197,26 @@ class PostViewerFragment : Fragment() {
 
     private fun setUpOnBackPressedCallback() {
         (activity as MainActivity).onBackPressedDispatcher.addCallback {
-            (binding.recyclerViewPostViewer.adapter as PostViewerAdapter).let { adapter ->
-                // Stops the user from clicking on anything while the transition takes place.
-                adapter.disposables.dispose()
-                adapter.latestPosition?.let {
-                    findNavController().previousBackStackEntry?.savedStateHandle?.set("position", it)
-                }
-            }
+            // Stops the user from clicking on anything while the transition takes place.
+            (binding.recyclerViewPostViewer.adapter as PostViewerAdapter).disposables.dispose()
+
+            val visiblePosition = (binding.recyclerViewPostViewer.layoutManager as LinearLayoutManager)
+                .findFirstVisibleItemPosition()
+            val transitionName =
+                (binding.recyclerViewPostViewer.findViewHolderForLayoutPosition(visiblePosition) as PostViewerAdapter.PostViewerViewHolder)
+                    .binding
+                    .postLargeItemImageView
+                    .transitionName
+            Log.i(LOG_TAG, "Transition name = $transitionName")
+            (sharedElementReturnTransition as Transition).addTarget(transitionName)
+
+            findNavController().previousBackStackEntry?.savedStateHandle?.set("position", visiblePosition)
             findNavController().popBackStack()
         }
     }
 
     // Custom layout manager for manipulating the RecyclerView's scroll ability for our own nefarious ends.
-// Now it also comes with a slower default smoothscrolling speed!
+    // Now it also comes with a slower default 'smoothscrolling' speed!
     inner class CustomLinearLayoutManager(context: Context) : LinearLayoutManager(context, HORIZONTAL, false) {
         var canScrollHorizontally = false
         var scrollSpeedInMillisecondsPerInch = 50f  // This provides a slower scrolling speed. Default is 25f.

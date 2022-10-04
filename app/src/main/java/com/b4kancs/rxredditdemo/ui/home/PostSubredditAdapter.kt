@@ -37,7 +37,7 @@ import io.reactivex.rxjava3.subjects.PublishSubject
 import jp.wasabeef.glide.transformations.BlurTransformation
 import java.util.*
 
-class PostSubredditAdapter(private val context: Context) :
+class PostSubredditAdapter(private val context: Context, var disableTransformations: Boolean) :
     PagingDataAdapter<Post, RecyclerView.ViewHolder>(PostComparator) {
 
     companion object {
@@ -46,8 +46,8 @@ class PostSubredditAdapter(private val context: Context) :
         private const val ITEM_VIEW_TYPE_LOAD = 2
     }
 
-    val postClickedSubject = PublishSubject.create<Pair<Int, View>>()
-    val readyToBeDrawnSubject = PublishSubject.create<Unit>()
+    val postClickedSubject: PublishSubject<Pair<Int, View>> = PublishSubject.create()
+    val readyToBeDrawnSubject: PublishSubject<Int> = PublishSubject.create()
     val disposables = CompositeDisposable()
     private lateinit var orientation: Orientation
     private lateinit var postView: View
@@ -86,7 +86,7 @@ class PostSubredditAdapter(private val context: Context) :
 
     override fun onViewRecycled(holder: RecyclerView.ViewHolder) {
         if (holder is PostSubredditViewHolder) {
-            // Resetting views before recyclerview reuses the ViewHolder
+            // Resetting views before the RecyclerView reuses the ViewHolder
             with(holder.binding) {
                 postImageView.setImageDrawable(null)
                 postImageView.resetOnTouchListener(context)
@@ -100,7 +100,7 @@ class PostSubredditAdapter(private val context: Context) :
     }
 
     override fun getItemCount(): Int {
-        return super.getItemCount() + 1     // Plus one for the bottom loading indicator
+        return super.getItemCount() + 1     // Plus one is for the bottom loading indicator
     }
 
     inner class PostSubredditViewHolder(val binding: RvItemPostSubBindingReplacement) : RecyclerView.ViewHolder(postView) {
@@ -226,15 +226,18 @@ class PostSubredditAdapter(private val context: Context) :
                         isFirstResource: Boolean
                     ): Boolean {
                         resource?.let {
-                            val oldImageViewWidth = imageView.measuredWidth
                             val oldImageViewHeight = imageView.measuredHeight
                             val width = resource.intrinsicWidth
                             val height = resource.intrinsicHeight
                             val newImageViewHeight = ((imageView.width.toFloat() / width) * height).toInt()
 
-                            animateViewLayoutHeightChange(imageView, oldImageViewHeight, newImageViewHeight, 150)
+                            if (disableTransformations)
+                                imageView.layoutParams.height = newImageViewHeight
+                            else
+                                animateViewLayoutHeightChange(imageView, oldImageViewHeight, newImageViewHeight, 150)
                         }
-                        readyToBeDrawnSubject.onNext(Unit)
+
+                        readyToBeDrawnSubject.onNext(layoutPosition)
                         return false
                     }
                 }).apply {
@@ -250,6 +253,9 @@ class PostSubredditAdapter(private val context: Context) :
                     if (nsfw) {
                         apply(RequestOptions.bitmapTransform(BlurTransformation(25, 10)))
                         binding.nsfwTagTextView.isVisible = true
+                    }
+                    if (disableTransformations) {
+                        dontTransform()
                     }
                     into(imageView)
                 }

@@ -28,18 +28,18 @@ import io.reactivex.rxjava3.subjects.PublishSubject
 
 class PostViewerAdapter(
     private val context: Context,
+    // The actions in onPositionChangedCallback() help the RecyclerView smartly scroll to the next/previous ViewHolder.
     private val onPositionChangedCallback: (Int) -> Unit
 ) : PagingDataAdapter<Post, PostViewerAdapter.PostViewerViewHolder>(PostComparator) {
     companion object {
         private const val LOG_TAG = "PostViewerAdapter"
     }
 
-    var latestPosition: Int? = null
-    var latestViewHolder: PostViewerViewHolder? = null
-    val readyToBeDrawnSubject = PublishSubject.create<Unit>()
-
+    val readyToBeDrawnSubject: PublishSubject<Int> = PublishSubject.create()
     val disposables = CompositeDisposable()
+
     private val positionSubject = PublishSubject.create<Int>()
+    private val viewHolderSet = HashSet<PostViewerViewHolder>()
 
     override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
         positionSubject
@@ -51,14 +51,17 @@ class PostViewerAdapter(
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PostViewerViewHolder {
-        return PostViewerViewHolder(PostViewerListItemBinding.inflate(LayoutInflater.from(context), parent, false))
+        return PostViewerViewHolder(
+            PostViewerListItemBinding.inflate(LayoutInflater.from(context), parent, false)
+        )
+            .also {
+                viewHolderSet.add(it)
+            }
     }
 
     override fun onBindViewHolder(viewHolder: PostViewerViewHolder, position: Int) {
         val post = getItem(position)
         post?.let(viewHolder::bind)
-        latestPosition = position
-        latestViewHolder = viewHolder
     }
 
     inner class PostViewerViewHolder(val binding: PostViewerListItemBinding) : RecyclerView.ViewHolder(binding.root) {
@@ -93,7 +96,6 @@ class PostViewerAdapter(
         @SuppressLint("CheckResult")
         private fun setUpImageView(post: Post, holder: PostViewerViewHolder) {
             binding.postLargeItemImageView.transitionName = post.links!!.first()
-            Log.i(LOG_TAG, "Transition name for post viewer image view set: ${binding.postLargeItemImageView.transitionName}")
 
             var hasImageLoaded = false
             val imageView = binding.postLargeItemImageView
@@ -116,7 +118,7 @@ class PostViewerAdapter(
                         dataSource: DataSource?,
                         isFirstResource: Boolean
                     ): Boolean {
-                        readyToBeDrawnSubject.onNext(Unit)
+                        readyToBeDrawnSubject.onNext(layoutPosition)
                         return false
                     }
                 })
