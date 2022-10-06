@@ -7,7 +7,6 @@ import com.b4kancs.rxredditdemo.networking.RedditJsonPagingSource
 import kotlinx.parcelize.Parcelize
 import kotlinx.serialization.Serializable
 
-@Parcelize
 data class Post(
     val name: String,
     val author: String,
@@ -21,8 +20,9 @@ data class Post(
     val score: Int,
     val createdAt: Int,
     val nsfw: Boolean,
-    val numOfComments: Int
-) : Parcelable {
+    val numOfComments: Int,
+    var toBlur: Boolean
+) {
     companion object {
 
         private const val LOG_TAG = "Post"
@@ -76,7 +76,8 @@ data class Post(
                     this.score,
                     this.createdAt,
                     this.nsfw,
-                    this.numOfComments
+                    this.numOfComments,
+                    this.nsfw
                 )
             }
         }

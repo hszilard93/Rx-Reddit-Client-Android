@@ -18,7 +18,7 @@ enum class Orientation {
 
     companion object {
         fun fromInt(value: Int): Orientation =
-            when(value) {
+            when (value) {
                 Configuration.ORIENTATION_LANDSCAPE -> LANDSCAPE
                 Configuration.ORIENTATION_PORTRAIT -> PORTRAIT
                 else -> throw IllegalStateException("ILLEGAL ORIENTATION ARGUMENT")
@@ -57,11 +57,12 @@ fun animateViewLayoutHeightChange(
         override fun onAnimationEnd(animation: Animator?) {
             endWithThis()
         }
-        override fun onAnimationStart(animation: Animator?) { }
-        override fun onAnimationCancel(animation: Animator?) { }
-        override fun onAnimationRepeat(animation: Animator?) { }
 
-    } )
+        override fun onAnimationStart(animation: Animator?) {}
+        override fun onAnimationCancel(animation: Animator?) {}
+        override fun onAnimationRepeat(animation: Animator?) {}
+
+    })
     animatorSet.start()
 }
 
@@ -70,5 +71,5 @@ fun View.resetOnTouchListener(context: Context) {
     this.setOnTouchListener(object : OnSwipeTouchListener(context) {})
 }
 
-fun <T : Any> Observable<T>.toV3Observable() : io.reactivex.rxjava3.core.Observable<T> =
+fun <T : Any> Observable<T>.toV3Observable(): io.reactivex.rxjava3.core.Observable<T> =
     RxJavaBridge.toV3Observable(this)

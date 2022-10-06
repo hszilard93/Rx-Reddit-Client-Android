@@ -27,11 +27,12 @@ class HomeViewModel : ViewModel(), PostPagingDataObservableProvider {
 //    }
 //    val text: LiveData<String> = _text
 
-    private val disposables = CompositeDisposable()
+    var isAppJustStarted = true
     private val subredditLiveData = MutableLiveData(RedditJsonPagingSource.defaultSubreddit)
     private val _subredditNameLiveData = MutableLiveData(subredditLiveData.value?.name!!)
     val subredditNameLiveData: LiveData<String> = _subredditNameLiveData
     val cachedPagingObservable: Observable<PagingData<Post>>
+    private val disposables = CompositeDisposable()
     private var subredditAddress = subredditLiveData.value?.address
 
     init {

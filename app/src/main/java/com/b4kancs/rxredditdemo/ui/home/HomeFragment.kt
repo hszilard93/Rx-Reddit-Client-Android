@@ -14,6 +14,7 @@ import androidx.paging.LoadState
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.b4kancs.rxredditdemo.databinding.FragmentHomeBinding
 import com.b4kancs.rxredditdemo.ui.MainActivity
+import com.b4kancs.rxredditdemo.utils.CustomLinearLayoutManager
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.CompositeDisposable
@@ -23,7 +24,7 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.take
-import org.koin.androidx.viewmodel.ext.android.viewModel
+import org.koin.androidx.viewmodel.ext.android.sharedViewModel
 import java.util.concurrent.TimeUnit
 
 class HomeFragment : Fragment() {
@@ -32,11 +33,11 @@ class HomeFragment : Fragment() {
         private const val LOG_TAG = "HomeFragment"
     }
 
-    private val homeViewModel: HomeViewModel by viewModel()
+    private val homeViewModel: HomeViewModel by sharedViewModel()
     private var _binding: FragmentHomeBinding? = null
     private val binding get() = _binding!!  // This property is only valid between onCreateView and onDestroyView.
     private val disposables = CompositeDisposable()
-    private var positionToNavigateTo: Int? = null
+    private var positionToGoTo: Int? = null
     private var justChangedSubreddits = false
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
@@ -45,7 +46,11 @@ class HomeFragment : Fragment() {
                 .map { it.destination }
                 .joinToString("\n ", "\n ")
         }")
-        positionToNavigateTo = findNavController().currentBackStackEntry?.savedStateHandle?.get<Int>("position")
+        positionToGoTo = findNavController().currentBackStackEntry?.savedStateHandle?.get<Int>("position")
+        if (homeViewModel.isAppJustStarted) {
+            positionToGoTo = 0
+            homeViewModel.isAppJustStarted = false
+        }
 
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
 
@@ -60,12 +65,13 @@ class HomeFragment : Fragment() {
 
         binding.apply {
             var postSubredditAdapter: PostSubredditAdapter? = null
-            recyclerPosts.layoutManager = LinearLayoutManager(context)
+            recyclerPosts.layoutManager = CustomLinearLayoutManager(requireContext(), LinearLayoutManager.VERTICAL)
+                .apply { canScrollHorizontally = false }
             homeViewModel.cachedPagingObservable
                 .subscribe { pagingData ->
                     try {
                         if (recyclerPosts.adapter == null) {
-                            val shouldDisableTransformations = positionToNavigateTo != null
+                            val shouldDisableTransformations = positionToGoTo != null
                             // If positionToNavigateTo is not null, we need to disable glide transformations and some other stuff for the
                             // shared element transition to work properly
                             recyclerPosts.adapter = PostSubredditAdapter(activity, shouldDisableTransformations)
@@ -82,11 +88,13 @@ class HomeFragment : Fragment() {
                                     binding.noMediaInSubInfoTextView.isVisible = true
                                 else {
                                     binding.noMediaInSubInfoTextView.isVisible = false
-                                    Log.i(LOG_TAG, "Scrolling to position: $positionToNavigateTo")
-                                    recyclerPosts.scrollToPosition(positionToNavigateTo ?: 0)
-
+                                    positionToGoTo?.let { pos ->
+                                        Log.i(LOG_TAG, "Scrolling to position: $pos")
+                                        recyclerPosts.scrollToPosition(pos)
+                                    }
                                     // This delay stops the flickering after a change of subreddits
                                     if (justChangedSubreddits) {
+                                        recyclerPosts.scrollToPosition(0)
                                         recyclerPosts.visibility = View.INVISIBLE
                                         Observable.timer(FLICKERING_DELAY, TimeUnit.MILLISECONDS)
                                             .observeOn(AndroidSchedulers.mainThread())
@@ -127,6 +135,7 @@ class HomeFragment : Fragment() {
             swipeRefreshLayout.apply {
                 setOnRefreshListener {
                     postSubredditAdapter!!.refresh()
+                    recyclerPosts.scrollToPosition(0)
                     isRefreshing = false
                 }
             }
@@ -135,7 +144,7 @@ class HomeFragment : Fragment() {
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe { (position, view) ->
                     createNewPostViewerFragmentWithPost(position, view)
-
+                    (recyclerPosts.layoutManager as CustomLinearLayoutManager).canScrollVertically = false
                     // By disposing of the subscriptions here, we stop the user from accidentally clicking on a post
                     // while the transition takes place.
                     postSubredditAdapter?.disposables?.dispose()
@@ -143,12 +152,12 @@ class HomeFragment : Fragment() {
 
             postSubredditAdapter!!.readyToBeDrawnSubject
                 .observeOn(AndroidSchedulers.mainThread())
-                .filter { it == positionToNavigateTo }
+                .filter { it == (positionToGoTo ?: 0) }
                 .take(1)
                 .subscribe {
                     // Fine scroll to better position the imageview
                     val toScrollY = binding.recyclerPosts
-                        .findViewHolderForLayoutPosition(positionToNavigateTo ?: 0)
+                        .findViewHolderForLayoutPosition(positionToGoTo ?: 0)
                         ?.itemView
                         ?.y
                         ?: 0f
@@ -162,7 +171,7 @@ class HomeFragment : Fragment() {
                         .observeOn(AndroidSchedulers.mainThread())
                         .subscribe {
                             val transitionName =
-                                (recyclerPosts.findViewHolderForLayoutPosition(positionToNavigateTo ?: 0)
+                                (recyclerPosts.findViewHolderForLayoutPosition(positionToGoTo ?: 0)
                                         as PostSubredditAdapter.PostSubredditViewHolder)
                                     .binding
                                     .postImageView

@@ -9,6 +9,4 @@ class PostViewerViewModel(pagingDataObservableProvider: PostPagingDataObservable
     }
 
     val pagingDataObservable = pagingDataObservableProvider.cachedPagingObservable()
-
-    fun hello() = Log.d(LOG_TAG, "Hello!")
 }

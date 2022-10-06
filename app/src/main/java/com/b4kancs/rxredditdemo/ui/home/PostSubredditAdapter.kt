@@ -32,10 +32,12 @@ import com.google.android.material.imageview.ShapeableImageView
 import com.google.android.material.textview.MaterialTextView
 import com.jakewharton.rxbinding4.view.clicks
 import io.reactivex.rxjava3.disposables.CompositeDisposable
+import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.kotlin.addTo
 import io.reactivex.rxjava3.subjects.PublishSubject
 import jp.wasabeef.glide.transformations.BlurTransformation
 import java.util.*
+import kotlin.collections.HashSet
 
 class PostSubredditAdapter(private val context: Context, var disableTransformations: Boolean) :
     PagingDataAdapter<Post, RecyclerView.ViewHolder>(PostComparator) {
@@ -140,7 +142,7 @@ class PostSubredditAdapter(private val context: Context, var disableTransformati
                 var hasImageLoaded = false
                 var currentPos: Int? = null
                 val positionSubject = PublishSubject.create<Int>()
-                var isNsfw = post.nsfw
+                var isNsfw = post.nsfw && post.toBlur
 
                 post.links.forEach {
                     Glide.with(context).downloadOnly().load(it)
@@ -153,14 +155,28 @@ class PostSubredditAdapter(private val context: Context, var disableTransformati
                     }
                     .addTo(disposables)
 
-                if (isNsfw) {
+                var nsfwClickObserver: Disposable? = null
+                val subscribeForRegularClicks = {
+                    nsfwClickObserver?.dispose()
                     postImageView.clicks()
-                        .doOnSubscribe { Log.d(LOG_TAG, "Subscribing for nsfw imageview clicks.") }
+                        .doOnSubscribe { Log.d(LOG_TAG, "Subscribing for regular post imageview clicks.") }
                         .subscribe {
-                            Log.d(LOG_TAG, "Unblurring.")
+                            Log.d(LOG_TAG, "Image clicked in post $post. Forwarding to postClickedSubject.")
+                            postClickedSubject.onNext(layoutPosition to postImageView)
+                        }.addTo(disposables)
+                }
+
+                if (isNsfw) {
+                    nsfwClickObserver = postImageView.clicks()
+                        .doOnSubscribe { Log.d(LOG_TAG, "Subscribing for nsfw imageview clicks.") }
+                        .take(1)
+                        .subscribe {
+                            Log.d(LOG_TAG, "Unblurring NSFW image.")
                             isNsfw = false
                             nsfwTagTextView.isVisible = false
+                            post.toBlur = false
                             positionSubject.onNext(currentPos)
+                            subscribeForRegularClicks()
                         }
                         .addTo(disposables)
                     nsfwTagTextView.clicks()
@@ -168,13 +184,9 @@ class PostSubredditAdapter(private val context: Context, var disableTransformati
                             postImageView.performClick()
                         }
                         .addTo(disposables)
-                } else {
-                    postImageView.clicks()
-                        .doOnSubscribe { Log.d(LOG_TAG, "Subscribing for regular post imageview clicks.") }
-                        .subscribe {
-                            Log.d(LOG_TAG, "Image clicked in post ${post.toString()}. Forwarding to postClickedSubject.")
-                            postClickedSubject.onNext(position to postImageView)
-                        }.addTo(disposables)
+                }
+                else {
+                    subscribeForRegularClicks()
                 }
 
                 positionSubject.onNext(0)
@@ -272,7 +284,7 @@ class PostSubredditAdapter(private val context: Context, var disableTransformati
         }
     }
 
-    // Since we have virtually identical bindings for both the portrait and landscape layouts, I found this
+    // Since we have virtually identical Bindings for both the portrait and landscape layouts, I found this
     // 'replacement' data class to be the simplest solution to the problem of using them with the same ViewHolder
     // and avoiding replicating code.
     data class RvItemPostSubBindingReplacement(
