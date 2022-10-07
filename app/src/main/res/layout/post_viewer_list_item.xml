@@ -15,7 +15,7 @@
         android:layout_height="match_parent"
         android:descendantFocusability="blocksDescendants">
 
-        <ImageView
+        <com.jsibbold.zoomage.ZoomageView
             android:id="@+id/post_large_item_image_view"
             android:layout_width="0dp"
             android:layout_height="4000dp"

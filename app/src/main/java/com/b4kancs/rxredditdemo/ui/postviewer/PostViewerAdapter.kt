@@ -4,9 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.drawable.Drawable
 import android.util.Log
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
+import android.view.*
 import androidx.core.view.doOnLayout
 import androidx.paging.PagingDataAdapter
 import androidx.recyclerview.widget.RecyclerView
@@ -20,7 +18,6 @@ import com.bumptech.glide.load.engine.GlideException
 import com.bumptech.glide.request.RequestListener
 import com.bumptech.glide.request.RequestOptions
 import com.bumptech.glide.request.target.Target
-import com.jakewharton.rxbinding4.view.clicks
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.addTo
@@ -98,13 +95,14 @@ class PostViewerAdapter(
             binding.postLargeItemImageView.transitionName = post.links!!.first()
 
             var hasImageLoaded = false
-            val imageView = binding.postLargeItemImageView
+            val zoomableImageView = binding.postLargeItemImageView
             val link = post.links[0]
             Glide.with(context).load(link)
                 .apply(
                     RequestOptions()
                         .error(R.drawable.ic_not_found_24)
                         .placeholder(R.drawable.ic_download)
+                        .override(Target.SIZE_ORIGINAL)
                         .dontTransform()
                 )
                 .addListener(object : RequestListener<Drawable> {
@@ -122,12 +120,34 @@ class PostViewerAdapter(
                         return false
                     }
                 })
-                .into(imageView)
+                .into(zoomableImageView)
 
-            imageView.clicks()
+            val onSingleTapSubject: PublishSubject<Unit> = PublishSubject.create()
+            onSingleTapSubject
+                .observeOn(AndroidSchedulers.mainThread())
                 .subscribe {
-                    positionSubject.onNext(layoutPosition + 1)
+                    if (zoomableImageView.currentScaleFactor == 1f) {
+                        positionSubject.onNext(layoutPosition + 1)
+                    }
+                    Log.i(LOG_TAG, "scale: ${zoomableImageView.currentScaleFactor}")
+                }.addTo(disposables)
+
+            val gestureDetector = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
+                override fun onSingleTapConfirmed(e: MotionEvent?): Boolean {
+                    Log.i(LOG_TAG, "GestureDetector: onSingleTapConfirmed")
+                    onSingleTapSubject.onNext(Unit)
+                    return true
                 }
+
+                override fun onDoubleTap(e: MotionEvent?): Boolean {
+                    Log.i(LOG_TAG, "GestureDetector: onDoubleTap")
+                    return false
+                }
+            })
+
+            zoomableImageView.setOnTouchListener { _, e ->
+                gestureDetector.onTouchEvent(e)
+            }
         }
     }
 }
