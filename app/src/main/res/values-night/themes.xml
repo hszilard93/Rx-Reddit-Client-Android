@@ -32,5 +32,7 @@
         <item name="colorImageBackground">@color/md_theme_dark_inverseOnSurface</item>
         <item name="colorMenuBackground">@color/md_theme_dark_surface</item>
         <item name="colorHomeBackground">@color/md_theme_dark_surface</item>
+        <item name="colorHudGradientStart">#55001F2A</item>
+        <item name="colorHudGradientEnd">#AA001F2A</item>
     </style>
 </resources>

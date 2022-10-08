@@ -31,5 +31,9 @@
         <item name="colorImageBackground">@color/md_theme_light_surfaceVariant</item>
         <item name="colorMenuBackground">@color/md_theme_light_surface</item>
         <item name="colorHomeBackground">@color/md_theme_light_surface</item>
+<!--        <item name="colorHudGradientStart">#55BDE9FF</item>-->
+        <item name="colorHudGradientStart">#44B3EBFF</item>
+<!--        <item name="colorHudGradientEnd">#AABDE9FF</item>-->
+        <item name="colorHudGradientEnd">#88B3EBFF</item>
     </style>
 </resources>

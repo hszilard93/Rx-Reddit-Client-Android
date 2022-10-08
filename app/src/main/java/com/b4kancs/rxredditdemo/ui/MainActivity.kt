@@ -257,6 +257,14 @@ class MainActivity : AppCompatActivity() {
             .addTo(disposables)
     }
 
+    fun lockDrawerClosed() {
+        binding.drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
+    }
+
+    fun unlockDrawer() {
+        binding.drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED)
+    }
+
     fun animateHideActionBar(viewToSynchronizeWith: View? = null) {
         val actionBar = supportActionBar!!
         if (isActionBarShowing) {

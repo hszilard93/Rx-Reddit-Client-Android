@@ -164,6 +164,7 @@ class HomeFragment : Fragment() {
                     Log.i(LOG_TAG, "Scrolling by y = $toScrollY")
                     binding.recyclerPosts.scrollBy(0, toScrollY.toInt())
 
+                    // We put these reveals here so that they will be synced with the SharedElementTransition.
                     activity.animateShowActionBar()
                     activity.animateShowBottomNavBar()
 

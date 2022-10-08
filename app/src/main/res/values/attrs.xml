@@ -3,4 +3,6 @@
     <attr name="colorImageBackground" format="color"/>
     <attr name="colorMenuBackground" format="color"/>
     <attr name="colorHomeBackground" format="color"/>
+    <attr name="colorHudGradientStart" format="color"/>
+    <attr name="colorHudGradientEnd" format="color"/>
 </resources>

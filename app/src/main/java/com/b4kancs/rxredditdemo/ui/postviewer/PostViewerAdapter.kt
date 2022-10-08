@@ -6,18 +6,22 @@ import android.graphics.drawable.Drawable
 import android.util.Log
 import android.view.*
 import androidx.core.view.doOnLayout
+import androidx.core.view.isVisible
 import androidx.paging.PagingDataAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.databinding.PostViewerListItemBinding
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.ui.PostComparator
+import com.b4kancs.rxredditdemo.utils.animateHideViewAlpha
+import com.b4kancs.rxredditdemo.utils.animateShowViewAlpha
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.DataSource
 import com.bumptech.glide.load.engine.GlideException
 import com.bumptech.glide.request.RequestListener
 import com.bumptech.glide.request.RequestOptions
 import com.bumptech.glide.request.target.Target
+import com.jakewharton.rxbinding4.view.clicks
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.addTo
@@ -34,14 +38,15 @@ class PostViewerAdapter(
 
     val readyToBeDrawnSubject: PublishSubject<Int> = PublishSubject.create()
     val disposables = CompositeDisposable()
-
     private val positionSubject = PublishSubject.create<Int>()
     private val viewHolderSet = HashSet<PostViewerViewHolder>()
+    private var isHudVisible = false
 
     override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
         positionSubject
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe { nextPosition ->
+                Log.i(LOG_TAG, "onPositionChangedCallback($nextPosition)")
                 onPositionChangedCallback(nextPosition)
             }.addTo(disposables)
         super.onAttachedToRecyclerView(recyclerView)
@@ -61,7 +66,14 @@ class PostViewerAdapter(
         post?.let(viewHolder::bind)
     }
 
+    override fun onViewRecycled(holder: PostViewerViewHolder) {
+        holder.hudElements.clear()
+        super.onViewRecycled(holder)
+    }
+
     inner class PostViewerViewHolder(val binding: PostViewerListItemBinding) : RecyclerView.ViewHolder(binding.root) {
+
+        val hudElements = ArrayList<View>()
 
         init {
             // In order to have the imageview fill the screen, I make it the size of the window's height minus the status bar height.
@@ -76,6 +88,9 @@ class PostViewerAdapter(
                         if (navBarHeight > 0) 0 else 100
             Log.d(LOG_TAG, "The imageview's height will be set to: $imageViewNewHeight")
             binding.postLargeItemImageView.layoutParams.height = imageViewNewHeight
+
+            hudElements.addAll(listOf<View>(binding.postLargeItemLeftHudConstraintLayout, binding.postLargeItemRightHudConstraintLayout))
+            hudElements.forEach { it.isVisible = isHudVisible }
         }
 
         fun bind(post: Post) {
@@ -122,26 +137,43 @@ class PostViewerAdapter(
                 })
                 .into(zoomableImageView)
 
+            binding.postLargeItemLeftHudConstraintLayout.clicks()
+                .subscribe {
+                    Log.i(LOG_TAG, "Left hud clicked, paging left.")
+                    positionSubject.onNext(layoutPosition - 1)
+                }.addTo(disposables)
+
+            binding.postLargeItemRightHudConstraintLayout.clicks()
+                .subscribe {
+                    Log.i(LOG_TAG, "Right hud clicked, paging right.")
+                    positionSubject.onNext(layoutPosition + 1)
+                }.addTo(disposables)
+
             val onSingleTapSubject: PublishSubject<Unit> = PublishSubject.create()
             onSingleTapSubject
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe {
-                    if (zoomableImageView.currentScaleFactor == 1f) {
-                        positionSubject.onNext(layoutPosition + 1)
+                    if (!isHudVisible) {
+                        Log.i(LOG_TAG, "Showing HUD. HUD elements size: ${hudElements.size}")
+                        hudElements.forEach(::animateShowViewAlpha)
+                        isHudVisible = true
+                    } else {
+                        Log.i(LOG_TAG, "Hiding HUD. HUD elements size: ${hudElements.size}")
+                        hudElements.forEach(::animateHideViewAlpha)
+                        isHudVisible = false
                     }
-                    Log.i(LOG_TAG, "scale: ${zoomableImageView.currentScaleFactor}")
                 }.addTo(disposables)
 
             val gestureDetector = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
                 override fun onSingleTapConfirmed(e: MotionEvent?): Boolean {
                     Log.i(LOG_TAG, "GestureDetector: onSingleTapConfirmed")
                     onSingleTapSubject.onNext(Unit)
-                    return true
+                    return false
                 }
 
                 override fun onDoubleTap(e: MotionEvent?): Boolean {
                     Log.i(LOG_TAG, "GestureDetector: onDoubleTap")
-                    return false
+                    return isHudVisible
                 }
             })
 

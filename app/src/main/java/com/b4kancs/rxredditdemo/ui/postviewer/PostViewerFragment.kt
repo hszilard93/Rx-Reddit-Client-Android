@@ -94,11 +94,17 @@ class PostViewerFragment : Fragment() {
         setUpOnBackPressedCallback()
     }
 
+    override fun onResume() {
+        super.onResume()
+        (activity as MainActivity).lockDrawerClosed()
+    }
+
     override fun onPause() {
         super.onPause()
         (activity as MainActivity).apply {
             supportActionBar?.show()
             findViewById<BottomNavigationView>(R.id.nav_view).isVisible = true
+            unlockDrawer()
         }
 //        (binding.recyclerViewPostViewer.adapter as PostViewerAdapter)
     }

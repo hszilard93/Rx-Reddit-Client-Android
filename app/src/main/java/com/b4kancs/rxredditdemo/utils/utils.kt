@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.res.Configuration
 import android.view.View
 import android.view.animation.AccelerateDecelerateInterpolator
+import androidx.core.view.isVisible
 import hu.akarnokd.rxjava3.bridge.RxJavaBridge
 import io.reactivex.Observable
 
@@ -37,7 +38,6 @@ fun animateViewLayoutHeightChange(
     duration: Long,
     endWithThis: () -> Unit = {}
 ) {
-
     val slideAnimator = ValueAnimator
         .ofInt(oldHeight, newHeight)
         .setDuration(duration)
@@ -64,6 +64,23 @@ fun animateViewLayoutHeightChange(
 
     })
     animatorSet.start()
+}
+
+fun animateShowViewAlpha(view: View) {
+    view.alpha = 0f
+    view.isVisible = true
+    view.animate()
+        .alpha(1f)
+        .setDuration(ANIMATION_DURATION_LONG)
+        .start()
+}
+
+fun animateHideViewAlpha(view: View) {
+    view.animate()
+        .alpha(0f)
+        .setDuration(ANIMATION_DURATION_LONG)
+        .withEndAction { view.isVisible = false }
+        .start()
 }
 
 fun View.resetOnTouchListener(context: Context) {
