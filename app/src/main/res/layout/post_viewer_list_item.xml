@@ -3,17 +3,12 @@
     android:id="@+id/post_large_scroll_view"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:descendantFocusability="beforeDescendants"
-    android:fillViewport="true"
-    android:focusable="true"
-    android:focusableInTouchMode="true"
     android:orientation="vertical">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/post_large_item_outer_constraint_layout"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:descendantFocusability="blocksDescendants">
+        android:layout_height="match_parent">
 
         <com.jsibbold.zoomage.ZoomageView
             android:id="@+id/post_large_item_image_view"

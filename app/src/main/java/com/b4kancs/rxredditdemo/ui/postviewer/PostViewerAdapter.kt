@@ -29,7 +29,7 @@ import io.reactivex.rxjava3.subjects.PublishSubject
 
 class PostViewerAdapter(
     private val context: Context,
-    // The actions in onPositionChangedCallback() help the RecyclerView smartly scroll to the next/previous ViewHolder.
+    // This is how the RecyclerView scrolls to the next/previous ViewHolder.
     private val onPositionChangedCallback: (Int) -> Unit
 ) : PagingDataAdapter<Post, PostViewerAdapter.PostViewerViewHolder>(PostComparator) {
     companion object {
@@ -39,8 +39,8 @@ class PostViewerAdapter(
     val readyToBeDrawnSubject: PublishSubject<Int> = PublishSubject.create()
     val disposables = CompositeDisposable()
     private val positionSubject = PublishSubject.create<Int>()
-    private val viewHolderSet = HashSet<PostViewerViewHolder>()
-    private var isHudVisible = false
+    private val viewHolderMap = HashMap<PostViewerViewHolder, Int>()
+    private var isRecentlyDisplayed = true
 
     override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
         positionSubject
@@ -56,14 +56,13 @@ class PostViewerAdapter(
         return PostViewerViewHolder(
             PostViewerListItemBinding.inflate(LayoutInflater.from(context), parent, false)
         )
-            .also {
-                viewHolderSet.add(it)
-            }
     }
 
     override fun onBindViewHolder(viewHolder: PostViewerViewHolder, position: Int) {
         val post = getItem(position)
         post?.let(viewHolder::bind)
+        viewHolderMap[viewHolder] = position
+        isRecentlyDisplayed = false
     }
 
     override fun onViewRecycled(holder: PostViewerViewHolder) {
@@ -71,12 +70,20 @@ class PostViewerAdapter(
         super.onViewRecycled(holder)
     }
 
+    fun getViewHolderForPosition(pos: Int): PostViewerViewHolder? {
+        for (k in viewHolderMap.keys) {
+            if (viewHolderMap[k] == pos) return k
+        }
+        return null
+    }
+
     inner class PostViewerViewHolder(val binding: PostViewerListItemBinding) : RecyclerView.ViewHolder(binding.root) {
 
         val hudElements = ArrayList<View>()
+        var isHudVisible = !isRecentlyDisplayed
 
         init {
-            // In order to have the imageview fill the screen, I make it the size of the window's height minus the status bar height.
+            // For the imageview to fill the screen, I make it's height equal to the window's height minus the status bar's height.
             val statusBarId = context.resources.getIdentifier("status_bar_height", "dimen", "android")
             val statusBarHeight = context.resources.getDimensionPixelSize(statusBarId)
             val navBarId = context.resources.getIdentifier("navigation_bar_height", "dimen", "android")
@@ -88,28 +95,24 @@ class PostViewerAdapter(
                         if (navBarHeight > 0) 0 else 100
             Log.d(LOG_TAG, "The imageview's height will be set to: $imageViewNewHeight")
             binding.postLargeItemImageView.layoutParams.height = imageViewNewHeight
-
-            hudElements.addAll(listOf<View>(binding.postLargeItemLeftHudConstraintLayout, binding.postLargeItemRightHudConstraintLayout))
-            hudElements.forEach { it.isVisible = isHudVisible }
         }
 
         fun bind(post: Post) {
             setUpImageView(post, this)
-            // The ScrollView simply cannot be made to scroll programmatically. I've tried 20 different solutions.
+            // Always start with the ScrollView scrolled to the top.
             binding.postLargeScrollView.apply {
                 doOnLayout {
-                    fling(0)
-                    fullScroll(View.FOCUS_UP)
-                    scrollTo(0, 0)
+                    binding.postLargeScrollView.fling(-20000)
                 }
             }
+            hudElements.addAll(listOf<View>(binding.postLargeItemLeftHudConstraintLayout, binding.postLargeItemRightHudConstraintLayout))
+            hudElements.forEach { it.isVisible = isHudVisible }
         }
 
-        @SuppressLint("CheckResult")
+        @SuppressLint("CheckResult", "ClickableViewAccessibility")
         private fun setUpImageView(post: Post, holder: PostViewerViewHolder) {
             binding.postLargeItemImageView.transitionName = post.links!!.first()
 
-            var hasImageLoaded = false
             val zoomableImageView = binding.postLargeItemImageView
             val link = post.links[0]
             Glide.with(context).load(link)
@@ -117,7 +120,6 @@ class PostViewerAdapter(
                     RequestOptions()
                         .error(R.drawable.ic_not_found_24)
                         .placeholder(R.drawable.ic_download)
-                        .override(Target.SIZE_ORIGINAL)
                         .dontTransform()
                 )
                 .addListener(object : RequestListener<Drawable> {
@@ -153,14 +155,15 @@ class PostViewerAdapter(
             onSingleTapSubject
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe {
+                    Log.d(LOG_TAG, "isHudVisible = $isHudVisible")
                     if (!isHudVisible) {
                         Log.i(LOG_TAG, "Showing HUD. HUD elements size: ${hudElements.size}")
-                        hudElements.forEach(::animateShowViewAlpha)
                         isHudVisible = true
+                        hudElements.forEach(::animateShowViewAlpha)
                     } else {
                         Log.i(LOG_TAG, "Hiding HUD. HUD elements size: ${hudElements.size}")
-                        hudElements.forEach(::animateHideViewAlpha)
                         isHudVisible = false
+                        hudElements.forEach(::animateHideViewAlpha)
                     }
                 }.addTo(disposables)
 
