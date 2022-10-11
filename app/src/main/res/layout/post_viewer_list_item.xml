@@ -23,8 +23,8 @@
             android:id="@+id/post_large_item_left_hud_constraint_layout"
             android:layout_width="100dp"
             android:layout_height="0dp"
-            android:visibility="gone"
             android:background="@drawable/sh_gradient_left_hud"
+            android:visibility="gone"
             app:layout_constraintBottom_toBottomOf="@id/post_large_item_image_view"
             app:layout_constraintStart_toStartOf="@id/post_large_item_image_view"
             app:layout_constraintTop_toTopOf="@id/post_large_item_image_view">
@@ -93,12 +93,52 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/post_large_item_image_view">
 
+            <ImageView
+                android:id="@+id/post_large_item_score_image_view"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingStart="12dp"
+                android:src="@drawable/ic_baseline_arrow_drop_up_36"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/post_large_item_title_text_view"
+                app:tint="?attr/colorPrimaryInverse" />
+
+            <com.google.android.material.textview.MaterialTextView
+                android:id="@+id/post_large_item_score_text_view"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingStart="4dp"
+                android:text="1024"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                app:layout_constraintBottom_toBottomOf="@id/post_large_item_score_image_view"
+                app:layout_constraintStart_toEndOf="@id/post_large_item_score_image_view"
+                app:layout_constraintTop_toTopOf="@id/post_large_item_score_image_view" />
+
+            <com.google.android.material.textview.MaterialTextView
+                android:id="@+id/post_large_item_comments_text_view"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:text="256 comments"
+                android:paddingStart="8dp"
+                android:paddingEnd="16dp"
+                android:gravity="end"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                app:layout_constraintBottom_toBottomOf="@id/post_large_item_score_image_view"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toEndOf="@id/post_large_item_score_text_view"
+                app:layout_constraintTop_toTopOf="@id/post_large_item_score_image_view" />
+
             <com.google.android.material.textview.MaterialTextView
                 android:id="@+id/post_large_item_title_text_view"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
-                android:padding="8dp"
+                android:layout_marginTop="8dp"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="8dp"
+                android:paddingBottom="4dp"
                 android:text="@string/post_text_placeholder_text"
                 android:textSize="20sp"
                 app:layout_constraintEnd_toEndOf="parent"
@@ -113,7 +153,7 @@
                 android:text="this is a comment placeholder"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/post_large_item_title_text_view" />
+                app:layout_constraintTop_toBottomOf="@id/post_large_item_score_image_view" />
 
             <TextView
                 android:id="@+id/placeholder_comment_text_view2"

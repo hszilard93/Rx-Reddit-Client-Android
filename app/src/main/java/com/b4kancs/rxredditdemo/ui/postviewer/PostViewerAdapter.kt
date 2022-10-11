@@ -105,6 +105,10 @@ class PostViewerAdapter(
                     binding.postLargeScrollView.fling(-20000)
                 }
             }
+            binding.postLargeItemTitleTextView.text = post.title
+            binding.postLargeItemScoreTextView.text = post.score.toString()
+            binding.postLargeItemCommentsTextView.text = "${post.numOfComments} comments"
+
             hudElements.addAll(listOf<View>(binding.postLargeItemLeftHudConstraintLayout, binding.postLargeItemRightHudConstraintLayout))
             hudElements.forEach { it.isVisible = isHudVisible }
         }

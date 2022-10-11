@@ -94,7 +94,7 @@ class MainActivity : AppCompatActivity() {
             selectedSubredditChangedSubject
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe {
-                    Observable.timer(400, TimeUnit.MILLISECONDS)
+                    Observable.timer(300, TimeUnit.MILLISECONDS)
                         .subscribe {
                             drawerLayout.closeDrawer(GravityCompat.START)
                         }
@@ -184,29 +184,57 @@ class MainActivity : AppCompatActivity() {
         binding.drawerSearchView.queryTextChangeEvents()
             .observeOn(AndroidSchedulers.mainThread())
             .debounce(250, TimeUnit.MILLISECONDS)
-            .map { it.queryText.toString() }
-            .subscribe { keyword ->
-                if (keyword.isEmpty()) {
-                    searchResults = emptyList()
-                    searchResultsChanged.onNext(Unit)
+            .map {
+                val keyword = it.queryText
+                if (it.isSubmitted) {
+                    Log.i(LOG_TAG, "Subreddit query text submitted: $keyword")
+                    it.queryText.toString() to true
                 } else {
-                    val dbResultSingle = subredditDatabase.subredditDao().getSubredditsByNameLike("%${keyword}%")
-                        .toObservable()
-                        .subscribeOn(Schedulers.io())
-                    val nwResultSingle = RedditJsonPagingSource.getSubredditsByKeyword(keyword)
-                        .toObservable()
-                        .subscribeOn(Schedulers.io())
-                        .doOnError { Log.e(LOG_TAG, "Did not receive network response for query: $keyword") }
-                        .onErrorComplete()
-                        .startWith(Single.just(emptyList()))
+                    Log.i(LOG_TAG, "Querying keyword: $keyword")
+                    it.queryText.toString() to false
+                }
+            }
+            .subscribe { (keyword, isSubmitted) ->
+                if (isSubmitted) {
+                    val subInDb = subredditDatabase.subredditDao().getSubreddits().blockingGet().firstOrNull { it.name == keyword }
+                    if (subInDb != null) {
+                        selectedSubredditChangedSubject.onNext(subInDb)
+                    }
+                    else {
+                        selectedSubredditChangedSubject.onNext(
+                            Subreddit(
+                                keyword,
+                                "r/$keyword",
+                                Subreddit.Status.NOT_IN_DB
+                            )
+                        )
+                    }
+                } else {
+                    if (keyword.isEmpty()) {
+                        searchResults = emptyList()
+                        searchResultsChanged.onNext(Unit)
+                    } else {
+                        val dbResultSingle = subredditDatabase.subredditDao().getSubredditsByNameLike("%${keyword}%")
+                            .toObservable()
+                            .subscribeOn(Schedulers.io())
+                        val nwResultSingle = RedditJsonPagingSource.getSubredditsByKeyword(keyword)
+                            .toObservable()
+                            .subscribeOn(Schedulers.io())
+                            .doOnError { Log.e(LOG_TAG, "Did not receive network response for query: $keyword") }
+                            .onErrorComplete()
+                            .startWith(Single.just(emptyList()))
 
-                    Observable.combineLatest(dbResultSingle, nwResultSingle, BiFunction { a: List<Subreddit>, b: List<Subreddit> -> a + b })
-                        .subscribe { subs ->
-                            subs.distinctBy { it.address.toLowerCase() }.let { distinctSubs ->
-                                searchResults = distinctSubs
-                                searchResultsChanged.onNext(Unit)
-                            }
-                        }.addTo(disposables)
+                        Observable.combineLatest(
+                            dbResultSingle,
+                            nwResultSingle
+                        ) { a: List<Subreddit>, b: List<Subreddit> -> a + b }
+                            .subscribe { subs ->
+                                subs.distinctBy { it.address.toLowerCase() }.let { distinctSubs ->
+                                    searchResults = distinctSubs
+                                    searchResultsChanged.onNext(Unit)
+                                }
+                            }.addTo(disposables)
+                    }
                 }
             }
 
