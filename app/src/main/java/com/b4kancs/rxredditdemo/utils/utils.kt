@@ -8,8 +8,10 @@ import android.content.res.Configuration
 import android.view.View
 import android.view.animation.AccelerateDecelerateInterpolator
 import androidx.core.view.isVisible
+import com.b4kancs.rxredditdemo.model.Post
 import hu.akarnokd.rxjava3.bridge.RxJavaBridge
 import io.reactivex.Observable
+import java.util.*
 
 const val ANIMATION_DURATION_LONG = 500L
 const val ANIMATION_DURATION_SHORT = 300L
@@ -25,6 +27,19 @@ enum class Orientation {
                 else -> throw IllegalStateException("ILLEGAL ORIENTATION ARGUMENT")
             }
     }
+}
+
+fun calculateDateAuthorSubredditText(post: Post): String {
+    val postAgeInMinutes = (Date().time - (post.createdAt * 1000L)) / (60 * 1000L) // time difference in ms divided by a minute
+    val postAge = when (postAgeInMinutes) {
+        in 0 until 60 -> postAgeInMinutes to "minute(s)"
+        in 60 until 1440 -> postAgeInMinutes / 60 to "hour(s)"
+        in 1440 until 525600 -> postAgeInMinutes / 1440 to "day(s)"
+        in 525600 until Long.MAX_VALUE -> postAgeInMinutes / 525600 to "year(s)"
+        else -> postAgeInMinutes to "ms"
+    }
+    return "posted ${postAge.first} ${postAge.second} ago by ${post.author} to r/${post.subreddit}"
+
 }
 
 fun dpToPixel(dp: Int, context: Context): Int = (dp * context.resources.displayMetrics.density).toInt()

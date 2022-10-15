@@ -7,7 +7,6 @@ import android.view.GestureDetector.SimpleOnGestureListener
 import android.view.MotionEvent
 import android.view.View
 import android.view.View.OnTouchListener
-import org.koin.java.KoinJavaComponent.inject
 import kotlin.math.abs
 
 /* Credit to github.com/nesquena and github.com/fernandospr at https://gist.github.com/nesquena/ed58f34791da00da9751
@@ -35,6 +34,7 @@ Usage:
     })
 */
 
+// I have modified the above implementation somewhat, mostly to support single tap and double tap events
 open class OnSwipeTouchListener(context: Context) : OnTouchListener {
 
     private lateinit var view: View
@@ -56,15 +56,18 @@ open class OnSwipeTouchListener(context: Context) : OnTouchListener {
         return gestureDetector.onTouchEvent(motionEvent)
     }
 
-    private inner class GestureListener : SimpleOnGestureListener() {
+    inner class GestureListener : SimpleOnGestureListener() {
 
-        override fun onDown(e: MotionEvent): Boolean {
-            return true
+        override fun onDown(e: MotionEvent?): Boolean {
+            return onDown()
         }
 
-        override fun onSingleTapUp(e: MotionEvent): Boolean {
-            view.performClick()
-            return super.onSingleTapUp(e)
+        override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
+            return onSingleTap()
+        }
+
+        override fun onDoubleTap(e: MotionEvent?): Boolean {
+            return onDoubleTap()
         }
 
         // Determines the fling velocity and then fires the appropriate swipe event accordingly
@@ -80,7 +83,6 @@ open class OnSwipeTouchListener(context: Context) : OnTouchListener {
                         } else {
                             onSwipeLeft()
                         }
-//                        hasSwiped = true
                     }
                 } else {
                     if (abs(diffY) > SWIPE_THRESHOLD && abs(velocityY) > SWIPE_VELOCITY_THRESHOLD) {
@@ -89,7 +91,6 @@ open class OnSwipeTouchListener(context: Context) : OnTouchListener {
                         } else {
                             onSwipeUp()
                         }
-//                        hasSwiped = true
                     }
                 }
             } catch (exception: Exception) {
@@ -107,4 +108,10 @@ open class OnSwipeTouchListener(context: Context) : OnTouchListener {
     open fun onSwipeUp() {}
 
     open fun onSwipeDown() {}
+
+    open fun onDown(): Boolean { return false }
+
+    open fun onSingleTap(): Boolean { return false }
+
+    open fun onDoubleTap(): Boolean { return false }
 }

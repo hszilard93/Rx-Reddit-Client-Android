@@ -19,7 +19,9 @@ import com.b4kancs.rxredditdemo.ui.MainActivity
 import com.b4kancs.rxredditdemo.ui.home.HomeViewModel
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
+import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.CompositeDisposable
+import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.kotlin.addTo
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.flow.filter
@@ -29,6 +31,7 @@ import kotlinx.coroutines.flow.take
 import org.koin.androidx.viewmodel.ext.android.sharedViewModel
 import org.koin.androidx.viewmodel.ext.android.viewModel
 import org.koin.core.parameter.parametersOf
+import java.util.concurrent.TimeUnit
 
 class PostViewerFragment : Fragment() {
     companion object {
@@ -40,6 +43,7 @@ class PostViewerFragment : Fragment() {
     private val disposables = CompositeDisposable()
     private lateinit var binding: FragmentPostViewerBinding
     private lateinit var viewModel: PostViewerViewModel
+    private lateinit var delayedTransitionTriggerDisposable: Disposable
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         binding = FragmentPostViewerBinding.inflate(inflater, container, false)
@@ -71,6 +75,15 @@ class PostViewerFragment : Fragment() {
 
         Log.i(LOG_TAG, "Calling postponeEnterTransition().")
         postponeEnterTransition()
+
+        delayedTransitionTriggerDisposable = Observable.timer(350, TimeUnit.MILLISECONDS)
+            .observeOn(AndroidSchedulers.mainThread())
+            .doOnSubscribe { Log.i(LOG_TAG, "Starting delayed enter transition timer.") }
+            .subscribe {
+                Log.i(LOG_TAG, "Triggering delayed enter transition.")
+                startPostponedEnterTransition()
+            }
+            .addTo(disposables)
 
         return binding.root
     }
@@ -143,6 +156,8 @@ class PostViewerFragment : Fragment() {
                     }
                     Log.i(LOG_TAG, "startPostponedEnterTransition()")
                     startPostponedEnterTransition()
+                    Log.i(LOG_TAG, "Disposing of delayedTransitionTriggerDisposable")
+                    delayedTransitionTriggerDisposable.dispose()
                 }.addTo(disposables)
         }
     }

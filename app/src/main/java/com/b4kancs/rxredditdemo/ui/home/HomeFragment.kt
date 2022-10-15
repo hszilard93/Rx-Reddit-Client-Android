@@ -18,6 +18,7 @@ import com.b4kancs.rxredditdemo.utils.CustomLinearLayoutManager
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.CompositeDisposable
+import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.kotlin.addTo
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.flow.filter
@@ -39,6 +40,7 @@ class HomeFragment : Fragment() {
     private val disposables = CompositeDisposable()
     private var positionToGoTo: Int? = null
     private var justChangedSubreddits = false
+    private lateinit var delayedTransitionTriggerDisposable: Disposable
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         Log.d(LOG_TAG, "Current backstack: ${
@@ -56,6 +58,15 @@ class HomeFragment : Fragment() {
 
         Log.i(LOG_TAG, "postponeEnterTransition()")
         postponeEnterTransition()
+
+        delayedTransitionTriggerDisposable = Observable.timer(350, TimeUnit.MILLISECONDS)
+            .observeOn(AndroidSchedulers.mainThread())
+            .doOnSubscribe { Log.i(LOG_TAG, "Starting delayed enter transition timer.") }
+            .subscribe {
+                Log.i(LOG_TAG, "Triggering delayed enter transition.")
+                startPostponedEnterTransition()
+            }
+            .addTo(disposables)
 
         return binding.root
     }
@@ -143,7 +154,7 @@ class HomeFragment : Fragment() {
             postSubredditAdapter!!.postClickedSubject
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe { (position, view) ->
-                    createNewPostViewerFragmentWithPost(position, view)
+                    createNewPostViewerFragment(position, view)
                     (recyclerPosts.layoutManager as CustomLinearLayoutManager).canScrollVertically = false
                     // By disposing of the subscriptions here, we stop the user from accidentally clicking on a post
                     // while the transition takes place.
@@ -180,13 +191,16 @@ class HomeFragment : Fragment() {
                             Log.i(LOG_TAG, "Transition name = $transitionName")
                             Log.i(LOG_TAG, "startPostponedEnterTransition()")
                             startPostponedEnterTransition()
+                            Log.i(LOG_TAG, "Disposing of delayedTransitionTriggerDisposable")
+                            delayedTransitionTriggerDisposable.dispose()
+
                             postSubredditAdapter!!.disableTransformations = false
                         }.addTo(disposables)
                 }.addTo(disposables)
         }
     }
 
-    private fun createNewPostViewerFragmentWithPost(position: Int, sharedView: View) {
+    private fun createNewPostViewerFragment(position: Int, sharedView: View) {
         val sharedElementExtras = FragmentNavigatorExtras(sharedView to sharedView.transitionName)
         val action = HomeFragmentDirections.actionOpenPostViewer(position, homeViewModel.javaClass.simpleName)
         findNavController().navigate(action, sharedElementExtras)

@@ -9,7 +9,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.ProgressBar
-import android.widget.Toast
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.view.isVisible
 import androidx.paging.PagingDataAdapter
@@ -36,8 +35,6 @@ import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.kotlin.addTo
 import io.reactivex.rxjava3.subjects.PublishSubject
 import jp.wasabeef.glide.transformations.BlurTransformation
-import java.util.*
-import kotlin.collections.HashSet
 
 class PostSubredditAdapter(private val context: Context, var disableTransformations: Boolean) :
     PagingDataAdapter<Post, RecyclerView.ViewHolder>(PostComparator) {
@@ -110,6 +107,9 @@ class PostSubredditAdapter(private val context: Context, var disableTransformati
         fun bind(post: Post) {
             with(binding) {
                 titleTextView.text = post.title
+                commentsTextView.text = "${post.numOfComments} comments"
+                dateAuthorTextView.text = calculateDateAuthorSubredditText(post)
+                scoreTextView.text = "${post.score}"
 
                 if (post.crossPostFrom != null) {
                     crossPostTextView.visibility = View.VISIBLE
@@ -117,17 +117,7 @@ class PostSubredditAdapter(private val context: Context, var disableTransformati
                 } else {
                     crossPostTextView.visibility = View.GONE
                 }
-                commentsTextView.text = "${post.numOfComments} comments"
 
-                val postAgeInMinutes = (Date().time - (post.createdAt * 1000L)) / (60 * 1000L) // time difference in ms divided by a minute
-                val postAge = when (postAgeInMinutes) {
-                    in 0 until 60 -> postAgeInMinutes to "minute(s)"
-                    in 60 until 1440 -> postAgeInMinutes / 60 to "hour(s)"
-                    in 1440 until 525600 -> postAgeInMinutes / 1440 to "day(s)"
-                    in 525600 until Long.MAX_VALUE -> postAgeInMinutes / 525600 to "year(s)"
-                    else -> postAgeInMinutes to "ms"
-                }
-                dateAuthorTextView.text = "posted ${postAge.first} ${postAge.second} ago by ${post.author} to r/${post.subreddit}"
 
                 setUpImageView(post)
             }
@@ -135,26 +125,20 @@ class PostSubredditAdapter(private val context: Context, var disableTransformati
 
         @SuppressLint("ClickableViewAccessibility", "CheckResult")
         private fun setUpImageView(post: Post) {
+            var hasImageLoaded = false
+            var currentGalleryPosition: Int? = null
+            val positionSubject = PublishSubject.create<Int>()
+
             with(binding) {
                 postImageView.transitionName = post.links!!.first()
                 Log.d(LOG_TAG, "Transition name for home image view set: ${postImageView.transitionName}")
 
-                var hasImageLoaded = false
-                var currentPos: Int? = null
-                val positionSubject = PublishSubject.create<Int>()
-                var isNsfw = post.nsfw && post.toBlur
-
+                // 'Preloading' images
                 post.links.forEach {
                     Glide.with(context).downloadOnly().load(it)
                 }
 
-                positionSubject
-                    .subscribe { position ->
-                        loadWithGlideInto(post.links[position], hasImageLoaded, isNsfw)
-                        currentPos = position
-                    }
-                    .addTo(disposables)
-
+                // Setting up various behaviours
                 var nsfwClickObserver: Disposable? = null
                 val subscribeForRegularClicks = {
                     nsfwClickObserver?.dispose()
@@ -166,19 +150,20 @@ class PostSubredditAdapter(private val context: Context, var disableTransformati
                         }.addTo(disposables)
                 }
 
-                if (isNsfw) {
+                if (post.toBlur) {
                     nsfwClickObserver = postImageView.clicks()
                         .doOnSubscribe { Log.d(LOG_TAG, "Subscribing for nsfw imageview clicks.") }
                         .take(1)
                         .subscribe {
                             Log.d(LOG_TAG, "Unblurring NSFW image.")
-                            isNsfw = false
                             nsfwTagTextView.isVisible = false
                             post.toBlur = false
-                            positionSubject.onNext(currentPos)
+                            positionSubject.onNext(currentGalleryPosition)
                             subscribeForRegularClicks()
                         }
                         .addTo(disposables)
+
+                    nsfwTagTextView.isVisible = true
                     nsfwTagTextView.clicks()
                         .subscribe {
                             postImageView.performClick()
@@ -189,9 +174,7 @@ class PostSubredditAdapter(private val context: Context, var disableTransformati
                     subscribeForRegularClicks()
                 }
 
-                positionSubject.onNext(0)
-                hasImageLoaded = true
-
+                // Set up gallery
                 if (post.links.size > 1) {
                     galleryIndicatorImageView.visibility = View.VISIBLE
                     galleryItemsTextView.visibility = View.VISIBLE
@@ -199,29 +182,49 @@ class PostSubredditAdapter(private val context: Context, var disableTransformati
 
                     postImageView.setOnTouchListener(object : OnSwipeTouchListener(context) {
 
+                        override fun onDown(): Boolean {
+                            return true
+                        }
+
+                        override fun onSingleTap(): Boolean {
+                            postImageView.performClick()
+                            return true
+                        }
+
                         override fun onSwipeRight() {
                             // Load previous item in the gallery
-                            if (currentPos in 1..post.links.size + 1) {
-                                positionSubject.onNext(currentPos!! - 1)
+                            if (currentGalleryPosition in 1 until post.links.size) {
+                                positionSubject.onNext(currentGalleryPosition!! - 1)
                             }
-                            Toast.makeText(context, "Right", Toast.LENGTH_SHORT).show()
+//                            Toast.makeText(context, "Right", Toast.LENGTH_SHORT).show()
                         }
 
                         override fun onSwipeLeft() {
                             // Load next item in the gallery
-                            if (currentPos in 0 until post.links.size - 1) {
-                                positionSubject.onNext(currentPos!! + 1)
+                            if (currentGalleryPosition in 0 until post.links.size - 1) {
+                                positionSubject.onNext(currentGalleryPosition!! + 1)
                             }
-                            Toast.makeText(context, "Left", Toast.LENGTH_SHORT).show()
+//                            Toast.makeText(context, "Left", Toast.LENGTH_SHORT).show()
                         }
-
                     })
                 }
+
+                // This loads the image
+                positionSubject
+                    .subscribe { position ->
+                        loadImageWithGlide(post.links[position], hasImageLoaded, post.toBlur)
+                        currentGalleryPosition = position
+                    }
+                    .addTo(disposables)
+
+                // Initiate logic
+                positionSubject.onNext(0)
+                hasImageLoaded = true
             }
         }
 
         @SuppressLint("CheckResult")
-        private fun loadWithGlideInto(link: String, updateExisting: Boolean, nsfw: Boolean) {
+        private fun loadImageWithGlide(link: String, updateExisting: Boolean, toBlur: Boolean) {
             val imageView = binding.postImageView
             Glide.with(context).load(link)
                 .error(R.drawable.ic_not_found_24)
@@ -262,12 +265,8 @@ class PostSubredditAdapter(private val context: Context, var disableTransformati
                     } else {
                         placeholder(R.drawable.ic_download)
                     }
-                    if (nsfw) {
+                    if (toBlur) {
                         apply(RequestOptions.bitmapTransform(BlurTransformation(25, 10)))
-                        binding.nsfwTagTextView.isVisible = true
-                    }
-                    if (disableTransformations) {
-                        dontTransform()
                     }
                     into(imageView)
                 }
@@ -284,6 +283,7 @@ class PostSubredditAdapter(private val context: Context, var disableTransformati
         }
     }
 
+
     // Since we have virtually identical Bindings for both the portrait and landscape layouts, I found this
     // 'replacement' data class to be the simplest solution to the problem of using them with the same ViewHolder
     // and avoiding replicating code.
@@ -291,6 +291,7 @@ class PostSubredditAdapter(private val context: Context, var disableTransformati
         val root: ConstraintLayout,
         val postImageView: ShapeableImageView,
         val titleTextView: MaterialTextView,
+        val scoreTextView: MaterialTextView,
         val galleryIndicatorImageView: ImageView,
         val galleryItemsTextView: MaterialTextView,
         val nsfwTagTextView: MaterialTextView,
@@ -305,6 +306,7 @@ class PostSubredditAdapter(private val context: Context, var disableTransformati
                     binding.root,
                     binding.postImageView,
                     binding.titleTextView,
+                    binding.scoreTextView,
                     binding.galleryIndicatorImageView,
                     binding.galleryItemsTextView,
                     binding.nsfwTagTextView,
@@ -318,6 +320,7 @@ class PostSubredditAdapter(private val context: Context, var disableTransformati
                     binding.root,
                     binding.postImageView,
                     binding.titleTextView,
+                    binding.scoreTextView,
                     binding.galleryIndicatorImageView,
                     binding.galleryItemsTextView,
                     binding.nsfwTagTextView,

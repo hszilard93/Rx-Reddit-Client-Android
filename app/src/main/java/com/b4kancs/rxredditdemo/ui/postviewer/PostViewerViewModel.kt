@@ -1,6 +1,5 @@
 package com.b4kancs.rxredditdemo.ui.postviewer
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 
 class PostViewerViewModel(pagingDataObservableProvider: PostPagingDataObservableProvider) : ViewModel() {

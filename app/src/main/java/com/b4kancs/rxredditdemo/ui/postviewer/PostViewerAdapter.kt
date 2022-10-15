@@ -4,7 +4,11 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.drawable.Drawable
 import android.util.Log
-import android.view.*
+import android.view.LayoutInflater
+import android.view.MotionEvent
+import android.view.View
+import android.view.ViewGroup
+import android.widget.ImageView
 import androidx.core.view.doOnLayout
 import androidx.core.view.isVisible
 import androidx.paging.PagingDataAdapter
@@ -13,19 +17,24 @@ import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.databinding.PostViewerListItemBinding
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.ui.PostComparator
+import com.b4kancs.rxredditdemo.utils.OnSwipeTouchListener
 import com.b4kancs.rxredditdemo.utils.animateHideViewAlpha
 import com.b4kancs.rxredditdemo.utils.animateShowViewAlpha
+import com.b4kancs.rxredditdemo.utils.calculateDateAuthorSubredditText
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.DataSource
 import com.bumptech.glide.load.engine.GlideException
+import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
 import com.bumptech.glide.request.RequestListener
 import com.bumptech.glide.request.RequestOptions
 import com.bumptech.glide.request.target.Target
+import com.bumptech.glide.request.transition.DrawableCrossFadeFactory
 import com.jakewharton.rxbinding4.view.clicks
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.addTo
 import io.reactivex.rxjava3.subjects.PublishSubject
+import jp.wasabeef.glide.transformations.BlurTransformation
 
 class PostViewerAdapter(
     private val context: Context,
@@ -67,6 +76,10 @@ class PostViewerAdapter(
 
     override fun onViewRecycled(holder: PostViewerViewHolder) {
         holder.hudElements.clear()
+        with(holder.binding) {
+            postLargeItemGalleryIndicatorImageView.isVisible = false
+            postLargeItemGalleryItemsTextView.isVisible = false
+        }
         super.onViewRecycled(holder)
     }
 
@@ -81,6 +94,7 @@ class PostViewerAdapter(
 
         val hudElements = ArrayList<View>()
         var isHudVisible = !isRecentlyDisplayed
+        private var hasAppliedBlur: Boolean = false
 
         init {
             // For the imageview to fill the screen, I make it's height equal to the window's height minus the status bar's height.
@@ -98,50 +112,42 @@ class PostViewerAdapter(
         }
 
         fun bind(post: Post) {
-            setUpImageView(post, this)
-            // Always start with the ScrollView scrolled to the top.
-            binding.postLargeScrollView.apply {
-                doOnLayout {
-                    binding.postLargeScrollView.fling(-20000)
-                }
-            }
-            binding.postLargeItemTitleTextView.text = post.title
-            binding.postLargeItemScoreTextView.text = post.score.toString()
-            binding.postLargeItemCommentsTextView.text = "${post.numOfComments} comments"
+            hasAppliedBlur = false
 
-            hudElements.addAll(listOf<View>(binding.postLargeItemLeftHudConstraintLayout, binding.postLargeItemRightHudConstraintLayout))
-            hudElements.forEach { it.isVisible = isHudVisible }
+            with(binding) {
+                setUpImageViewAndRelated(post, this@PostViewerViewHolder)
+                // Always start with the ScrollView scrolled to the top.
+                postLargeScrollView.apply {
+                    doOnLayout {
+                        binding.postLargeScrollView.fling(-20000)
+                    }
+                }
+                postLargeItemTitleTextView.text = post.title
+                postLargeItemScoreTextView.text = post.score.toString()
+                postLargeItemCommentsTextView.text = "${post.numOfComments} comments"
+                postLargeItemDateAuthorTextView.text = calculateDateAuthorSubredditText(post)
+
+                hudElements.addAll(
+                    listOf<View>(
+                        postLargeItemLeftHudConstraintLayout,
+                        postLargeItemRightHudConstraintLayout
+                    )
+                )
+                hudElements.forEach { it.isVisible = isHudVisible }
+            }
         }
 
         @SuppressLint("CheckResult", "ClickableViewAccessibility")
-        private fun setUpImageView(post: Post, holder: PostViewerViewHolder) {
-            binding.postLargeItemImageView.transitionName = post.links!!.first()
+        private fun setUpImageViewAndRelated(post: Post, holder: PostViewerViewHolder) {
+            val galleryPositionSubject = PublishSubject.create<Int>()
+            val isGallery = post.links!!.size > 1
+            var currentGalleryPosition = 0
+
+            binding.postLargeItemImageView.transitionName = post.links.first()
+            binding.nsfwTagTextView.isVisible = post.toBlur
 
             val zoomableImageView = binding.postLargeItemImageView
-            val link = post.links[0]
-            Glide.with(context).load(link)
-                .apply(
-                    RequestOptions()
-                        .error(R.drawable.ic_not_found_24)
-                        .placeholder(R.drawable.ic_download)
-                        .dontTransform()
-                )
-                .addListener(object : RequestListener<Drawable> {
-                    override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>?, isFirstResource: Boolean) =
-                        false
-
-                    override fun onResourceReady(
-                        resource: Drawable?,
-                        model: Any?,
-                        target: Target<Drawable>?,
-                        dataSource: DataSource?,
-                        isFirstResource: Boolean
-                    ): Boolean {
-                        readyToBeDrawnSubject.onNext(layoutPosition)
-                        return false
-                    }
-                })
-                .into(zoomableImageView)
+            loadImageWithGlide(zoomableImageView, post.links[0], false, post.toBlur)
 
             binding.postLargeItemLeftHudConstraintLayout.clicks()
                 .subscribe {
@@ -159,34 +165,141 @@ class PostViewerAdapter(
             onSingleTapSubject
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe {
-                    Log.d(LOG_TAG, "isHudVisible = $isHudVisible")
-                    if (!isHudVisible) {
-                        Log.i(LOG_TAG, "Showing HUD. HUD elements size: ${hudElements.size}")
-                        isHudVisible = true
-                        hudElements.forEach(::animateShowViewAlpha)
+                    Log.d(LOG_TAG, "hasAppliedBlur: $hasAppliedBlur")
+                    if (hasAppliedBlur) {
+                        Log.i(LOG_TAG, "Unblurring image.")
+                        post.toBlur = false
+                        hasAppliedBlur = false
+                        binding.nsfwTagTextView.isVisible = false
+                        loadImageWithGlide(zoomableImageView, post.links[0], true, post.toBlur)
                     } else {
-                        Log.i(LOG_TAG, "Hiding HUD. HUD elements size: ${hudElements.size}")
-                        isHudVisible = false
-                        hudElements.forEach(::animateHideViewAlpha)
+                        Log.d(LOG_TAG, "isHudVisible = $isHudVisible")
+                        if (!isHudVisible) {
+                            Log.i(LOG_TAG, "Showing HUD.")
+                            isHudVisible = true
+                            hudElements.forEach(::animateShowViewAlpha)
+                        } else {
+                            Log.i(LOG_TAG, "Hiding HUD.")
+                            isHudVisible = false
+                            hudElements.forEach(::animateHideViewAlpha)
+                        }
                     }
                 }.addTo(disposables)
 
-            val gestureDetector = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
-                override fun onSingleTapConfirmed(e: MotionEvent?): Boolean {
+            val singleTapAction: (MotionEvent?) -> Boolean = {
+                Log.i(LOG_TAG, "GestureDetector: onSingleTapConfirmed")
+                onSingleTapSubject.onNext(Unit)
+                false
+            }
+
+            val doubleTapAction: (MotionEvent?) -> Boolean = {
+                Log.i(LOG_TAG, "GestureDetector: onDoubleTap")
+                isHudVisible
+            }
+
+            val swipeRightAction: () -> Unit = {
+                // Load previous item in the gallery
+                Log.i(LOG_TAG, "Gallery swipe right detected.")
+                if (currentGalleryPosition in 1 until post.links.size) {
+                    galleryPositionSubject.onNext(currentGalleryPosition!! - 1)
+                }
+            }
+
+            val swipeLeftActionL: () -> Unit = {
+                // Load next item in the gallery
+                Log.i(LOG_TAG, "Gallery swipe left detected.")
+                if (currentGalleryPosition in 0 until post.links.size - 1) {
+                    galleryPositionSubject.onNext(currentGalleryPosition!! + 1)
+                }
+            }
+
+            // Setup for gallery
+            if (isGallery) {
+                binding.postLargeItemGalleryIndicatorImageView.visibility = View.VISIBLE
+                binding.postLargeItemGalleryItemsTextView.visibility = View.VISIBLE
+                binding.postLargeItemGalleryItemsTextView.text = post.links.size.toString()
+
+                galleryPositionSubject
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe { position ->
+                        Log.i(LOG_TAG, "New gallery position: $position")
+                        loadImageWithGlide(zoomableImageView, post.links[position], updateExisting = true, toBlur = false)
+                        currentGalleryPosition = position
+                    }
+                    .addTo(disposables)
+            }
+
+            zoomableImageView.setOnTouchListener(object : OnSwipeTouchListener(context) {
+
+                override fun onSingleTap(): Boolean {
                     Log.i(LOG_TAG, "GestureDetector: onSingleTapConfirmed")
                     onSingleTapSubject.onNext(Unit)
+                    return true
+                }
+
+                override fun onDoubleTap(): Boolean {
+                    Log.i(LOG_TAG, "GestureDetector: onDoubleTap")
                     return false
                 }
 
-                override fun onDoubleTap(e: MotionEvent?): Boolean {
-                    Log.i(LOG_TAG, "GestureDetector: onDoubleTap")
-                    return isHudVisible
+                override fun onSwipeRight() {
+                    if (!isGallery) return
+
+                    // Load previous item in the gallery
+                    Log.i(LOG_TAG, "Gallery, right swipe detected.")
+                    if (currentGalleryPosition in 1 until post.links.size) {
+                        galleryPositionSubject.onNext(currentGalleryPosition - 1)
+                    }
+                }
+
+                override fun onSwipeLeft() {
+                    if (!isGallery) return
+
+                    // Load next item in the gallery
+                    Log.i(LOG_TAG, "Gallery, left swipe detected.")
+                    if (currentGalleryPosition in 0 until post.links.size - 1) {
+                        galleryPositionSubject.onNext(currentGalleryPosition + 1)
+                    }
                 }
             })
+        }
 
-            zoomableImageView.setOnTouchListener { _, e ->
-                gestureDetector.onTouchEvent(e)
-            }
+        @SuppressLint("CheckResult")
+        private fun loadImageWithGlide(imageView: ImageView, link: String, updateExisting: Boolean, toBlur: Boolean) {
+            Glide.with(context).load(link)
+                .apply {
+                    error(R.drawable.ic_not_found_24)
+                    if (updateExisting) {
+                        transition(
+                            DrawableTransitionOptions.withCrossFade(
+                                DrawableCrossFadeFactory.Builder().setCrossFadeEnabled(false).build()
+                            )
+                        )
+                    } else {
+                        placeholder(R.drawable.ic_download)
+                        dontTransform()
+                    }
+                    if (toBlur) {
+                        apply(RequestOptions.bitmapTransform(BlurTransformation(25, 10)))
+                        hasAppliedBlur = true
+                    }
+                }
+                .addListener(object : RequestListener<Drawable> {
+                    override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>?, isFirstResource: Boolean) =
+                        false
+
+                    override fun onResourceReady(
+                        resource: Drawable?,
+                        model: Any?,
+                        target: Target<Drawable>?,
+                        dataSource: DataSource?,
+                        isFirstResource: Boolean
+                    ): Boolean {
+                        readyToBeDrawnSubject.onNext(layoutPosition)
+                        return false
+                    }
+                })
+                .into(imageView)
         }
     }
 }
