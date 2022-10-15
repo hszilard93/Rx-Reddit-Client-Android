@@ -31,10 +31,13 @@ import com.bumptech.glide.request.target.Target
 import com.bumptech.glide.request.transition.DrawableCrossFadeFactory
 import com.jakewharton.rxbinding4.view.clicks
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
+import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.CompositeDisposable
+import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.kotlin.addTo
 import io.reactivex.rxjava3.subjects.PublishSubject
 import jp.wasabeef.glide.transformations.BlurTransformation
+import java.util.concurrent.TimeUnit
 
 class PostViewerAdapter(
     private val context: Context,
@@ -47,16 +50,20 @@ class PostViewerAdapter(
 
     val readyToBeDrawnSubject: PublishSubject<Int> = PublishSubject.create()
     val disposables = CompositeDisposable()
-    private val positionSubject = PublishSubject.create<Int>()
+    private val positionSubject = PublishSubject.create<Pair<Int, Int>>()
     private val viewHolderMap = HashMap<PostViewerViewHolder, Int>()
     private var isRecentlyDisplayed = true
+    private var isHudVisible = !isRecentlyDisplayed
+    private var autoHideHudTimerDisposable: Disposable? = null
 
     override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
         positionSubject
             .observeOn(AndroidSchedulers.mainThread())
-            .subscribe { nextPosition ->
+            .subscribe { (currentPosition, nextPosition) ->
                 Log.i(LOG_TAG, "onPositionChangedCallback($nextPosition)")
                 onPositionChangedCallback(nextPosition)
+                getViewHolderForPosition(currentPosition)?.noLongerShownSubject?.onNext(Unit)
+                getViewHolderForPosition(nextPosition)?.shownSubject?.onNext(Unit)
             }.addTo(disposables)
         super.onAttachedToRecyclerView(recyclerView)
     }
@@ -87,13 +94,15 @@ class PostViewerAdapter(
         for (k in viewHolderMap.keys) {
             if (viewHolderMap[k] == pos) return k
         }
+        Log.w(LOG_TAG, "Can't find PostViewerViewHolder for position $pos")
         return null
     }
 
     inner class PostViewerViewHolder(val binding: PostViewerListItemBinding) : RecyclerView.ViewHolder(binding.root) {
 
+        val shownSubject = PublishSubject.create<Unit>()
+        val noLongerShownSubject = PublishSubject.create<Unit>()
         val hudElements = ArrayList<View>()
-        var isHudVisible = !isRecentlyDisplayed
         private var hasAppliedBlur: Boolean = false
 
         init {
@@ -116,6 +125,7 @@ class PostViewerAdapter(
 
             with(binding) {
                 setUpImageViewAndRelated(post, this@PostViewerViewHolder)
+                setUpSlideshowAction()
                 // Always start with the ScrollView scrolled to the top.
                 postLargeScrollView.apply {
                     doOnLayout {
@@ -133,8 +143,52 @@ class PostViewerAdapter(
                         postLargeItemRightHudConstraintLayout
                     )
                 )
-                hudElements.forEach { it.isVisible = isHudVisible }
             }
+
+            shownSubject.subscribe {
+                if (isHudVisible) startAutoHideHudTimer()
+                hudElements.forEach { it.isVisible = isHudVisible }
+            }.addTo(disposables)
+
+            noLongerShownSubject.subscribe {
+                autoHideHudTimerDisposable?.dispose()
+            }
+        }
+
+        private fun startAutoHideHudTimer() {
+            if (isHudVisible) {
+                autoHideHudTimerDisposable?.dispose()
+                autoHideHudTimerDisposable = Observable.timer(3, TimeUnit.SECONDS)
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .doOnSubscribe { Log.i(LOG_TAG, "Subscribing to autoHideHudTimerDisposable.") }
+                    .subscribe {
+                        if (isHudVisible) {
+                            Log.i(LOG_TAG, "Auto hiding HUD.")
+                            hideHud()
+                        }
+                        cancelAutoHideHudTimer()
+                    }
+                    .addTo(disposables)
+            }
+        }
+
+        private fun cancelAutoHideHudTimer() {
+            autoHideHudTimerDisposable?.let {
+                Log.i(LOG_TAG, "Disposing of autoHideHudTimerDisposable.")
+                it.dispose()
+            }
+        }
+
+        private fun hideHud() {
+            isHudVisible = false
+            hudElements.forEach(::animateHideViewAlpha)
+            cancelAutoHideHudTimer()
+        }
+
+        private fun showHud() {
+            isHudVisible = true
+            hudElements.forEach(::animateShowViewAlpha)
+            startAutoHideHudTimer()
         }
 
         @SuppressLint("CheckResult", "ClickableViewAccessibility")
@@ -152,13 +206,13 @@ class PostViewerAdapter(
             binding.postLargeItemLeftHudConstraintLayout.clicks()
                 .subscribe {
                     Log.i(LOG_TAG, "Left hud clicked, paging left.")
-                    positionSubject.onNext(layoutPosition - 1)
+                    positionSubject.onNext(layoutPosition to layoutPosition - 1)
                 }.addTo(disposables)
 
             binding.postLargeItemRightHudConstraintLayout.clicks()
                 .subscribe {
                     Log.i(LOG_TAG, "Right hud clicked, paging right.")
-                    positionSubject.onNext(layoutPosition + 1)
+                    positionSubject.onNext(layoutPosition to layoutPosition + 1)
                 }.addTo(disposables)
 
             val onSingleTapSubject: PublishSubject<Unit> = PublishSubject.create()
@@ -176,42 +230,13 @@ class PostViewerAdapter(
                         Log.d(LOG_TAG, "isHudVisible = $isHudVisible")
                         if (!isHudVisible) {
                             Log.i(LOG_TAG, "Showing HUD.")
-                            isHudVisible = true
-                            hudElements.forEach(::animateShowViewAlpha)
+                            showHud()
                         } else {
                             Log.i(LOG_TAG, "Hiding HUD.")
-                            isHudVisible = false
-                            hudElements.forEach(::animateHideViewAlpha)
+                            hideHud()
                         }
                     }
                 }.addTo(disposables)
-
-            val singleTapAction: (MotionEvent?) -> Boolean = {
-                Log.i(LOG_TAG, "GestureDetector: onSingleTapConfirmed")
-                onSingleTapSubject.onNext(Unit)
-                false
-            }
-
-            val doubleTapAction: (MotionEvent?) -> Boolean = {
-                Log.i(LOG_TAG, "GestureDetector: onDoubleTap")
-                isHudVisible
-            }
-
-            val swipeRightAction: () -> Unit = {
-                // Load previous item in the gallery
-                Log.i(LOG_TAG, "Gallery swipe right detected.")
-                if (currentGalleryPosition in 1 until post.links.size) {
-                    galleryPositionSubject.onNext(currentGalleryPosition!! - 1)
-                }
-            }
-
-            val swipeLeftActionL: () -> Unit = {
-                // Load next item in the gallery
-                Log.i(LOG_TAG, "Gallery swipe left detected.")
-                if (currentGalleryPosition in 0 until post.links.size - 1) {
-                    galleryPositionSubject.onNext(currentGalleryPosition!! + 1)
-                }
-            }
 
             // Setup for gallery
             if (isGallery) {
@@ -300,6 +325,17 @@ class PostViewerAdapter(
                     }
                 })
                 .into(imageView)
+        }
+
+        private fun setUpSlideshowAction() {
+            with(binding) {
+                postLargeItemSlideshowImageView.clicks()
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe {
+
+                    }
+                    .addTo(disposables)
+            }
         }
     }
 }

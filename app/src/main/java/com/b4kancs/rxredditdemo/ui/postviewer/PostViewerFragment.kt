@@ -126,6 +126,9 @@ class PostViewerFragment : Fragment() {
             viewPagerPostViewer.adapter = postViewerAdapter
             viewPagerPostViewer.isUserInputEnabled = false
 
+            // This fixed unexpected behaviour where the next ViewHolder was not immediately available upon paging.
+            viewPagerPostViewer.offscreenPageLimit = 2
+
             viewModel.pagingDataObservable
                 .filter {
                     // We do this, because the pagingDataObservable's owner is the HomeViewModel, and updating the paging data in the
