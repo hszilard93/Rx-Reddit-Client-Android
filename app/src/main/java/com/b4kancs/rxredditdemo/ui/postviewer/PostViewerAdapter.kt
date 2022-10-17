@@ -5,7 +5,6 @@ import android.content.Context
 import android.graphics.drawable.Drawable
 import android.util.Log
 import android.view.LayoutInflater
-import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
@@ -35,26 +34,31 @@ import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.kotlin.addTo
+import io.reactivex.rxjava3.subjects.BehaviorSubject
 import io.reactivex.rxjava3.subjects.PublishSubject
 import jp.wasabeef.glide.transformations.BlurTransformation
 import java.util.concurrent.TimeUnit
 
 class PostViewerAdapter(
     private val context: Context,
-    // This is how the RecyclerView scrolls to the next/previous ViewHolder.
-    private val onPositionChangedCallback: (Int) -> Unit
+    // This is how the ViewPager scrolls to the next/previous ViewHolder.
+    private val onPositionChangedCallback: (Int) -> Unit,
+    isSlideShowOnGoing: Boolean = false
 ) : PagingDataAdapter<Post, PostViewerAdapter.PostViewerViewHolder>(PostComparator) {
     companion object {
         private const val LOG_TAG = "PostViewerAdapter"
     }
 
-    val readyToBeDrawnSubject: PublishSubject<Int> = PublishSubject.create()
     val disposables = CompositeDisposable()
+    val readyToBeDrawnSubject: PublishSubject<Int> = PublishSubject.create()
+    val slideShowOnOffSubject: BehaviorSubject<Boolean> = BehaviorSubject.createDefault(isSlideShowOnGoing)
     private val positionSubject = PublishSubject.create<Pair<Int, Int>>()
-    private val viewHolderMap = HashMap<PostViewerViewHolder, Int>()
+    private var slideShowIntervalDisposable: Disposable? = null
+    private var autoHideHudTimerDisposable: Disposable? = null
     private var isRecentlyDisplayed = true
     private var isHudVisible = !isRecentlyDisplayed
-    private var autoHideHudTimerDisposable: Disposable? = null
+    private var currentLayoutPosition: Int? = null
+    private val viewHolderMap = HashMap<PostViewerViewHolder, Int>()
 
     override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
         positionSubject
@@ -64,7 +68,38 @@ class PostViewerAdapter(
                 onPositionChangedCallback(nextPosition)
                 getViewHolderForPosition(currentPosition)?.noLongerShownSubject?.onNext(Unit)
                 getViewHolderForPosition(nextPosition)?.shownSubject?.onNext(Unit)
+                currentLayoutPosition = nextPosition
             }.addTo(disposables)
+
+        slideShowOnOffSubject
+            .observeOn(AndroidSchedulers.mainThread())
+            .skipWhile { currentLayoutPosition == null }
+            .subscribe { toShow ->
+                val slideshowStartViewHolder = getViewHolderForPosition(currentLayoutPosition!!)!!
+                if (toShow) {
+                    val slideShowInterval = 5L
+                    Log.i(LOG_TAG, "Starting slideshow timer: $slideShowInterval seconds.")
+                    slideshowStartViewHolder.binding.postLargeItemSlideshowImageView.setImageResource(R.drawable.ic_baseline_pause_slideshow_60)
+
+                    slideShowIntervalDisposable = Observable.interval(slideShowInterval, TimeUnit.SECONDS)
+                        .observeOn(AndroidSchedulers.mainThread())
+                        .subscribe interval@{
+                            val currentViewHolder = getViewHolderForPosition(currentLayoutPosition!!)!!
+                            if (currentViewHolder.isGallery) {
+                                Log.i(LOG_TAG, "Slideshow; gallery post. Trying to page withing gallery.")
+                                if (currentViewHolder.nextInGallery()) return@interval
+                            }
+                            Log.i(LOG_TAG, "Slideshow; paging to next post.")
+                            positionSubject.onNext(currentLayoutPosition!! to currentLayoutPosition!! + 1)
+                        }
+                        .addTo(disposables)
+                } else {
+                    Log.i(LOG_TAG, "Stopping slideshow.")
+                    slideshowStartViewHolder.binding.postLargeItemSlideshowImageView.setImageResource(R.drawable.ic_baseline_slideshow_60)
+                    slideShowIntervalDisposable?.dispose()
+                }
+            }.addTo(disposables)
+
         super.onAttachedToRecyclerView(recyclerView)
     }
 
@@ -74,11 +109,16 @@ class PostViewerAdapter(
         )
     }
 
-    override fun onBindViewHolder(viewHolder: PostViewerViewHolder, position: Int) {
+    override fun onBindViewHolder(viewHolder: PostViewerViewHolder, @SuppressLint("RecyclerView") position: Int) {
         val post = getItem(position)
         post?.let(viewHolder::bind)
         viewHolderMap[viewHolder] = position
-        isRecentlyDisplayed = false
+        if (isRecentlyDisplayed) {
+            viewHolder.shownSubject.onNext(Unit)
+            if (slideShowOnOffSubject.value == true)
+                slideShowOnOffSubject.onNext(true)
+            isRecentlyDisplayed = false
+        }
     }
 
     override fun onViewRecycled(holder: PostViewerViewHolder) {
@@ -103,6 +143,9 @@ class PostViewerAdapter(
         val shownSubject = PublishSubject.create<Unit>()
         val noLongerShownSubject = PublishSubject.create<Unit>()
         val hudElements = ArrayList<View>()
+        lateinit var post: Post
+        var isGallery: Boolean = false
+        var currentGalleryPosition = 0
         private var hasAppliedBlur: Boolean = false
 
         init {
@@ -120,11 +163,13 @@ class PostViewerAdapter(
             binding.postLargeItemImageView.layoutParams.height = imageViewNewHeight
         }
 
-        fun bind(post: Post) {
+        fun bind(post_: Post) {
+            post = post_
+            isGallery = post.links!!.size > 1
             hasAppliedBlur = false
 
             with(binding) {
-                setUpImageViewAndRelated(post, this@PostViewerViewHolder)
+                setUpImageViewAndHud(post, this@PostViewerViewHolder)
                 setUpSlideshowAction()
                 // Always start with the ScrollView scrolled to the top.
                 postLargeScrollView.apply {
@@ -148,6 +193,15 @@ class PostViewerAdapter(
             shownSubject.subscribe {
                 if (isHudVisible) startAutoHideHudTimer()
                 hudElements.forEach { it.isVisible = isHudVisible }
+                currentLayoutPosition = layoutPosition
+
+                binding.postLargeItemSlideshowImageView.setImageResource(
+                    if (slideShowOnOffSubject.value!!)
+                        R.drawable.ic_baseline_pause_slideshow_60
+                    else
+                        R.drawable.ic_baseline_slideshow_60
+                )
+
             }.addTo(disposables)
 
             noLongerShownSubject.subscribe {
@@ -155,10 +209,30 @@ class PostViewerAdapter(
             }
         }
 
-        private fun startAutoHideHudTimer() {
+        fun nextInGallery(): Boolean {
+            return if (currentGalleryPosition in 0 until post.links!!.size - 1) {
+                changeGalleryPosition(currentGalleryPosition + 1)
+                true
+            } else false
+        }
+
+        fun previousInGallery(): Boolean {
+            return if (currentGalleryPosition in 1 until post.links!!.size) {
+                changeGalleryPosition(currentGalleryPosition - 1)
+                true
+            } else false
+        }
+
+        private fun changeGalleryPosition(position: Int) {
+            Log.i(LOG_TAG, "New gallery position: $position")
+            loadImageWithGlide(binding.postLargeItemImageView, post.links!![position], updateExisting = true, toBlur = false)
+            currentGalleryPosition = position
+        }
+
+        private fun startAutoHideHudTimer(delayInSeconds: Long = 3L) {
             if (isHudVisible) {
                 autoHideHudTimerDisposable?.dispose()
-                autoHideHudTimerDisposable = Observable.timer(3, TimeUnit.SECONDS)
+                autoHideHudTimerDisposable = Observable.timer(delayInSeconds, TimeUnit.SECONDS)
                     .observeOn(AndroidSchedulers.mainThread())
                     .doOnSubscribe { Log.i(LOG_TAG, "Subscribing to autoHideHudTimerDisposable.") }
                     .subscribe {
@@ -192,12 +266,10 @@ class PostViewerAdapter(
         }
 
         @SuppressLint("CheckResult", "ClickableViewAccessibility")
-        private fun setUpImageViewAndRelated(post: Post, holder: PostViewerViewHolder) {
-            val galleryPositionSubject = PublishSubject.create<Int>()
-            val isGallery = post.links!!.size > 1
-            var currentGalleryPosition = 0
+        private fun setUpImageViewAndHud(post: Post, holder: PostViewerViewHolder) {
+            currentGalleryPosition = 0
 
-            binding.postLargeItemImageView.transitionName = post.links.first()
+            binding.postLargeItemImageView.transitionName = post.links!!.first()
             binding.nsfwTagTextView.isVisible = post.toBlur
 
             val zoomableImageView = binding.postLargeItemImageView
@@ -243,15 +315,6 @@ class PostViewerAdapter(
                 binding.postLargeItemGalleryIndicatorImageView.visibility = View.VISIBLE
                 binding.postLargeItemGalleryItemsTextView.visibility = View.VISIBLE
                 binding.postLargeItemGalleryItemsTextView.text = post.links.size.toString()
-
-                galleryPositionSubject
-                    .observeOn(AndroidSchedulers.mainThread())
-                    .subscribe { position ->
-                        Log.i(LOG_TAG, "New gallery position: $position")
-                        loadImageWithGlide(zoomableImageView, post.links[position], updateExisting = true, toBlur = false)
-                        currentGalleryPosition = position
-                    }
-                    .addTo(disposables)
             }
 
             zoomableImageView.setOnTouchListener(object : OnSwipeTouchListener(context) {
@@ -269,22 +332,14 @@ class PostViewerAdapter(
 
                 override fun onSwipeRight() {
                     if (!isGallery) return
-
-                    // Load previous item in the gallery
                     Log.i(LOG_TAG, "Gallery, right swipe detected.")
-                    if (currentGalleryPosition in 1 until post.links.size) {
-                        galleryPositionSubject.onNext(currentGalleryPosition - 1)
-                    }
+                    previousInGallery()
                 }
 
                 override fun onSwipeLeft() {
                     if (!isGallery) return
-
-                    // Load next item in the gallery
                     Log.i(LOG_TAG, "Gallery, left swipe detected.")
-                    if (currentGalleryPosition in 0 until post.links.size - 1) {
-                        galleryPositionSubject.onNext(currentGalleryPosition + 1)
-                    }
+                    nextInGallery()
                 }
             })
         }
@@ -332,7 +387,12 @@ class PostViewerAdapter(
                 postLargeItemSlideshowImageView.clicks()
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe {
+                        Log.i(LOG_TAG, "Slideshow button clicked.")
+                        startAutoHideHudTimer(5L)
 
+                        val isSlideShowOn = slideShowOnOffSubject.value!!
+                        if (!isSlideShowOn) slideShowOnOffSubject.onNext(true)
+                        else slideShowOnOffSubject.onNext(false)
                     }
                     .addTo(disposables)
             }

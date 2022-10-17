@@ -37,6 +37,7 @@ class PostViewerFragment : Fragment() {
     companion object {
         private const val LOG_TAG = "PostViewerFragment"
         private const val SAVED_STATE_POSITION_KEY = "position"
+        private const val SAVED_STATE_SLIDESHOW_KEY = "slideShow"
     }
 
     private val args: PostViewerFragmentArgs by navArgs()
@@ -89,14 +90,11 @@ class PostViewerFragment : Fragment() {
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        val initialPosition: Int? =
-            if (savedInstanceState != null)
-                null
-            else
-                savedInstanceState?.getInt("position") ?: args.position
+        val initialPosition = savedInstanceState?.getInt(SAVED_STATE_POSITION_KEY) ?: args.position
+        val isSlideShowOngoing = savedInstanceState?.getBoolean(SAVED_STATE_SLIDESHOW_KEY) ?: false
 
         setUpViewModel()
-        setUpViewPager(initialPosition)
+        setUpViewPager(initialPosition, isSlideShowOngoing)
         setUpOnBackPressedCallback()
     }
 
@@ -105,8 +103,9 @@ class PostViewerFragment : Fragment() {
         (activity as MainActivity).lockDrawerClosed()
     }
 
-    override fun onPause() {
-        super.onPause()
+    override fun onDestroy() {
+        super.onDestroy()
+        (binding.viewPagerPostViewer.adapter as PostViewerAdapter).disposables.dispose()
         (activity as MainActivity).apply {
             supportActionBar?.show()
             findViewById<BottomNavigationView>(R.id.nav_view).isVisible = true
@@ -114,13 +113,21 @@ class PostViewerFragment : Fragment() {
         }
     }
 
-    private fun setUpViewPager(initialPosition: Int?) {
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putInt(SAVED_STATE_POSITION_KEY, binding.viewPagerPostViewer.currentItem)
+        outState.putBoolean(
+            SAVED_STATE_SLIDESHOW_KEY,
+            (binding.viewPagerPostViewer.adapter as PostViewerAdapter).slideShowOnOffSubject.value!!
+        )
+        super.onSaveInstanceState(outState)
+    }
 
+    private fun setUpViewPager(initialPosition: Int, isSlideShowOngoing: Boolean) {
         val onPositionChangedCallback = { nextPosition: Int ->
             binding.viewPagerPostViewer.currentItem = nextPosition
         }
 
-        val postViewerAdapter = PostViewerAdapter(requireContext(), onPositionChangedCallback)
+        val postViewerAdapter = PostViewerAdapter(requireContext(), onPositionChangedCallback, isSlideShowOngoing)
         with(binding) {
             viewPagerPostViewer.isVisible = false
             viewPagerPostViewer.adapter = postViewerAdapter
@@ -142,7 +149,7 @@ class PostViewerFragment : Fragment() {
                         .filter { loadStates -> loadStates.refresh is LoadState.NotLoading }
                         .take(1)
                         .onEach {
-                            initialPosition?.let { viewPagerPostViewer.setCurrentItem(it, false) }
+                            viewPagerPostViewer.setCurrentItem(initialPosition, false)
                             viewPagerPostViewer.isVisible = true
                         }
                         .launchIn(MainScope())
