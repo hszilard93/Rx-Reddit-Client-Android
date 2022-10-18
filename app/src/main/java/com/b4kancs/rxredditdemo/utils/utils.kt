@@ -5,11 +5,14 @@ import android.animation.AnimatorSet
 import android.animation.ValueAnimator
 import android.content.Context
 import android.content.res.Configuration
+import android.util.TypedValue
 import android.view.View
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.view.inputmethod.InputMethodManager
 import androidx.core.view.isVisible
+import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.model.Post
+import com.google.android.material.snackbar.Snackbar
 import hu.akarnokd.rxjava3.bridge.RxJavaBridge
 import io.reactivex.Observable
 import java.util.*
@@ -102,6 +105,20 @@ fun animateHideViewAlpha(view: View) {
 fun hideKeyboard(view: View) {
     val inputMethodManager = view.context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
     inputMethodManager.hideSoftInputFromWindow(view.windowToken, 0)
+}
+
+fun makeSnackBar(view: View, stringId: Int): Snackbar {
+    val typedValue = TypedValue()
+    val theme = view.context.theme
+    theme.resolveAttribute(com.google.android.material.R.attr.colorSecondaryContainer, typedValue, true)
+    val backgroundColor = typedValue.data
+    theme.resolveAttribute(com.google.android.material.R.attr.colorTertiary, typedValue, true)
+    val textColor = typedValue.data
+
+    return Snackbar
+        .make(view, stringId, Snackbar.LENGTH_SHORT)
+        .setBackgroundTint(backgroundColor)
+        .setTextColor(textColor)
 }
 
 fun View.resetOnTouchListener(context: Context) {

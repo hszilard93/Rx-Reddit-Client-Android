@@ -1,10 +1,14 @@
 package com.b4kancs.rxredditdemo.ui.postviewer
 
+import android.animation.Animator
+import android.animation.TimeInterpolator
+import android.animation.ValueAnimator
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.animation.AccelerateDecelerateInterpolator
 import androidx.activity.addCallback
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
@@ -13,10 +17,12 @@ import androidx.navigation.fragment.navArgs
 import androidx.paging.LoadState
 import androidx.transition.AutoTransition
 import androidx.transition.Transition
+import androidx.viewpager2.widget.ViewPager2
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.databinding.FragmentPostViewerBinding
 import com.b4kancs.rxredditdemo.ui.MainActivity
 import com.b4kancs.rxredditdemo.ui.home.HomeViewModel
+import com.b4kancs.rxredditdemo.utils.ANIMATION_DURATION_SHORT
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Observable
@@ -124,7 +130,7 @@ class PostViewerFragment : Fragment() {
 
     private fun setUpViewPager(initialPosition: Int, isSlideShowOngoing: Boolean) {
         val onPositionChangedCallback = { nextPosition: Int ->
-            binding.viewPagerPostViewer.currentItem = nextPosition
+            binding.viewPagerPostViewer.customSetCurrentItem(nextPosition, ANIMATION_DURATION_SHORT)
         }
 
         val postViewerAdapter = PostViewerAdapter(requireContext(), onPositionChangedCallback, isSlideShowOngoing)
@@ -199,5 +205,39 @@ class PostViewerFragment : Fragment() {
             findNavController().previousBackStackEntry?.savedStateHandle?.set("position", visiblePosition)
             findNavController().popBackStack()
         }
+    }
+
+    // Apparently, this is the simplest way to customize the scrolling speed of a ViewPager2...
+    // Code based on https://stackoverflow.com/a/73318028.
+    private fun ViewPager2.customSetCurrentItem(
+        item: Int,
+        duration: Long,
+        interpolator: TimeInterpolator = AccelerateDecelerateInterpolator(),
+        pagePxWidth: Int = width
+    ) {
+        val pxToDrag: Int = pagePxWidth * (item - currentItem)
+        val animator = ValueAnimator.ofInt(0, pxToDrag)
+        var previousValue = 0
+        animator.addUpdateListener { valueAnimator ->
+            val currentValue = valueAnimator.animatedValue as Int
+            val currentPxToDrag = (currentValue - previousValue).toFloat()
+            fakeDragBy(-currentPxToDrag)
+            previousValue = currentValue
+        }
+        animator.addListener(object : Animator.AnimatorListener {
+            override fun onAnimationStart(animation: Animator?) {
+                beginFakeDrag()
+            }
+
+            override fun onAnimationEnd(animation: Animator?) {
+                endFakeDrag()
+            }
+
+            override fun onAnimationCancel(animation: Animator?) {}
+            override fun onAnimationRepeat(animation: Animator?) {}
+        })
+        animator.interpolator = interpolator
+        animator.duration = duration
+        animator.start()
     }
 }

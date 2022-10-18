@@ -13,4 +13,6 @@
     <string name="drawer_title_subreddits">Subreddits</string>
     <string name="no_media_in_sub_info">This subreddit does not seem to contain any direct media link posts.\n Please try a picture subreddit.</string>
     <string name="title_post_viewer">Post Viewer</string>
+    <string name="slideshow_on">Slideshow started.</string>
+    <string name="slideshow_off">Slideshow stopped.</string>
 </resources>

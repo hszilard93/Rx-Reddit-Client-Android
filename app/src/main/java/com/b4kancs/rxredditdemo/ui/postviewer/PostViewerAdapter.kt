@@ -89,11 +89,21 @@ class PostViewerAdapter(
                     slideshowStartViewHolder.binding.postLargeItemSlideshowImageView.setImageResource(R.drawable.ic_baseline_pause_slideshow_60)
                     slideshowStartViewHolder.showSlideShowControls()
                     startSlideShow()
+
+                    makeSnackBar(
+                        getViewHolderForPosition(currentLayoutPosition!!)!!.itemView,
+                        R.string.slideshow_on
+                    ).show()
                 } else {
                     Log.i(LOG_TAG, "Stopping slideshow.")
                     slideshowStartViewHolder.binding.postLargeItemSlideshowImageView.setImageResource(R.drawable.ic_baseline_slideshow_60)
                     slideshowStartViewHolder.hideSlideShowControls()
                     slideshowIntervalPlayerDisposable?.dispose()
+
+                    makeSnackBar(
+                        getViewHolderForPosition(currentLayoutPosition!!)!!.itemView,
+                        R.string.slideshow_off
+                    ).show()
                 }
             }.addTo(disposables)
 
