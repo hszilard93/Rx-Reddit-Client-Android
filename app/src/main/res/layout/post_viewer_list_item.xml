@@ -23,12 +23,12 @@
             android:id="@+id/nsfw_tag_text_view"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:background="@drawable/sh_rectangle_half_rounded"
             android:text="@string/nsfw_tag"
             android:textColor="?attr/colorErrorContainer"
             android:textSize="20sp"
             android:textStyle="bold"
             android:visibility="gone"
-            android:background="@drawable/sh_rectangle_half_rounded"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
@@ -80,6 +80,39 @@
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
                 app:tint="?attr/colorPrimary" />
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/post_large_item_slideshow_controls_constraint_layout"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/post_large_item_slideshow_image_view">
+
+                <EditText
+                    android:id="@+id/post_large_item_slideshow_delay_edit_text"
+                    android:layout_width="24dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="-16dp"
+                    android:imeOptions="actionDone"
+                    android:inputType="number"
+                    android:singleLine="true"
+                    android:text="5"
+                    android:textAlignment="center"
+                    android:textSize="20sp"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <com.google.android.material.textview.MaterialTextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:checked="false"
+                    android:text="s"
+                    android:textSize="20sp"
+                    app:layout_constraintBaseline_toBaselineOf="@id/post_large_item_slideshow_delay_edit_text"
+                    app:layout_constraintStart_toEndOf="@id/post_large_item_slideshow_delay_edit_text" />
+            </androidx.constraintlayout.widget.ConstraintLayout>
 
             <ImageView
                 android:id="@+id/post_large_item_previous_image_view"
@@ -138,14 +171,14 @@
                 android:id="@+id/post_large_item_title_text_view"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:layout_marginTop="8dp"
                 android:layout_marginStart="16dp"
+                android:layout_marginTop="8dp"
                 android:layout_marginEnd="8dp"
                 android:layout_marginBottom="4dp"
+                android:ellipsize="end"
                 android:text="@string/post_text_placeholder_text"
-                android:textSize="20sp"
                 android:textColor="?attr/colorSecondary"
+                android:textSize="20sp"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
@@ -155,15 +188,15 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="16dp"
-                android:layout_marginEnd="8dp"
                 android:layout_marginTop="4dp"
+                android:layout_marginEnd="8dp"
                 android:layout_marginBottom="4dp"
                 android:ellipsize="end"
                 android:maxLines="2"
                 android:text="@string/date_author_placeholder_text"
                 android:textSize="14sp"
-                app:layout_constraintTop_toBottomOf="@id/post_large_item_title_text_view"
-                app:layout_constraintStart_toStartOf="parent" />
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/post_large_item_title_text_view" />
 
             <ImageView
                 android:id="@+id/post_large_item_score_image_view"
@@ -192,10 +225,10 @@
                 android:id="@+id/post_large_item_comments_text_view"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:text="256 comments"
+                android:gravity="end"
                 android:paddingStart="8dp"
                 android:paddingEnd="16dp"
-                android:gravity="end"
+                android:text="256 comments"
                 android:textSize="14sp"
                 android:textStyle="bold"
                 app:layout_constraintBottom_toBottomOf="@id/post_large_item_score_image_view"

@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.res.Configuration
 import android.view.View
 import android.view.animation.AccelerateDecelerateInterpolator
+import android.view.inputmethod.InputMethodManager
 import androidx.core.view.isVisible
 import com.b4kancs.rxredditdemo.model.Post
 import hu.akarnokd.rxjava3.bridge.RxJavaBridge
@@ -96,6 +97,11 @@ fun animateHideViewAlpha(view: View) {
         .setDuration(ANIMATION_DURATION_LONG)
         .withEndAction { view.isVisible = false }
         .start()
+}
+
+fun hideKeyboard(view: View) {
+    val inputMethodManager = view.context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+    inputMethodManager.hideSoftInputFromWindow(view.windowToken, 0)
 }
 
 fun View.resetOnTouchListener(context: Context) {

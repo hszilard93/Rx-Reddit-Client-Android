@@ -7,6 +7,8 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.inputmethod.EditorInfo
+import android.widget.EditText
 import android.widget.ImageView
 import androidx.core.view.doOnLayout
 import androidx.core.view.isVisible
@@ -16,10 +18,7 @@ import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.databinding.PostViewerListItemBinding
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.ui.PostComparator
-import com.b4kancs.rxredditdemo.utils.OnSwipeTouchListener
-import com.b4kancs.rxredditdemo.utils.animateHideViewAlpha
-import com.b4kancs.rxredditdemo.utils.animateShowViewAlpha
-import com.b4kancs.rxredditdemo.utils.calculateDateAuthorSubredditText
+import com.b4kancs.rxredditdemo.utils.*
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.DataSource
 import com.bumptech.glide.load.engine.GlideException
@@ -28,7 +27,10 @@ import com.bumptech.glide.request.RequestListener
 import com.bumptech.glide.request.RequestOptions
 import com.bumptech.glide.request.target.Target
 import com.bumptech.glide.request.transition.DrawableCrossFadeFactory
+import com.f2prateek.rx.preferences2.RxSharedPreferences
 import com.jakewharton.rxbinding4.view.clicks
+import com.jakewharton.rxbinding4.view.focusChanges
+import com.jakewharton.rxbinding4.widget.editorActionEvents
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.CompositeDisposable
@@ -37,6 +39,7 @@ import io.reactivex.rxjava3.kotlin.addTo
 import io.reactivex.rxjava3.subjects.BehaviorSubject
 import io.reactivex.rxjava3.subjects.PublishSubject
 import jp.wasabeef.glide.transformations.BlurTransformation
+import org.koin.java.KoinJavaComponent.inject
 import java.util.concurrent.TimeUnit
 
 class PostViewerAdapter(
@@ -47,18 +50,24 @@ class PostViewerAdapter(
 ) : PagingDataAdapter<Post, PostViewerAdapter.PostViewerViewHolder>(PostComparator) {
     companion object {
         private const val LOG_TAG = "PostViewerAdapter"
+        private const val SLIDESHOW_INTERVAL_KEY = "slideshowInterval"
     }
 
     val disposables = CompositeDisposable()
     val readyToBeDrawnSubject: PublishSubject<Int> = PublishSubject.create()
     val slideShowOnOffSubject: BehaviorSubject<Boolean> = BehaviorSubject.createDefault(isSlideShowOnGoing)
-    private val positionSubject = PublishSubject.create<Pair<Int, Int>>()
-    private var slideShowIntervalDisposable: Disposable? = null
+    private val rxSharedPreferences: RxSharedPreferences by inject(RxSharedPreferences::class.java)
+    private val positionSubject: PublishSubject<Pair<Int, Int>> = PublishSubject.create()
+    private val slideshowIntervalValueSubject: BehaviorSubject<Long> =
+        BehaviorSubject.createDefault(
+            rxSharedPreferences.getLong(SLIDESHOW_INTERVAL_KEY, 5L).get()
+        )
+    private val viewHolderMap = HashMap<PostViewerViewHolder, Int>()
+    private var slideshowIntervalPlayerDisposable: Disposable? = null
     private var autoHideHudTimerDisposable: Disposable? = null
     private var isRecentlyDisplayed = true
     private var isHudVisible = !isRecentlyDisplayed
     private var currentLayoutPosition: Int? = null
-    private val viewHolderMap = HashMap<PostViewerViewHolder, Int>()
 
     override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
         positionSubject
@@ -77,30 +86,41 @@ class PostViewerAdapter(
             .subscribe { toShow ->
                 val slideshowStartViewHolder = getViewHolderForPosition(currentLayoutPosition!!)!!
                 if (toShow) {
-                    val slideShowInterval = 5L
-                    Log.i(LOG_TAG, "Starting slideshow timer: $slideShowInterval seconds.")
                     slideshowStartViewHolder.binding.postLargeItemSlideshowImageView.setImageResource(R.drawable.ic_baseline_pause_slideshow_60)
-
-                    slideShowIntervalDisposable = Observable.interval(slideShowInterval, TimeUnit.SECONDS)
-                        .observeOn(AndroidSchedulers.mainThread())
-                        .subscribe interval@{
-                            val currentViewHolder = getViewHolderForPosition(currentLayoutPosition!!)!!
-                            if (currentViewHolder.isGallery) {
-                                Log.i(LOG_TAG, "Slideshow; gallery post. Trying to page withing gallery.")
-                                if (currentViewHolder.nextInGallery()) return@interval
-                            }
-                            Log.i(LOG_TAG, "Slideshow; paging to next post.")
-                            positionSubject.onNext(currentLayoutPosition!! to currentLayoutPosition!! + 1)
-                        }
-                        .addTo(disposables)
+                    slideshowStartViewHolder.showSlideShowControls()
+                    startSlideShow()
                 } else {
                     Log.i(LOG_TAG, "Stopping slideshow.")
                     slideshowStartViewHolder.binding.postLargeItemSlideshowImageView.setImageResource(R.drawable.ic_baseline_slideshow_60)
-                    slideShowIntervalDisposable?.dispose()
+                    slideshowStartViewHolder.hideSlideShowControls()
+                    slideshowIntervalPlayerDisposable?.dispose()
                 }
             }.addTo(disposables)
 
+        slideshowIntervalValueSubject
+            .subscribe { newInterval ->
+                rxSharedPreferences.getLong(SLIDESHOW_INTERVAL_KEY).set(newInterval)
+            }.addTo(disposables)
+
         super.onAttachedToRecyclerView(recyclerView)
+    }
+
+    private fun startSlideShow() {
+        val slideshowInterval = slideshowIntervalValueSubject.value!!
+        Log.i(LOG_TAG, "Starting slideshow timer: $slideshowInterval seconds.")
+        slideshowIntervalPlayerDisposable = Observable.interval(slideshowInterval, TimeUnit.SECONDS)
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe {
+                val currentViewHolder = getViewHolderForPosition(currentLayoutPosition!!)!!
+                isHudVisible = false
+                if (currentViewHolder.isGallery) {
+                    Log.i(LOG_TAG, "Slideshow; gallery post. Trying to page withing gallery.")
+                    if (currentViewHolder.nextInGallery()) return@subscribe
+                }
+                Log.i(LOG_TAG, "Slideshow; paging to next post.")
+                positionSubject.onNext(currentLayoutPosition!! to currentLayoutPosition!! + 1)
+            }
+            .addTo(disposables)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PostViewerViewHolder {
@@ -171,6 +191,7 @@ class PostViewerAdapter(
             with(binding) {
                 setUpImageViewAndHud(post, this@PostViewerViewHolder)
                 setUpSlideshowAction()
+                setUpSlideshowControls()
                 // Always start with the ScrollView scrolled to the top.
                 postLargeScrollView.apply {
                     doOnLayout {
@@ -190,18 +211,21 @@ class PostViewerAdapter(
                 )
             }
 
+            // Do these actions when the ViewHolder becomes actually visible.
             shownSubject.subscribe {
                 if (isHudVisible) startAutoHideHudTimer()
                 hudElements.forEach { it.isVisible = isHudVisible }
                 currentLayoutPosition = layoutPosition
 
+                val isSlideshowVisible = slideShowOnOffSubject.value!!
                 binding.postLargeItemSlideshowImageView.setImageResource(
-                    if (slideShowOnOffSubject.value!!)
+                    if (isSlideshowVisible)
                         R.drawable.ic_baseline_pause_slideshow_60
                     else
                         R.drawable.ic_baseline_slideshow_60
                 )
-
+                binding.postLargeItemSlideshowControlsConstraintLayout.isVisible = isSlideshowVisible
+                binding.postLargeItemSlideshowDelayEditText.setText(slideshowIntervalValueSubject.value!!.toString())
             }.addTo(disposables)
 
             noLongerShownSubject.subscribe {
@@ -263,6 +287,14 @@ class PostViewerAdapter(
             isHudVisible = true
             hudElements.forEach(::animateShowViewAlpha)
             startAutoHideHudTimer()
+        }
+
+        fun showSlideShowControls() {
+            animateShowViewAlpha(binding.postLargeItemSlideshowControlsConstraintLayout)
+        }
+
+        fun hideSlideShowControls() {
+            animateHideViewAlpha(binding.postLargeItemSlideshowControlsConstraintLayout)
         }
 
         @SuppressLint("CheckResult", "ClickableViewAccessibility")
@@ -390,11 +422,42 @@ class PostViewerAdapter(
                         Log.i(LOG_TAG, "Slideshow button clicked.")
                         startAutoHideHudTimer(5L)
 
-                        val isSlideShowOn = slideShowOnOffSubject.value!!
-                        if (!isSlideShowOn) slideShowOnOffSubject.onNext(true)
-                        else slideShowOnOffSubject.onNext(false)
+                        slideShowOnOffSubject.onNext(slideShowOnOffSubject.value!!.not())
                     }
                     .addTo(disposables)
+            }
+        }
+
+        private fun setUpSlideshowControls() {
+            binding.postLargeItemSlideshowDelayEditText.let { editText ->
+                editText.focusChanges()
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe { isFocused ->
+                        if (isFocused) {
+                            Log.i(LOG_TAG, "Slideshow interval EditText has focus.")
+                            slideshowIntervalPlayerDisposable?.dispose()
+                            cancelAutoHideHudTimer()
+                        }
+                    }.addTo(disposables)
+
+                editText.editorActionEvents()
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe { actionEvent ->
+                        when (actionEvent.actionId) {
+                            EditorInfo.IME_ACTION_DONE -> {
+                                val value = (actionEvent.view as EditText).text.toString().toLong()
+                                Log.i(LOG_TAG, "Slideshow interval EditText IME_ACTION_DONE. Value: $value")
+                                if (value >= 1) {
+                                    slideshowIntervalValueSubject.onNext(value)
+
+                                    startSlideShow()
+                                    hideHud()
+                                    hideKeyboard(actionEvent.view)
+                                }
+                            }
+                            else -> Log.i(LOG_TAG, "Slideshow interval EditText actionId: ${actionEvent.actionId}.")
+                        }
+                    }.addTo(disposables)
             }
         }
     }
