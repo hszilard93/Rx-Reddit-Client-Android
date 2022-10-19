@@ -120,6 +120,7 @@ class PostViewerFragment : Fragment() {
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
+        Log.i(LOG_TAG, "onSaveInstanceState: Saving variables.")
         outState.putInt(SAVED_STATE_POSITION_KEY, binding.viewPagerPostViewer.currentItem)
         outState.putBoolean(
             SAVED_STATE_SLIDESHOW_KEY,

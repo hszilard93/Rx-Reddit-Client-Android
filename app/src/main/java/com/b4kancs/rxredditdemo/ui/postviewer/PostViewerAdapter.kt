@@ -1,12 +1,14 @@
 package com.b4kancs.rxredditdemo.ui.postviewer
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.Context
 import android.graphics.drawable.Drawable
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowManager
 import android.view.inputmethod.EditorInfo
 import android.widget.EditText
 import android.widget.ImageView
@@ -98,7 +100,7 @@ class PostViewerAdapter(
                     Log.i(LOG_TAG, "Stopping slideshow.")
                     slideshowStartViewHolder.binding.postLargeItemSlideshowImageView.setImageResource(R.drawable.ic_baseline_slideshow_60)
                     slideshowStartViewHolder.hideSlideShowControls()
-                    slideshowIntervalPlayerDisposable?.dispose()
+                    cancelSlideshow()
 
                     makeSnackBar(
                         getViewHolderForPosition(currentLayoutPosition!!)!!.itemView,
@@ -116,7 +118,9 @@ class PostViewerAdapter(
     }
 
     private fun startSlideShow() {
-        val slideshowInterval = slideshowIntervalValueSubject.value!!
+        val slideshowInterval = slideshowIntervalValueSubject.value ?: 5L
+        Log.i(LOG_TAG, "Keeping screen awake.")
+        (context as Activity).window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         Log.i(LOG_TAG, "Starting slideshow timer: $slideshowInterval seconds.")
         slideshowIntervalPlayerDisposable = Observable.interval(slideshowInterval, TimeUnit.SECONDS)
             .observeOn(AndroidSchedulers.mainThread())
@@ -131,6 +135,12 @@ class PostViewerAdapter(
                 positionSubject.onNext(currentLayoutPosition!! to currentLayoutPosition!! + 1)
             }
             .addTo(disposables)
+    }
+
+    private fun cancelSlideshow() {
+        Log.i(LOG_TAG, "No longer keeping screen awake.")
+        (context as Activity).window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        slideshowIntervalPlayerDisposable?.dispose()
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PostViewerViewHolder {
@@ -445,7 +455,7 @@ class PostViewerAdapter(
                     .subscribe { isFocused ->
                         if (isFocused) {
                             Log.i(LOG_TAG, "Slideshow interval EditText has focus.")
-                            slideshowIntervalPlayerDisposable?.dispose()
+                            cancelSlideshow()
                             cancelAutoHideHudTimer()
                         }
                     }.addTo(disposables)
