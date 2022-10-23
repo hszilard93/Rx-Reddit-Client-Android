@@ -80,10 +80,12 @@ data class RedditSubredditsListingModel(
     data class RedditSubredditData(
         val children: List<RedditSubredditDataChild>
     )
+
     // "/data/children/0/"
     data class RedditSubredditDataChild(
         val data: RedditSubredditDataChildData
     )
+
     // "/data/children/0/data"
     // Represents a single subreddits' data.
     data class RedditSubredditDataChildData(

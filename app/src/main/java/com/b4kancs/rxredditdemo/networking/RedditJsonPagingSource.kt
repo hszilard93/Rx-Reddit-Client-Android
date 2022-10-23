@@ -1,6 +1,5 @@
 package com.b4kancs.rxredditdemo.networking
 
-import android.accounts.NetworkErrorException
 import android.util.Log
 import androidx.paging.PagingState
 import androidx.paging.rxjava3.RxPagingSource
@@ -9,12 +8,13 @@ import com.b4kancs.rxredditdemo.model.Subreddit
 import io.reactivex.rxjava3.core.Maybe
 import io.reactivex.rxjava3.core.Single
 import io.reactivex.rxjava3.schedulers.Schedulers
+import logcat.LogPriority
+import logcat.logcat
 import org.koin.java.KoinJavaComponent.inject
 
 class RedditJsonPagingSource(val subreddit: String) : RxPagingSource<String, Post>() {
 
     companion object RedditJsonClient {
-        private const val LOG_TAG = "RedditRssPagingSource"
         const val FEED_URL = "https://www.reddit.com"
         const val PAGE_SIZE = 50
         const val defaultSubredditPreferenceKey = "default_subreddit"
@@ -29,7 +29,7 @@ class RedditJsonPagingSource(val subreddit: String) : RxPagingSource<String, Pos
                 .subscribeOn(Schedulers.io())
                 .map { response ->
                     if (!response.isSuccessful) {
-                        Log.e(LOG_TAG, "Error getting gallery items for $url. Error: ${response.code()}")
+                        logcat(LogPriority.ERROR) { "Error getting gallery items for $url. Error: ${response.code()}" }
                         return@map emptyList<RedditGalleryListingModel.RedditPostDataChildDataGalleryDataItem>()
                     }
                     response.body()!!
@@ -61,7 +61,7 @@ class RedditJsonPagingSource(val subreddit: String) : RxPagingSource<String, Pos
                 }
                 .flatMap { Single.just(it.toList()) }
                 .onErrorReturn {
-                    Log.e(LOG_TAG, it.message.toString())
+                    logcat(LogPriority.ERROR) { it.message.toString() }
                     emptyList()
                 }
         }

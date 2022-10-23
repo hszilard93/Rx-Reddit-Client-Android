@@ -10,7 +10,6 @@ import android.view.View
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.view.inputmethod.InputMethodManager
 import androidx.core.view.isVisible
-import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.model.Post
 import com.google.android.material.snackbar.Snackbar
 import hu.akarnokd.rxjava3.bridge.RxJavaBridge
@@ -107,7 +106,7 @@ fun hideKeyboard(view: View) {
     inputMethodManager.hideSoftInputFromWindow(view.windowToken, 0)
 }
 
-fun makeSnackBar(view: View, stringId: Int): Snackbar {
+fun makeSnackBar(view: View, stringId: Int?, message: String = ""): Snackbar {
     val typedValue = TypedValue()
     val theme = view.context.theme
     theme.resolveAttribute(com.google.android.material.R.attr.colorSecondaryContainer, typedValue, true)
@@ -115,8 +114,9 @@ fun makeSnackBar(view: View, stringId: Int): Snackbar {
     theme.resolveAttribute(com.google.android.material.R.attr.colorTertiary, typedValue, true)
     val textColor = typedValue.data
 
-    return Snackbar
-        .make(view, stringId, Snackbar.LENGTH_SHORT)
+    val snackBar = stringId?.let { Snackbar.make(view, stringId, Snackbar.LENGTH_SHORT) } ?: Snackbar.make(view, message, Snackbar.LENGTH_SHORT)
+
+    return snackBar
         .setBackgroundTint(backgroundColor)
         .setTextColor(textColor)
 }

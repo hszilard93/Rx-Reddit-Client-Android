@@ -12,16 +12,15 @@ import androidx.paging.rxjava3.observable
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.model.Subreddit
 import com.b4kancs.rxredditdemo.networking.RedditJsonPagingSource
-import com.b4kancs.rxredditdemo.ui.postviewer.PostPagingDataObservableProvider
+import com.b4kancs.rxredditdemo.ui.PostPagingDataObservableProvider
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import logcat.logcat
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeViewModel : ViewModel(), PostPagingDataObservableProvider {
-    companion object {
-        private const val LOG_TAG = "HomeViewModel"
-    }
+
 //    private val _text = MutableLiveData<String>().apply {
 //        value = "This is home Fragment"
 //    }
@@ -36,15 +35,19 @@ class HomeViewModel : ViewModel(), PostPagingDataObservableProvider {
     private var subredditAddress = subredditLiveData.value?.address
 
     init {
-        val pager = Pager(PagingConfig(
-            pageSize = RedditJsonPagingSource.PAGE_SIZE,
-            prefetchDistance = 5,
-            initialLoadSize = RedditJsonPagingSource.PAGE_SIZE
-        )) { RedditJsonPagingSource(subredditAddress!!) }
+        logcat { "init" }
+        val pager = Pager(
+            PagingConfig(
+                pageSize = RedditJsonPagingSource.PAGE_SIZE,
+                prefetchDistance = 5,
+                initialLoadSize = RedditJsonPagingSource.PAGE_SIZE
+            )
+        ) { RedditJsonPagingSource(subredditAddress!!) }
         cachedPagingObservable = pager.observable.cachedIn(this.viewModelScope)
     }
 
     fun changeSubreddit(newSub: Subreddit) {
+        logcat { "changeSubreddit: newSub = ${newSub.name}" }
         subredditLiveData.postValue(newSub)
         _subredditNameLiveData.postValue(newSub.name)
         subredditAddress = newSub.address

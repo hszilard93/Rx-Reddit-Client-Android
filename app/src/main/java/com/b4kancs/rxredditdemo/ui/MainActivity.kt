@@ -1,7 +1,6 @@
 package com.b4kancs.rxredditdemo.ui
 
 import android.os.Bundle
-import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
@@ -21,10 +20,7 @@ import com.b4kancs.rxredditdemo.model.Subreddit
 import com.b4kancs.rxredditdemo.networking.RedditJsonPagingSource
 import com.b4kancs.rxredditdemo.ui.drawer.DrawerListAdapter
 import com.b4kancs.rxredditdemo.ui.drawer.DrawerSearchListAdapter
-import com.b4kancs.rxredditdemo.utils.ANIMATION_DURATION_LONG
-import com.b4kancs.rxredditdemo.utils.animateViewLayoutHeightChange
-import com.b4kancs.rxredditdemo.utils.dpToPixel
-import com.b4kancs.rxredditdemo.utils.toV3Observable
+import com.b4kancs.rxredditdemo.utils.*
 import com.f2prateek.rx.preferences2.RxSharedPreferences
 import com.jakewharton.rxbinding4.widget.queryTextChangeEvents
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
@@ -34,6 +30,8 @@ import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.addTo
 import io.reactivex.rxjava3.schedulers.Schedulers
 import io.reactivex.rxjava3.subjects.PublishSubject
+import logcat.LogPriority
+import logcat.logcat
 import org.koin.android.ext.android.inject
 import java.util.concurrent.TimeUnit
 import kotlin.math.abs
@@ -41,14 +39,12 @@ import kotlin.math.abs
 class MainActivity : AppCompatActivity() {
 
     companion object {
-        private const val LOG_TAG = "MainActivity"
         private const val IS_ACTION_BAR_SHOWING_KEY = "isActionBarShowing"
         private const val IS_NAV_BAR_SHOWING_KEY = "isNavBarShowing"
     }
 
-    val selectedSubredditChangedSubject = PublishSubject.create<Subreddit>()
-    val subredditsChangedSubject = PublishSubject.create<Unit>()
-
+    val selectedSubredditChangedSubject: PublishSubject<Subreddit> = PublishSubject.create()
+    private val subredditsChangedSubject: PublishSubject<Unit> = PublishSubject.create()
     private val subredditDatabase: SubredditDatabase by inject()
     private val rxSharedPreferences: RxSharedPreferences by inject()
     private val disposables = CompositeDisposable()
@@ -59,7 +55,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var drawerListAdapter: DrawerListAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        logcat { "onCreate" }
         super.onCreate(savedInstanceState)
+
         savedInstanceState?.let {
             isActionBarShowing = it.getBoolean(IS_ACTION_BAR_SHOWING_KEY)
             isNavBarShowing = it.getBoolean(IS_NAV_BAR_SHOWING_KEY)
@@ -109,6 +107,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onBackPressed() {
+        logcat { "onBackPressed" }
+
         if (binding.drawerLayout.isDrawerOpen(GravityCompat.START))
             binding.drawerLayout.closeDrawer(GravityCompat.START)
         else
@@ -116,16 +116,20 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
+        logcat { "onSaveInstanceState" }
         super.onSaveInstanceState(outState)
+
         outState.putBoolean(IS_ACTION_BAR_SHOWING_KEY, isActionBarShowing)
         outState.putBoolean(IS_NAV_BAR_SHOWING_KEY, isNavBarShowing)
     }
 
     private val genericOnClickCallback: (Subreddit) -> Unit = { sub ->
+        logcat { "genericOnClickedCallback: ${sub.name}" }
         selectedSubredditChangedSubject.onNext(sub)
     }
 
     private val genericOnActionClickedCallback: (Subreddit) -> Subreddit = { sub ->
+        logcat { "genericOnActionClickedCallback: ${sub.name}" }
         val newStatus = when (sub.status) {
             Subreddit.Status.NOT_IN_DB -> Subreddit.Status.IN_USER_LIST
             Subreddit.Status.IN_DEFAULTS_LIST -> Subreddit.Status.IN_USER_LIST
@@ -143,6 +147,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setUpSubredditDrawer() {
+        logcat { "setUpSubredditDrawer" }
         drawerListAdapter = DrawerListAdapter(
             this,
             onClickCallback = genericOnClickCallback,
@@ -168,15 +173,20 @@ class MainActivity : AppCompatActivity() {
                     .subscribeOn(Schedulers.io())
                     .subscribe()
                     .addTo(disposables)
-                Toast.makeText(this, "${sub.address} is set as the default subreddit!", Toast.LENGTH_SHORT).show()
-            },
-            subredditsChangedSubject = subredditsChangedSubject
+                makeSnackBar(binding.drawerListView, null, "${sub.address} is set as the default subreddit!").show()
+            }
         )
 
         binding.drawerListView.adapter = drawerListAdapter
+
+        subredditsChangedSubject
+            .subscribeOn(AndroidSchedulers.mainThread())
+            .subscribe { drawerListAdapter.notifyDataSetChanged() }
+            .addTo(disposables)
     }
 
     private fun setUpDrawerSearchViewAndList() {
+        logcat { "setUpDrawerSearchViewAndList" }
         var searchResults: List<Subreddit> = emptyList()
         val searchResultsChanged = PublishSubject.create<Unit>()
 
@@ -186,20 +196,20 @@ class MainActivity : AppCompatActivity() {
             .map {
                 val keyword = it.queryText
                 if (it.isSubmitted) {
-                    Log.i(LOG_TAG, "Subreddit query text submitted: $keyword")
+                    logcat(LogPriority.INFO) { "Subreddit query text submitted: $keyword" }
                     it.queryText.toString() to true
                 } else {
-                    Log.i(LOG_TAG, "Querying keyword: $keyword")
+                    logcat(LogPriority.INFO) { "Querying keyword: $keyword" }
                     it.queryText.toString() to false
                 }
             }
             .subscribe { (keyword, isSubmitted) ->
+                logcat { "queryTextChangeEvents.subscribe: keyword $keyword isSubmitted $isSubmitted" }
                 if (isSubmitted) {
                     val subInDb = subredditDatabase.subredditDao().getSubreddits().blockingGet().firstOrNull { it.name == keyword }
                     if (subInDb != null) {
                         selectedSubredditChangedSubject.onNext(subInDb)
-                    }
-                    else {
+                    } else {
                         selectedSubredditChangedSubject.onNext(
                             Subreddit(
                                 keyword,
@@ -219,7 +229,7 @@ class MainActivity : AppCompatActivity() {
                         val nwResultSingle = RedditJsonPagingSource.getSubredditsByKeyword(keyword)
                             .toObservable()
                             .subscribeOn(Schedulers.io())
-                            .doOnError { Log.e(LOG_TAG, "Did not receive network response for query: $keyword") }
+                            .doOnError { logcat(LogPriority.ERROR) { "Did not receive network response for query: $keyword" } }
                             .onErrorComplete()
                             .startWith(Single.just(emptyList()))
 
@@ -255,6 +265,7 @@ class MainActivity : AppCompatActivity() {
         searchResultsChangedSubject
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe { subs ->
+                logcat { "searchResultsChanged: ${subs.map { it.name }}" }
                 val listView = binding.drawerSearchResultsListView
                 val oldHeight = abs(listView.measuredHeight)
                 val newHeight = dpToPixel(40, this) * subs.size
@@ -265,6 +276,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setUpDefaultSubredditSharedPreferences() {
+        logcat { "setUpDefaultSubredditSharedPreferences" }
+
         val defaultSubredditPreference = rxSharedPreferences.getString(
             RedditJsonPagingSource.defaultSubredditPreferenceKey,
             RedditJsonPagingSource.defaultSubreddit.address
@@ -276,49 +289,66 @@ class MainActivity : AppCompatActivity() {
                     RedditJsonPagingSource.defaultSubreddit = subredditDatabase.subredditDao().getSubredditByAddress(address)
                         .subscribeOn(Schedulers.io())
                         .blockingGet()
-                    Log.d(LOG_TAG, "$address is made the default subreddit!")
+                    logcat { "$address is made the default subreddit!" }
                 } catch (e: Exception) {
-                    Log.e(LOG_TAG, "Could not get subreddit by address $address from database.")
+                    logcat(LogPriority.ERROR) { "Could not get subreddit by address $address from database." }
                 }
             }
             .addTo(disposables)
     }
 
     fun lockDrawerClosed() {
+        logcat { "lockDrawerClosed" }
         binding.drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
     }
 
     fun unlockDrawer() {
+        logcat { "unlockDrawer" }
         binding.drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED)
     }
 
     fun animateHideActionBar(viewToSynchronizeWith: View? = null) {
-        val actionBar = supportActionBar!!
-        if (isActionBarShowing) {
-            binding.toolbar.animate()
+        logcat { "animateHideActionBar" }
+        if (!isActionBarShowing) return
+
+        val actionBar = supportActionBar
+        if (actionBar == null) {
+            logcat(LogPriority.WARN) { "supportActionBar not found" }
+            return
+        }
+
+        binding.toolbar.animate()
+            .translationY(actionBar.height * -1f)
+            .setDuration(ANIMATION_DURATION_LONG)
+            .withEndAction {
+                actionBar.hide()
+                isActionBarShowing = false
+            }.start()
+
+        // We also animate the position of the view below the ActionBar so that the whole thing doesn't jerk upwards suddenly
+        // when the ActionBar's visibility is gone
+        viewToSynchronizeWith?.let {
+            it.animate()
                 .translationY(actionBar.height * -1f)
                 .setDuration(ANIMATION_DURATION_LONG)
                 .withEndAction {
-                    actionBar.hide()
-                    isActionBarShowing = false
-                }.start()
-
-            // We also animate the position of the view below the ActionBar so that the whole thing doesn't jerk upwards suddenly
-            // when the ActionBar's visibility is gone
-            viewToSynchronizeWith?.let {
-                it.animate()
-                    .translationY(actionBar.height * -1f)
-                    .setDuration(ANIMATION_DURATION_LONG)
-                    .withEndAction {
-                        it.y = 0f
-                    }
-                    .start()
-            }
+                    it.y = 0f
+                }
+                .start()
         }
+
     }
 
     fun animateShowActionBar() {
-        val actionBar = supportActionBar!!
+        logcat { "animateShowActionBar" }
+        if (isActionBarShowing) return
+
+        val actionBar = supportActionBar
+        if (actionBar == null) {
+            logcat(LogPriority.WARN) { "supportActionBar not found" }
+            return
+        }
+
         if (!isActionBarShowing) {
             actionBar.show()
             isActionBarShowing = true
@@ -330,42 +360,44 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun animateHideBottomNavBar(viewToSynchronizeWith: View? = null) {
-        if (isNavBarShowing) {
-            binding.navView.let {
-                it.animate()
-                    .translationYBy(it.height.toFloat())
-                    .setDuration(ANIMATION_DURATION_LONG)
-                    .withEndAction {
-                        it.isVisible = false
-                        isNavBarShowing = false
-                    }
-                    .start()
-            }
+        logcat { "animateHideBottomNavBar" }
+        if (!isNavBarShowing) return
 
-            viewToSynchronizeWith?.let {
-                animateViewLayoutHeightChange(
-                    it,
-                    it.height,
-                    it.height + binding.navView.height,
-                    ANIMATION_DURATION_LONG,
-                    endWithThis = {
-                        it.layoutParams.height = ViewGroup.LayoutParams.MATCH_PARENT
-                    }
-                )
-            }
+        binding.navView.let {
+            it.animate()
+                .translationYBy(it.height.toFloat())
+                .setDuration(ANIMATION_DURATION_LONG)
+                .withEndAction {
+                    it.isVisible = false
+                    isNavBarShowing = false
+                }
+                .start()
+        }
+
+        viewToSynchronizeWith?.let {
+            animateViewLayoutHeightChange(
+                it,
+                it.height,
+                it.height + binding.navView.height,
+                ANIMATION_DURATION_LONG,
+                endWithThis = {
+                    it.layoutParams.height = ViewGroup.LayoutParams.MATCH_PARENT
+                }
+            )
         }
     }
 
     fun animateShowBottomNavBar() {
-        if (!isNavBarShowing) {
-            binding.navView.let {
-                it.isVisible = true
-                isNavBarShowing = true
-                it.animate()
-                    .translationYBy(it.height * -1f)
-                    .setDuration(ANIMATION_DURATION_LONG)
-                    .start()
-            }
+        logcat { "animateShowBottomNavBar" }
+        if (isNavBarShowing) return
+
+        binding.navView.let {
+            it.isVisible = true
+            isNavBarShowing = true
+            it.animate()
+                .translationYBy(it.height * -1f)
+                .setDuration(ANIMATION_DURATION_LONG)
+                .start()
         }
     }
 }

@@ -4,7 +4,6 @@ import android.animation.Animator
 import android.animation.TimeInterpolator
 import android.animation.ValueAnimator
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -21,6 +20,7 @@ import androidx.viewpager2.widget.ViewPager2
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.databinding.FragmentPostViewerBinding
 import com.b4kancs.rxredditdemo.ui.MainActivity
+import com.b4kancs.rxredditdemo.ui.PostPagingDataObservableProvider
 import com.b4kancs.rxredditdemo.ui.home.HomeViewModel
 import com.b4kancs.rxredditdemo.utils.ANIMATION_DURATION_SHORT
 import com.google.android.material.bottomnavigation.BottomNavigationView
@@ -34,6 +34,8 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.take
+import logcat.LogPriority
+import logcat.logcat
 import org.koin.androidx.viewmodel.ext.android.sharedViewModel
 import org.koin.androidx.viewmodel.ext.android.viewModel
 import org.koin.core.parameter.parametersOf
@@ -41,53 +43,55 @@ import java.util.concurrent.TimeUnit
 
 class PostViewerFragment : Fragment() {
     companion object {
-        private const val LOG_TAG = "PostViewerFragment"
-        private const val SAVED_STATE_POSITION_KEY = "position"
-        private const val SAVED_STATE_SLIDESHOW_KEY = "slideShow"
+        const val SAVED_STATE_POSITION_KEY = "position"
+        private const val SAVED_STATE_SLIDESHOW_KEY = "slideshow"
     }
 
     private val args: PostViewerFragmentArgs by navArgs()
     private val disposables = CompositeDisposable()
     private lateinit var binding: FragmentPostViewerBinding
     private lateinit var viewModel: PostViewerViewModel
-    private lateinit var delayedTransitionTriggerDisposable: Disposable
+    private lateinit var delayedEnterTransitionTriggerDisposable: Disposable
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
+        logcat { "onCreateView" }
+
         binding = FragmentPostViewerBinding.inflate(inflater, container, false)
 
         sharedElementEnterTransition = AutoTransition()
         sharedElementReturnTransition = AutoTransition().apply {
             addListener(object : Transition.TransitionListener {
                 override fun onTransitionStart(transition: Transition) {
-                    Log.i(LOG_TAG, "onTransitionStart")
+                    logcat(LogPriority.INFO) { "onTransitionStart" }
                 }
 
                 override fun onTransitionEnd(transition: Transition) {
-                    Log.i(LOG_TAG, "onTransitionEnd")
+                    logcat(LogPriority.INFO) { "onTransitionEnd" }
                 }
 
                 override fun onTransitionCancel(transition: Transition) {
-                    Log.i(LOG_TAG, "onTransitionCancel")
+                    logcat(LogPriority.INFO) { "onTransitionCancel" }
                 }
 
                 override fun onTransitionPause(transition: Transition) {
-                    Log.i(LOG_TAG, "onTransitionPause")
+                    logcat(LogPriority.INFO) { "onTransitionPause" }
                 }
 
                 override fun onTransitionResume(transition: Transition) {
-                    Log.i(LOG_TAG, "onTransitionResume")
+                    logcat(LogPriority.INFO) { "onTransitionResume" }
                 }
             })
         }
 
-        Log.i(LOG_TAG, "Calling postponeEnterTransition().")
+        logcat { "postponeEnterTransition()." }
         postponeEnterTransition()
 
-        delayedTransitionTriggerDisposable = Observable.timer(350, TimeUnit.MILLISECONDS)
+        // If the enter transition hasn't occurred by this time, force it.
+        delayedEnterTransitionTriggerDisposable = Observable.timer(350, TimeUnit.MILLISECONDS)
             .observeOn(AndroidSchedulers.mainThread())
-            .doOnSubscribe { Log.i(LOG_TAG, "Starting delayed enter transition timer.") }
+            .doOnSubscribe { logcat { "Starting delayed enter transition timer." } }
             .subscribe {
-                Log.i(LOG_TAG, "Triggering delayed enter transition.")
+                logcat(LogPriority.INFO) { "Triggering delayed enter transition." }
                 startPostponedEnterTransition()
             }
             .addTo(disposables)
@@ -96,6 +100,8 @@ class PostViewerFragment : Fragment() {
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        logcat { "onViewCreated" }
+
         val initialPosition = savedInstanceState?.getInt(SAVED_STATE_POSITION_KEY) ?: args.position
         val isSlideShowOngoing = savedInstanceState?.getBoolean(SAVED_STATE_SLIDESHOW_KEY) ?: false
 
@@ -105,11 +111,13 @@ class PostViewerFragment : Fragment() {
     }
 
     override fun onResume() {
+        logcat { "onResume" }
         super.onResume()
         (activity as MainActivity).lockDrawerClosed()
     }
 
     override fun onDestroy() {
+        logcat { "onDestroy" }
         super.onDestroy()
         (binding.viewPagerPostViewer.adapter as PostViewerAdapter).disposables.dispose()
         (activity as MainActivity).apply {
@@ -120,16 +128,18 @@ class PostViewerFragment : Fragment() {
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
-        Log.i(LOG_TAG, "onSaveInstanceState: Saving variables.")
+        logcat { "onSaveInstanceState" }
         outState.putInt(SAVED_STATE_POSITION_KEY, binding.viewPagerPostViewer.currentItem)
         outState.putBoolean(
             SAVED_STATE_SLIDESHOW_KEY,
-            (binding.viewPagerPostViewer.adapter as PostViewerAdapter).slideShowOnOffSubject.value!!
+            (binding.viewPagerPostViewer.adapter as PostViewerAdapter).slideShowOnOffSubject.value ?: return
         )
         super.onSaveInstanceState(outState)
     }
 
     private fun setUpViewPager(initialPosition: Int, isSlideShowOngoing: Boolean) {
+        logcat { "setUpViewPager" }
+
         val onPositionChangedCallback = { nextPosition: Int ->
             binding.viewPagerPostViewer.customSetCurrentItem(nextPosition, ANIMATION_DURATION_SHORT)
         }
@@ -164,34 +174,44 @@ class PostViewerFragment : Fragment() {
 
             postViewerAdapter.readyToBeDrawnSubject
                 .observeOn(AndroidSchedulers.mainThread())
-                .filter { it == (initialPosition ?: 0) }
+                .filter { it == (initialPosition) }
                 .take(1)
                 .subscribe {
                     (activity as MainActivity).apply {
                         animateHideActionBar(root)
                         animateHideBottomNavBar(root)
                     }
-                    Log.i(LOG_TAG, "startPostponedEnterTransition()")
+                    logcat(LogPriority.INFO) { "startPostponedEnterTransition()" }
                     startPostponedEnterTransition()
-                    Log.i(LOG_TAG, "Disposing of delayedTransitionTriggerDisposable")
-                    delayedTransitionTriggerDisposable.dispose()
+                    logcat(LogPriority.INFO) { "Disposing of delayedTransitionTriggerDisposable" }
+                    delayedEnterTransitionTriggerDisposable.dispose()
                 }.addTo(disposables)
         }
     }
 
     private fun setUpViewModel() {
+        logcat { "setUpViewModel" }
+
         val pagingDataObservableProviderName = args.pagingDataObservableProvider
         val pagingDataObservableProvider: Lazy<PostPagingDataObservableProvider> =
-            if (pagingDataObservableProviderName == HomeViewModel::class.java.simpleName)
+            if (pagingDataObservableProviderName == HomeViewModel::class.java.simpleName) {
+                logcat { "The pagingDataObservableProvider is a HomeViewModel class." }
                 sharedViewModel<HomeViewModel>()
-            else
+            }
+            else {
+                logcat(LogPriority.ERROR) { "Can't find a valid pagingDataObservableProvider class." }
                 throw IllegalArgumentException()
+            }
         viewModel = viewModel<PostViewerViewModel> { parametersOf(pagingDataObservableProvider.value) }.value
     }
 
     private fun setUpOnBackPressedCallback() {
+        logcat { "setUpOnBackPressedCallback" }
+
         (activity as MainActivity).onBackPressedDispatcher.addCallback(this) {
-//          Stops the user from clicking on anything while the transition takes place .
+            logcat(LogPriority.INFO) { "MainActivity back pressed" }
+
+//          Stops the user from clicking on anything while the transition takes place.
             (binding.viewPagerPostViewer.adapter as PostViewerAdapter).disposables.dispose()
 
             val visiblePosition = binding.viewPagerPostViewer.currentItem
@@ -200,7 +220,7 @@ class PostViewerFragment : Fragment() {
                     ?.binding
                     ?.postLargeItemImageView
                     ?.transitionName
-            Log.i(LOG_TAG, "Transition name = $transitionName")
+            logcat(LogPriority.INFO) { "Transition name = $transitionName" }
             transitionName?.let { (sharedElementReturnTransition as Transition).addTarget(it) }
 
             findNavController().previousBackStackEntry?.savedStateHandle?.set("position", visiblePosition)
@@ -216,6 +236,7 @@ class PostViewerFragment : Fragment() {
         interpolator: TimeInterpolator = AccelerateDecelerateInterpolator(),
         pagePxWidth: Int = width
     ) {
+        logcat { "customSetCurrentItem" }
         val pxToDrag: Int = pagePxWidth * (item - currentItem)
         val animator = ValueAnimator.ofInt(0, pxToDrag)
         var previousValue = 0

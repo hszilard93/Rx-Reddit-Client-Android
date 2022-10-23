@@ -1,11 +1,8 @@
 package com.b4kancs.rxredditdemo.model
 
-import android.os.Parcelable
-import android.util.Log
 import com.b4kancs.rxredditdemo.networking.RedditJsonListingModel.RedditPostDataModel
 import com.b4kancs.rxredditdemo.networking.RedditJsonPagingSource
-import kotlinx.parcelize.Parcelize
-import kotlinx.serialization.Serializable
+import logcat.logcat
 
 data class Post(
     val name: String,
@@ -25,7 +22,6 @@ data class Post(
 ) {
     companion object {
 
-        private const val LOG_TAG = "Post"
 
         fun from(dataModel: RedditPostDataModel): Post {
             with(dataModel) {
@@ -45,15 +41,12 @@ data class Post(
                                 subreddit
                             } else {
                                 // It's a crosspost gallery post (°〇°)ﾉ
-                                Log.d(LOG_TAG, "Parsing crosspost gallery post  $url")
+                                logcat { "Parsing crosspost gallery post  $url" }
 
                                 crosspostParents.first().subreddit
                             }
                         val galleryPostUrl = "https://www.reddit.com/r/$sub/comments/$galleryId"
-                        Log.d(
-                            LOG_TAG,
-                            "Attempting to get links to gallery items on post $name $title; gallery url $url; request url $galleryPostUrl."
-                        )
+                        logcat { "Attempting to get links to gallery items on post $name $title; gallery url $url; request url $galleryPostUrl." }
                         val ids: List<String>? = RedditJsonPagingSource.getPictureIdsFromGalleryPostAtUrl(galleryPostUrl)
                             .blockingGet()
                         ids?.map { imageId -> "https://i.redd.it/$imageId.jpg" }

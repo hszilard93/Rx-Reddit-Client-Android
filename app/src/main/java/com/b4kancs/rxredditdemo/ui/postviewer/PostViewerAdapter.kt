@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.graphics.drawable.Drawable
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -41,6 +40,8 @@ import io.reactivex.rxjava3.kotlin.addTo
 import io.reactivex.rxjava3.subjects.BehaviorSubject
 import io.reactivex.rxjava3.subjects.PublishSubject
 import jp.wasabeef.glide.transformations.BlurTransformation
+import logcat.LogPriority
+import logcat.logcat
 import org.koin.java.KoinJavaComponent.inject
 import java.util.concurrent.TimeUnit
 
@@ -51,7 +52,6 @@ class PostViewerAdapter(
     isSlideShowOnGoing: Boolean = false
 ) : PagingDataAdapter<Post, PostViewerAdapter.PostViewerViewHolder>(PostComparator) {
     companion object {
-        private const val LOG_TAG = "PostViewerAdapter"
         private const val SLIDESHOW_INTERVAL_KEY = "slideshowInterval"
     }
 
@@ -72,10 +72,11 @@ class PostViewerAdapter(
     private var currentLayoutPosition: Int? = null
 
     override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
+        logcat { "onAttachedToRecyclerView" }
         positionSubject
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe { (currentPosition, nextPosition) ->
-                Log.i(LOG_TAG, "onPositionChangedCallback($nextPosition)")
+                logcat(LogPriority.INFO) { "onPositionChangedCallback($nextPosition)" }
                 onPositionChangedCallback(nextPosition)
                 getViewHolderForPosition(currentPosition)?.noLongerShownSubject?.onNext(Unit)
                 getViewHolderForPosition(nextPosition)?.shownSubject?.onNext(Unit)
@@ -85,9 +86,12 @@ class PostViewerAdapter(
         slideShowOnOffSubject
             .observeOn(AndroidSchedulers.mainThread())
             .skipWhile { currentLayoutPosition == null }
+            .doOnNext { logcat(LogPriority.INFO) { "slideShowOnOffSubject.onNext: $it" } }
             .subscribe { toShow ->
                 val slideshowStartViewHolder = getViewHolderForPosition(currentLayoutPosition!!)!!
                 if (toShow) {
+                    logcat(LogPriority.INFO) { "Starting slideshow." }
+
                     slideshowStartViewHolder.binding.postLargeItemSlideshowImageView.setImageResource(R.drawable.ic_baseline_pause_slideshow_60)
                     slideshowStartViewHolder.showSlideShowControls()
                     startSlideShow()
@@ -97,7 +101,7 @@ class PostViewerAdapter(
                         R.string.slideshow_on
                     ).show()
                 } else {
-                    Log.i(LOG_TAG, "Stopping slideshow.")
+                    logcat(LogPriority.INFO) { "Stopping slideshow." }
                     slideshowStartViewHolder.binding.postLargeItemSlideshowImageView.setImageResource(R.drawable.ic_baseline_slideshow_60)
                     slideshowStartViewHolder.hideSlideShowControls()
                     cancelSlideshow()
@@ -118,50 +122,58 @@ class PostViewerAdapter(
     }
 
     private fun startSlideShow() {
+        logcat { "startSlideShow" }
         val slideshowInterval = slideshowIntervalValueSubject.value ?: 5L
-        Log.i(LOG_TAG, "Keeping screen awake.")
+        logcat(LogPriority.INFO) { "Keeping screen awake." }
         (context as Activity).window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        Log.i(LOG_TAG, "Starting slideshow timer: $slideshowInterval seconds.")
+        logcat(LogPriority.INFO) { "Starting slideshow timer: $slideshowInterval seconds." }
         slideshowIntervalPlayerDisposable = Observable.interval(slideshowInterval, TimeUnit.SECONDS)
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe {
                 val currentViewHolder = getViewHolderForPosition(currentLayoutPosition!!)!!
                 isHudVisible = false
                 if (currentViewHolder.isGallery) {
-                    Log.i(LOG_TAG, "Slideshow; gallery post. Trying to page withing gallery.")
-                    if (currentViewHolder.nextInGallery()) return@subscribe
+                    logcat(LogPriority.INFO) { "Slideshow; gallery post. Trying to page withing gallery." }
+                    if (currentViewHolder.showNextInGallery()) return@subscribe
                 }
-                Log.i(LOG_TAG, "Slideshow; paging to next post.")
+                logcat(LogPriority.INFO) { "Slideshow; paging to next post." }
                 positionSubject.onNext(currentLayoutPosition!! to currentLayoutPosition!! + 1)
             }
             .addTo(disposables)
     }
 
     private fun cancelSlideshow() {
-        Log.i(LOG_TAG, "No longer keeping screen awake.")
+        logcat { "cancelSlideshow" }
+        logcat(LogPriority.INFO) { "No longer keeping screen awake." }
         (context as Activity).window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         slideshowIntervalPlayerDisposable?.dispose()
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PostViewerViewHolder {
+        logcat { "onCreateViewHolder" }
         return PostViewerViewHolder(
             PostViewerListItemBinding.inflate(LayoutInflater.from(context), parent, false)
         )
     }
 
     override fun onBindViewHolder(viewHolder: PostViewerViewHolder, @SuppressLint("RecyclerView") position: Int) {
+        logcat { "onBindViewHolder" }
         val post = getItem(position)
-        post?.let(viewHolder::bind)
+        post?.let(viewHolder::bind) ?: return
+        logcat(LogPriority.INFO) { "ViewHolder bound to Post. position = $position; post.name = ${post.name}" }
+
         viewHolderMap[viewHolder] = position
         if (isRecentlyDisplayed) {
             viewHolder.shownSubject.onNext(Unit)
             if (slideShowOnOffSubject.value == true)
                 slideShowOnOffSubject.onNext(true)
             isRecentlyDisplayed = false
+            logcat { "isRecentlyDisplayed = false" }
         }
     }
 
     override fun onViewRecycled(holder: PostViewerViewHolder) {
+        logcat { "onViewRecycled" }
         holder.hudElements.clear()
         with(holder.binding) {
             postLargeItemGalleryIndicatorImageView.isVisible = false
@@ -171,10 +183,11 @@ class PostViewerAdapter(
     }
 
     fun getViewHolderForPosition(pos: Int): PostViewerViewHolder? {
-        for (k in viewHolderMap.keys) {
-            if (viewHolderMap[k] == pos) return k
-        }
-        Log.w(LOG_TAG, "Can't find PostViewerViewHolder for position $pos")
+        logcat { "getViewHolderForPosition: position = $pos" }
+
+        viewHolderMap.keys.find { keyViewHolder -> viewHolderMap[keyViewHolder] == pos }?.let { return it }
+
+        logcat(LogPriority.WARN) { "Can't find PostViewerViewHolder for position $pos" }
         return null
     }
 
@@ -189,21 +202,25 @@ class PostViewerAdapter(
         private var hasAppliedBlur: Boolean = false
 
         init {
+            logcat { "PostViewerViewHolder.init" }
+
             // For the imageview to fill the screen, I make it's height equal to the window's height minus the status bar's height.
             val statusBarId = context.resources.getIdentifier("status_bar_height", "dimen", "android")
             val statusBarHeight = context.resources.getDimensionPixelSize(statusBarId)
             val navBarId = context.resources.getIdentifier("navigation_bar_height", "dimen", "android")
             val navBarHeight = context.resources.getDimension(navBarId)
-            Log.d(LOG_TAG, "status bar height: $statusBarHeight; nav bar height: $navBarHeight")
+            logcat { "status bar height: $statusBarHeight; nav bar height: $navBarHeight" }
             val imageViewNewHeight =
                 context.resources.displayMetrics.heightPixels -
                         statusBarHeight +
                         if (navBarHeight > 0) 0 else 100
-            Log.d(LOG_TAG, "The imageview's height will be set to: $imageViewNewHeight")
+            logcat { "The imageview's height will be set to: $imageViewNewHeight" }
             binding.postLargeItemImageView.layoutParams.height = imageViewNewHeight
         }
 
         fun bind(post_: Post) {
+            logcat { "bind" }
+
             post = post_
             isGallery = post.links!!.size > 1
             hasAppliedBlur = false
@@ -232,35 +249,43 @@ class PostViewerAdapter(
             }
 
             // Do these actions when the ViewHolder becomes actually visible.
-            shownSubject.subscribe {
-                if (isHudVisible) startAutoHideHudTimer()
-                hudElements.forEach { it.isVisible = isHudVisible }
-                currentLayoutPosition = layoutPosition
+            shownSubject
+                .observeOn(AndroidSchedulers.mainThread())
+                .doOnSubscribe { logcat { "shownSubject.onNext" } }
+                .subscribe {
+                    if (isHudVisible) startAutoHideHudTimer()
+                    hudElements.forEach { it.isVisible = isHudVisible }
+                    currentLayoutPosition = layoutPosition
 
-                val isSlideshowVisible = slideShowOnOffSubject.value!!
-                binding.postLargeItemSlideshowImageView.setImageResource(
-                    if (isSlideshowVisible)
-                        R.drawable.ic_baseline_pause_slideshow_60
-                    else
-                        R.drawable.ic_baseline_slideshow_60
-                )
-                binding.postLargeItemSlideshowControlsConstraintLayout.isVisible = isSlideshowVisible
-                binding.postLargeItemSlideshowDelayEditText.setText(slideshowIntervalValueSubject.value!!.toString())
-            }.addTo(disposables)
+                    val isSlideshowVisible = slideShowOnOffSubject.value!!
+                    binding.postLargeItemSlideshowImageView.setImageResource(
+                        if (isSlideshowVisible)
+                            R.drawable.ic_baseline_pause_slideshow_60
+                        else
+                            R.drawable.ic_baseline_slideshow_60
+                    )
+                    binding.postLargeItemSlideshowControlsConstraintLayout.isVisible = isSlideshowVisible
+                    binding.postLargeItemSlideshowDelayEditText.setText(slideshowIntervalValueSubject.value!!.toString())
+                }.addTo(disposables)
 
-            noLongerShownSubject.subscribe {
-                autoHideHudTimerDisposable?.dispose()
-            }
+            noLongerShownSubject
+                .observeOn(AndroidSchedulers.mainThread())
+                .doOnNext { logcat { "noLongerShownSubject.onNext" } }
+                .subscribe {
+                    autoHideHudTimerDisposable?.dispose()
+                }
         }
 
-        fun nextInGallery(): Boolean {
+        fun showNextInGallery(): Boolean {
+            logcat { "nextInGallery" }
             return if (currentGalleryPosition in 0 until post.links!!.size - 1) {
                 changeGalleryPosition(currentGalleryPosition + 1)
                 true
             } else false
         }
 
-        fun previousInGallery(): Boolean {
+        fun showPreviousInGallery(): Boolean {
+            logcat { "previousInGallery" }
             return if (currentGalleryPosition in 1 until post.links!!.size) {
                 changeGalleryPosition(currentGalleryPosition - 1)
                 true
@@ -268,59 +293,68 @@ class PostViewerAdapter(
         }
 
         private fun changeGalleryPosition(position: Int) {
-            Log.i(LOG_TAG, "New gallery position: $position")
+            logcat { "changeGalleryPosition" }
+            logcat(LogPriority.INFO) { "New gallery position: $position" }
             loadImageWithGlide(binding.postLargeItemImageView, post.links!![position], updateExisting = true, toBlur = false)
             currentGalleryPosition = position
         }
 
         private fun startAutoHideHudTimer(delayInSeconds: Long = 3L) {
+            logcat { "startAutoHideHudTimer" }
+
             if (isHudVisible) {
                 autoHideHudTimerDisposable?.dispose()
                 autoHideHudTimerDisposable = Observable.timer(delayInSeconds, TimeUnit.SECONDS)
                     .observeOn(AndroidSchedulers.mainThread())
-                    .doOnSubscribe { Log.i(LOG_TAG, "Subscribing to autoHideHudTimerDisposable.") }
+                    .doOnSubscribe { logcat(LogPriority.INFO) { "Subscribing to autoHideHudTimerDisposable." } }
                     .subscribe {
                         if (isHudVisible) {
-                            Log.i(LOG_TAG, "Auto hiding HUD.")
+                            logcat(LogPriority.INFO) { "Auto hiding HUD." }
                             hideHud()
                         }
-                        cancelAutoHideHudTimer()
+                        // Timer subscriber gets disposed of automatically.
                     }
                     .addTo(disposables)
             }
         }
 
         private fun cancelAutoHideHudTimer() {
+            logcat { "cancelAutoHideHudTimer" }
             autoHideHudTimerDisposable?.let {
-                Log.i(LOG_TAG, "Disposing of autoHideHudTimerDisposable.")
+                logcat(LogPriority.INFO) { "Disposing of autoHideHudTimerDisposable." }
                 it.dispose()
             }
         }
 
         private fun hideHud() {
+            logcat { "hideHud" }
             isHudVisible = false
             hudElements.forEach(::animateHideViewAlpha)
             cancelAutoHideHudTimer()
         }
 
         private fun showHud() {
+            logcat { "showHud" }
             isHudVisible = true
             hudElements.forEach(::animateShowViewAlpha)
             startAutoHideHudTimer()
         }
 
         fun showSlideShowControls() {
+            logcat { "showSlideShowControls" }
             animateShowViewAlpha(binding.postLargeItemSlideshowControlsConstraintLayout)
         }
 
         fun hideSlideShowControls() {
+            logcat { "hideSlideShowControls" }
             animateHideViewAlpha(binding.postLargeItemSlideshowControlsConstraintLayout)
         }
 
         @SuppressLint("CheckResult", "ClickableViewAccessibility")
         private fun setUpImageViewAndHud(post: Post, holder: PostViewerViewHolder) {
-            currentGalleryPosition = 0
+            logcat { "setUpImageViewAndHud" }
 
+            currentGalleryPosition = 0
             binding.postLargeItemImageView.transitionName = post.links!!.first()
             binding.nsfwTagTextView.isVisible = post.toBlur
 
@@ -329,34 +363,35 @@ class PostViewerAdapter(
 
             binding.postLargeItemLeftHudConstraintLayout.clicks()
                 .subscribe {
-                    Log.i(LOG_TAG, "Left hud clicked, paging left.")
+                    logcat(LogPriority.INFO) { "Left hud clicked, paging left." }
                     positionSubject.onNext(layoutPosition to layoutPosition - 1)
                 }.addTo(disposables)
 
             binding.postLargeItemRightHudConstraintLayout.clicks()
                 .subscribe {
-                    Log.i(LOG_TAG, "Right hud clicked, paging right.")
+                    logcat(LogPriority.INFO) { "Right hud clicked, paging right." }
                     positionSubject.onNext(layoutPosition to layoutPosition + 1)
                 }.addTo(disposables)
 
-            val onSingleTapSubject: PublishSubject<Unit> = PublishSubject.create()
-            onSingleTapSubject
+            val singleTapSubject: PublishSubject<Unit> = PublishSubject.create()
+            singleTapSubject
                 .observeOn(AndroidSchedulers.mainThread())
+                .doOnNext { logcat { "onSingleTapSubject.onNext" } }
                 .subscribe {
-                    Log.d(LOG_TAG, "hasAppliedBlur: $hasAppliedBlur")
+                    logcat { "hasAppliedBlur: $hasAppliedBlur" }
                     if (hasAppliedBlur) {
-                        Log.i(LOG_TAG, "Unblurring image.")
+                        logcat(LogPriority.INFO) { "Unblurring image." }
                         post.toBlur = false
                         hasAppliedBlur = false
                         binding.nsfwTagTextView.isVisible = false
                         loadImageWithGlide(zoomableImageView, post.links[0], true, post.toBlur)
                     } else {
-                        Log.d(LOG_TAG, "isHudVisible = $isHudVisible")
+                        logcat { "isHudVisible = $isHudVisible" }
                         if (!isHudVisible) {
-                            Log.i(LOG_TAG, "Showing HUD.")
+                            logcat(LogPriority.INFO) { "Showing HUD." }
                             showHud()
                         } else {
-                            Log.i(LOG_TAG, "Hiding HUD.")
+                            logcat(LogPriority.INFO) { "Hiding HUD." }
                             hideHud()
                         }
                     }
@@ -372,32 +407,33 @@ class PostViewerAdapter(
             zoomableImageView.setOnTouchListener(object : OnSwipeTouchListener(context) {
 
                 override fun onSingleTap(): Boolean {
-                    Log.i(LOG_TAG, "GestureDetector: onSingleTapConfirmed")
-                    onSingleTapSubject.onNext(Unit)
+                    logcat(LogPriority.INFO) { "GestureDetector: onSingleTapConfirmed" }
+                    singleTapSubject.onNext(Unit)
                     return true
                 }
 
                 override fun onDoubleTap(): Boolean {
-                    Log.i(LOG_TAG, "GestureDetector: onDoubleTap")
+                    logcat(LogPriority.INFO) { "GestureDetector: onDoubleTap" }
                     return false
                 }
 
                 override fun onSwipeRight() {
                     if (!isGallery) return
-                    Log.i(LOG_TAG, "Gallery, right swipe detected.")
-                    previousInGallery()
+                    logcat(LogPriority.INFO) { "Gallery, right swipe detected." }
+                    showPreviousInGallery()
                 }
 
                 override fun onSwipeLeft() {
                     if (!isGallery) return
-                    Log.i(LOG_TAG, "Gallery, left swipe detected.")
-                    nextInGallery()
+                    logcat(LogPriority.INFO) { "Gallery, left swipe detected." }
+                    showNextInGallery()
                 }
             })
         }
 
         @SuppressLint("CheckResult")
         private fun loadImageWithGlide(imageView: ImageView, link: String, updateExisting: Boolean, toBlur: Boolean) {
+            logcat { "loadImageWithGlide" }
             Glide.with(context).load(link)
                 .apply {
                     error(R.drawable.ic_not_found_24)
@@ -417,8 +453,15 @@ class PostViewerAdapter(
                     }
                 }
                 .addListener(object : RequestListener<Drawable> {
-                    override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>?, isFirstResource: Boolean) =
-                        false
+                    override fun onLoadFailed(
+                        e: GlideException?,
+                        model: Any?,
+                        target: Target<Drawable>?,
+                        isFirstResource: Boolean
+                    ): Boolean {
+                        logcat { "Glide.onLoadFailed" }
+                        return false
+                    }
 
                     override fun onResourceReady(
                         resource: Drawable?,
@@ -427,6 +470,7 @@ class PostViewerAdapter(
                         dataSource: DataSource?,
                         isFirstResource: Boolean
                     ): Boolean {
+                        logcat { "Glide.onResourceReady" }
                         readyToBeDrawnSubject.onNext(layoutPosition)
                         return false
                     }
@@ -435,11 +479,12 @@ class PostViewerAdapter(
         }
 
         private fun setUpSlideshowAction() {
+            logcat { "setUpSlideShowAction" }
             with(binding) {
                 postLargeItemSlideshowImageView.clicks()
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe {
-                        Log.i(LOG_TAG, "Slideshow button clicked.")
+                        logcat(LogPriority.INFO) { "Slideshow button clicked." }
                         startAutoHideHudTimer(5L)
 
                         slideShowOnOffSubject.onNext(slideShowOnOffSubject.value!!.not())
@@ -449,12 +494,13 @@ class PostViewerAdapter(
         }
 
         private fun setUpSlideshowControls() {
+            logcat { "setUpSlideShowControls" }
             binding.postLargeItemSlideshowDelayEditText.let { editText ->
                 editText.focusChanges()
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe { isFocused ->
                         if (isFocused) {
-                            Log.i(LOG_TAG, "Slideshow interval EditText has focus.")
+                            logcat(LogPriority.INFO) { "Slideshow interval EditText has focus." }
                             cancelSlideshow()
                             cancelAutoHideHudTimer()
                         }
@@ -466,7 +512,7 @@ class PostViewerAdapter(
                         when (actionEvent.actionId) {
                             EditorInfo.IME_ACTION_DONE -> {
                                 val value = (actionEvent.view as EditText).text.toString().toLong()
-                                Log.i(LOG_TAG, "Slideshow interval EditText IME_ACTION_DONE. Value: $value")
+                                logcat(LogPriority.INFO) { "Slideshow interval EditText IME_ACTION_DONE. Value: $value" }
                                 if (value >= 1) {
                                     slideshowIntervalValueSubject.onNext(value)
 
@@ -475,7 +521,7 @@ class PostViewerAdapter(
                                     hideKeyboard(actionEvent.view)
                                 }
                             }
-                            else -> Log.i(LOG_TAG, "Slideshow interval EditText actionId: ${actionEvent.actionId}.")
+                            else -> logcat(LogPriority.INFO) { "Slideshow interval EditText actionId: ${actionEvent.actionId}." }
                         }
                     }.addTo(disposables)
             }

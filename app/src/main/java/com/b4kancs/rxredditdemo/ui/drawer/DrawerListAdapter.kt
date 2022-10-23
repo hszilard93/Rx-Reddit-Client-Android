@@ -15,11 +15,9 @@ import com.b4kancs.rxredditdemo.utils.dpToPixel
 import com.f2prateek.rx.preferences2.RxSharedPreferences
 import com.google.android.material.textview.MaterialTextView
 import com.jakewharton.rxbinding4.view.clicks
-import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.addTo
 import io.reactivex.rxjava3.schedulers.Schedulers
-import io.reactivex.rxjava3.subjects.PublishSubject
 import org.koin.java.KoinJavaComponent.inject
 
 class DrawerListAdapter(
@@ -28,19 +26,18 @@ class DrawerListAdapter(
     private val onActionClickedCallback: (subreddit: Subreddit) -> Subreddit,
     private val onOptionRemoveClickedCallback: (subreddit: Subreddit) -> Unit,
     private val onOptionDeleteClickedCallback: (subreddit: Subreddit) -> Unit,
-    private val onMakeDefaultSubClickedCallback: (subreddit: Subreddit) -> Unit,
-    private val subredditsChangedSubject: PublishSubject<Unit>
+    private val onMakeDefaultSubClickedCallback: (subreddit: Subreddit) -> Unit
 ) : ArrayAdapter<Subreddit>(c, R.layout.drawer_subreddit_list_item) {
 
     private val database: SubredditDatabase by inject(SubredditDatabase::class.java)
     private val rxSharedPreferences: RxSharedPreferences by inject(RxSharedPreferences::class.java)
     private val disposables = CompositeDisposable()
     private lateinit var subreddits: List<Subreddit>
-    private lateinit var homeSubreddit: Subreddit
+    private lateinit var defaultSubreddit: Subreddit
 
     private val subredditComparator = Comparator<Subreddit> { a, b ->
-        if (a == homeSubreddit) return@Comparator -1
-        if (b == homeSubreddit) return@Comparator 1
+        if (a == defaultSubreddit) return@Comparator -1
+        if (b == defaultSubreddit) return@Comparator 1
         if (a.status == b.status) return@Comparator a.name.compareTo(b.name)
         if (a.status == Status.FAVORITED && b.status != Status.FAVORITED) return@Comparator -1
         if (b.status == Status.FAVORITED) return@Comparator 1
@@ -58,7 +55,7 @@ class DrawerListAdapter(
             RedditJsonPagingSource.defaultSubredditPreferenceKey,
             RedditJsonPagingSource.defaultSubredditPreferenceValue
         ).get()
-        homeSubreddit = database.subredditDao().getSubredditByAddress(homeSubredditAddress)
+        defaultSubreddit = database.subredditDao().getSubredditByAddress(homeSubredditAddress)
             .subscribeOn(Schedulers.io())
             .onErrorResumeWith { RedditJsonPagingSource.defaultSubreddit }
             .blockingGet()
@@ -67,11 +64,6 @@ class DrawerListAdapter(
             .subscribeOn(Schedulers.io())
             .blockingGet()
             .sortedWith(subredditComparator)
-
-        subredditsChangedSubject
-            .subscribeOn(AndroidSchedulers.mainThread())
-            .subscribe { notifyDataSetChanged() }
-            .addTo(disposables)
     }
 
     override fun notifyDataSetChanged() {
@@ -96,7 +88,7 @@ class DrawerListAdapter(
             return headerViewItem
         }
         if (subreddits
-                .count { it.status != Status.IN_DEFAULTS_LIST || it.status == Status.FAVORITED || it == homeSubreddit } + 1 == position
+                .count { it.status != Status.IN_DEFAULTS_LIST || it.status == Status.FAVORITED || it == defaultSubreddit } + 1 == position
         ) {
             val headerViewItem = inflater.inflate(R.layout.drawer_header_list_view_item, parent, false)
             val headerTextView = headerViewItem.findViewById<MaterialTextView>(R.id.subreddit_header_text_view)
@@ -107,7 +99,7 @@ class DrawerListAdapter(
         // The view needs to be a subreddit list item
         val pos =
             if (position in 1..subreddits
-                    .count { it.status != Status.IN_DEFAULTS_LIST || it.status == Status.FAVORITED || it == homeSubreddit }
+                    .count { it.status != Status.IN_DEFAULTS_LIST || it.status == Status.FAVORITED || it == defaultSubreddit }
             )
                 position - 1
             else
@@ -119,7 +111,7 @@ class DrawerListAdapter(
         val actionImageView = listViewItem.findViewById<ImageView?>(R.id.subreddit_action_image_view)!!
             .also {
                 when {
-                    sub == homeSubreddit -> {
+                    sub == defaultSubreddit -> {
                         it.setImageResource(R.drawable.ic_baseline_star_filled_gold_24)
                         it.isEnabled = false
                     }
@@ -162,7 +154,7 @@ class DrawerListAdapter(
 
                 val removeFromYourSubsTextView = popupView.findViewById<MaterialTextView>(R.id.option_remove_your_text_view)
                     .apply {
-                        if (sub.status == Status.IN_DEFAULTS_LIST || sub === homeSubreddit)
+                        if (sub.status == Status.IN_DEFAULTS_LIST || sub === defaultSubreddit)
                             visibility = View.GONE
 
                         clicks().subscribe {
@@ -174,7 +166,7 @@ class DrawerListAdapter(
 
                 val deleteFromSubredditsTextView = popupView.findViewById<MaterialTextView>(R.id.option_delete_sub_text_view)
                     .apply {
-                        if (sub === homeSubreddit)
+                        if (sub === defaultSubreddit)
                             visibility = View.GONE
 
                         clicks().subscribe {
@@ -186,9 +178,13 @@ class DrawerListAdapter(
 
                 val setAsDefaultSubTextView = popupView.findViewById<MaterialTextView>(R.id.option_set_default_sub_text_view)
                     .apply {
+                        if (sub == defaultSubreddit) {
+                            isVisible = false
+                            return@apply
+                        }
                         clicks().subscribe {
-                            homeSubreddit = Subreddit(sub.name, sub.address, Status.FAVORITED)
-                            onMakeDefaultSubClickedCallback(homeSubreddit)
+                            defaultSubreddit = Subreddit(sub.name, sub.address, Status.FAVORITED)
+                            onMakeDefaultSubClickedCallback(defaultSubreddit)
                             notifyDataSetChanged()
                             popupWindow.dismiss()
                         }.addTo(disposables)

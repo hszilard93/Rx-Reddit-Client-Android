@@ -3,7 +3,6 @@ package com.b4kancs.rxredditdemo.ui.home
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.drawable.Drawable
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -35,12 +34,13 @@ import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.kotlin.addTo
 import io.reactivex.rxjava3.subjects.PublishSubject
 import jp.wasabeef.glide.transformations.BlurTransformation
+import logcat.LogPriority
+import logcat.logcat
 
 class PostSubredditAdapter(private val context: Context, var disableTransformations: Boolean) :
     PagingDataAdapter<Post, RecyclerView.ViewHolder>(PostComparator) {
 
     companion object {
-        private const val LOG_TAG = "PostSubredditAdapter"
         private const val ITEM_VIEW_TYPE_POST = 1
         private const val ITEM_VIEW_TYPE_LOAD = 2
     }
@@ -52,12 +52,16 @@ class PostSubredditAdapter(private val context: Context, var disableTransformati
     private lateinit var postView: View
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+        logcat { "onCreateViewHolder" }
+
+        logcat { "itemType: $viewType" }
         if (viewType == ITEM_VIEW_TYPE_LOAD) {
             val view = LayoutInflater.from(parent.context).inflate(R.layout.adapter_post_loading_list_item, parent, false)
             return SmallBottomLoadingIndicatorViewHolder(view).apply { setIsRecyclable(false) }
         }
 
         orientation = Orientation.fromInt(context.resources.configuration.orientation)
+        logcat { "orientation = $orientation" }
         val bindingReplacement =
             when (orientation) {
                 Orientation.PORTRAIT ->
@@ -77,6 +81,7 @@ class PostSubredditAdapter(private val context: Context, var disableTransformati
     override fun getItemViewType(position: Int): Int = if (position == itemCount - 1) ITEM_VIEW_TYPE_LOAD else ITEM_VIEW_TYPE_POST
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+        logcat { "onBindViewHolder: position = $position" }
         if (holder is PostSubredditViewHolder)
             getItem(position)?.let { holder.bind(it) }
         else
@@ -84,6 +89,7 @@ class PostSubredditAdapter(private val context: Context, var disableTransformati
     }
 
     override fun onViewRecycled(holder: RecyclerView.ViewHolder) {
+        logcat { "onViewRecycled" }
         if (holder is PostSubredditViewHolder) {
             // Resetting views before the RecyclerView reuses the ViewHolder
             with(holder.binding) {
@@ -105,6 +111,7 @@ class PostSubredditAdapter(private val context: Context, var disableTransformati
     inner class PostSubredditViewHolder(val binding: RvItemPostSubBindingReplacement) : RecyclerView.ViewHolder(postView) {
 
         fun bind(post: Post) {
+            logcat { "bind: post = ${post.name}" }
             with(binding) {
                 titleTextView.text = post.title
                 commentsTextView.text = "${post.numOfComments} comments"
@@ -118,20 +125,20 @@ class PostSubredditAdapter(private val context: Context, var disableTransformati
                     crossPostTextView.visibility = View.GONE
                 }
 
-
                 setUpImageView(post)
             }
         }
 
         @SuppressLint("ClickableViewAccessibility", "CheckResult")
         private fun setUpImageView(post: Post) {
+            logcat { "setUpImageView: post = ${post.name}" }
             var hasImageLoaded = false
             var currentGalleryPosition: Int? = null
             val positionSubject = PublishSubject.create<Int>()
 
             with(binding) {
                 postImageView.transitionName = post.links!!.first()
-                Log.d(LOG_TAG, "Transition name for home image view set: ${postImageView.transitionName}")
+                logcat { "Transition name for home image view set: ${postImageView.transitionName}" }
 
                 // 'Preloading' images
                 post.links.forEach {
@@ -143,19 +150,19 @@ class PostSubredditAdapter(private val context: Context, var disableTransformati
                 val subscribeForRegularClicks = {
                     nsfwClickObserver?.dispose()
                     postImageView.clicks()
-                        .doOnSubscribe { Log.d(LOG_TAG, "Subscribing for regular post imageview clicks.") }
+                        .doOnSubscribe { logcat { "Subscribing for regular post imageview clicks." } }
                         .subscribe {
-                            Log.d(LOG_TAG, "Image clicked in post $post. Forwarding to postClickedSubject.")
+                            logcat { "Image clicked in post ${post.name}. Forwarding to postClickedSubject." }
                             postClickedSubject.onNext(layoutPosition to postImageView)
                         }.addTo(disposables)
                 }
 
                 if (post.toBlur) {
                     nsfwClickObserver = postImageView.clicks()
-                        .doOnSubscribe { Log.d(LOG_TAG, "Subscribing for nsfw imageview clicks.") }
+                        .doOnSubscribe { logcat { "Subscribing for nsfw imageview clicks." } }
                         .take(1)
                         .subscribe {
-                            Log.d(LOG_TAG, "Unblurring NSFW image.")
+                            logcat { "Unblurring NSFW image." }
                             nsfwTagTextView.isVisible = false
                             post.toBlur = false
                             positionSubject.onNext(currentGalleryPosition)
@@ -165,17 +172,18 @@ class PostSubredditAdapter(private val context: Context, var disableTransformati
 
                     nsfwTagTextView.isVisible = true
                     nsfwTagTextView.clicks()
+                        .doOnNext { logcat { "nsfwTagTextView clicked" } }
                         .subscribe {
                             postImageView.performClick()
                         }
                         .addTo(disposables)
-                }
-                else {
+                } else {
                     subscribeForRegularClicks()
                 }
 
                 // Set up gallery
                 if (post.links.size > 1) {
+                    logcat(LogPriority.INFO) { "Setting up gallery. size = ${post.links.size}" }
                     galleryIndicatorImageView.visibility = View.VISIBLE
                     galleryItemsTextView.visibility = View.VISIBLE
                     galleryItemsTextView.text = post.links.size.toString()
@@ -187,19 +195,21 @@ class PostSubredditAdapter(private val context: Context, var disableTransformati
                         }
 
                         override fun onSingleTap(): Boolean {
+                            logcat(LogPriority.INFO) { "Single tap registered." }
                             postImageView.performClick()
                             return true
                         }
 
                         override fun onSwipeRight() {
+                            logcat(LogPriority.INFO) { "Right swipe registered." }
                             // Load previous item in the gallery
                             if (currentGalleryPosition in 1 until post.links.size) {
                                 positionSubject.onNext(currentGalleryPosition!! - 1)
                             }
-//                            Toast.makeText(context, "Right", Toast.LENGTH_SHORT).show()
                         }
 
                         override fun onSwipeLeft() {
+                            logcat(LogPriority.INFO) { "Left swipe registered." }
                             // Load next item in the gallery
                             if (currentGalleryPosition in 0 until post.links.size - 1) {
                                 positionSubject.onNext(currentGalleryPosition!! + 1)
@@ -211,6 +221,7 @@ class PostSubredditAdapter(private val context: Context, var disableTransformati
 
                 // This loads the image
                 positionSubject
+                    .doOnNext { logcat { "positionSubject.onNext: position = $it" } }
                     .subscribe { position ->
                         loadImageWithGlide(post.links[position], hasImageLoaded, post.toBlur)
                         currentGalleryPosition = position
@@ -225,6 +236,7 @@ class PostSubredditAdapter(private val context: Context, var disableTransformati
 
         @SuppressLint("CheckResult")
         private fun loadImageWithGlide(link: String, updateExisting: Boolean, toBlur: Boolean) {
+            logcat { "loadImageWithGlide: link = $link, updateExisting = $updateExisting, toBlur = $toBlur" }
             val imageView = binding.postImageView
             Glide.with(context).load(link)
                 .error(R.drawable.ic_not_found_24)
@@ -240,6 +252,7 @@ class PostSubredditAdapter(private val context: Context, var disableTransformati
                         dataSource: DataSource?,
                         isFirstResource: Boolean
                     ): Boolean {
+                        logcat { "Glide.onResourceReady" }
                         resource?.let {
                             val oldImageViewHeight = imageView.measuredHeight
                             val width = resource.intrinsicWidth
@@ -279,6 +292,7 @@ class PostSubredditAdapter(private val context: Context, var disableTransformati
         private val smallBottomLoadingProgressBar: ProgressBar = view.findViewById(R.id.small_progress_bar)
 
         fun bind(makeVisible: Boolean) {
+            logcat { "SmallBottomLoadingIndicatorViewHolder.bind" }
             smallBottomLoadingProgressBar.isVisible = makeVisible
         }
     }

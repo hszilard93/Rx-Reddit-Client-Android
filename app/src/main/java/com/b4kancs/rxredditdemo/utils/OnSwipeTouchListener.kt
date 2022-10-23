@@ -109,9 +109,15 @@ open class OnSwipeTouchListener(context: Context) : OnTouchListener {
 
     open fun onSwipeDown() {}
 
-    open fun onDown(): Boolean { return false }
+    open fun onDown(): Boolean {
+        return false
+    }
 
-    open fun onSingleTap(): Boolean { return false }
+    open fun onSingleTap(): Boolean {
+        return false
+    }
 
-    open fun onDoubleTap(): Boolean { return false }
+    open fun onDoubleTap(): Boolean {
+        return false
+    }
 }

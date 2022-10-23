@@ -11,6 +11,9 @@ import com.b4kancs.rxredditdemo.ui.postviewer.PostViewerViewModel
 import com.f2prateek.rx.preferences2.RxSharedPreferences
 import com.google.gson.FieldNamingPolicy
 import com.google.gson.GsonBuilder
+import logcat.AndroidLogcatLogger
+import logcat.LogPriority
+import logcat.logcat
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import org.koin.android.ext.koin.androidContext
@@ -25,18 +28,40 @@ import retrofit2.converter.gson.GsonConverterFactory
 class App : Application() {
 
     private val appModule = module {
-        single { createRedditRssServiceInstant() }
-        single { SubredditRoomDatabase.fetchDatabase(this@App) }
-        single { RxSharedPreferences.create(PreferenceManager.getDefaultSharedPreferences(this@App)) }
-        viewModel { HomeViewModel() }
-        viewModel  { PostViewerViewModel(get()) }
-        single { assets }
+        single {
+            logcat { "Koin providing Single RedditJsonService instant." }
+            createRedditJsonServiceInstant()
+        }
+        single {
+            logcat { "Koin providing Single SubredditDatabase instant." }
+            SubredditRoomDatabase.fetchDatabase(this@App)
+        }
+        single {
+            logcat { "Koin providing Single RxSharedPreferences instant." }
+            RxSharedPreferences.create(PreferenceManager.getDefaultSharedPreferences(this@App))
+        }
+        viewModel {
+            logcat { "Koin providing ViewModel HomeViewModel instant." }
+            HomeViewModel()
+        }
+        viewModel {
+            logcat { "Koin providing ViewModel PostViewerViewModel instant." }
+            PostViewerViewModel(get())
+        }
+        single {
+            logcat { "Koin providing single AssetManager instant." }
+            assets
+        }
     }
 
     override fun onCreate() {
         super.onCreate()
 
-        if(BuildConfig.DEBUG)
+        AndroidLogcatLogger.installOnDebuggableApp(this, minPriority = LogPriority.VERBOSE)
+
+        logcat(LogPriority.DEBUG) { "onCreate" }
+
+        if (BuildConfig.DEBUG)
             StrictMode.enableDefaults()
 
         startKoin {
@@ -46,7 +71,9 @@ class App : Application() {
         }
     }
 
-    private fun createRedditRssServiceInstant(): RedditJsonService {
+    private fun createRedditJsonServiceInstant(): RedditJsonService {
+        logcat { "createRedditJsonServiceInstant" }
+
         val loggingInterceptor = HttpLoggingInterceptor()
         loggingInterceptor.level = HttpLoggingInterceptor.Level.BODY
 
