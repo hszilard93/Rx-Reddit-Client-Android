@@ -19,6 +19,7 @@ import androidx.transition.Transition
 import androidx.viewpager2.widget.ViewPager2
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.databinding.FragmentPostViewerBinding
+import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.ui.MainActivity
 import com.b4kancs.rxredditdemo.ui.PostPagingDataObservableProvider
 import com.b4kancs.rxredditdemo.ui.home.HomeViewModel
@@ -144,7 +145,22 @@ class PostViewerFragment : Fragment() {
             binding.viewPagerPostViewer.customSetCurrentItem(nextPosition, ANIMATION_DURATION_SHORT)
         }
 
-        val postViewerAdapter = PostViewerAdapter(requireContext(), onPositionChangedCallback, isSlideShowOngoing)
+        val onFavoritesActionCallback = { toFavorite: Boolean, post: Post ->
+            if (toFavorite) {
+                viewModel.addPostToFavorites(post)
+            }
+            else {
+                viewModel.removePostFromFavorites(post)
+            }
+        }
+
+        val postViewerAdapter = PostViewerAdapter(
+            requireContext(),
+            onPositionChangedCallback,
+            onFavoritesActionCallback,
+            isSlideShowOngoing,
+            { viewModel.getFavoritePosts() }
+        )
         with(binding) {
             viewPagerPostViewer.isVisible = false
             viewPagerPostViewer.adapter = postViewerAdapter
@@ -215,13 +231,14 @@ class PostViewerFragment : Fragment() {
             (binding.viewPagerPostViewer.adapter as PostViewerAdapter).disposables.dispose()
 
             val visiblePosition = binding.viewPagerPostViewer.currentItem
-            val transitionName =
-                (binding.viewPagerPostViewer.adapter as PostViewerAdapter).getViewHolderForPosition(visiblePosition)
+            val visibleViewHolder = (binding.viewPagerPostViewer.adapter as PostViewerAdapter).getViewHolderForPosition(visiblePosition)
+            val imageTransitionName =
+                visibleViewHolder
                     ?.binding
                     ?.postLargeItemImageView
                     ?.transitionName
-            logcat(LogPriority.INFO) { "Transition name = $transitionName" }
-            transitionName?.let { (sharedElementReturnTransition as Transition).addTarget(it) }
+            logcat(LogPriority.INFO) { "Transition name = $imageTransitionName" }
+            imageTransitionName?.let { (sharedElementReturnTransition as Transition).addTarget(it) }
 
             findNavController().previousBackStackEntry?.savedStateHandle?.set("position", visiblePosition)
             findNavController().popBackStack()

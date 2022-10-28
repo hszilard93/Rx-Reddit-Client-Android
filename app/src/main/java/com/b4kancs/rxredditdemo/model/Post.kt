@@ -18,10 +18,9 @@ data class Post(
     val createdAt: Int,
     val nsfw: Boolean,
     val numOfComments: Int,
-    var toBlur: Boolean
+    var toBlur: Boolean = nsfw
 ) {
     companion object {
-
 
         fun from(dataModel: RedditPostDataModel): Post {
             with(dataModel) {
@@ -70,7 +69,7 @@ data class Post(
                     this.createdAt,
                     this.nsfw,
                     this.numOfComments,
-                    this.nsfw
+                    toBlur = this.nsfw
                 )
             }
         }

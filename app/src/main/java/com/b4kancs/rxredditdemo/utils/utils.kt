@@ -106,12 +106,24 @@ fun hideKeyboard(view: View) {
     inputMethodManager.hideSoftInputFromWindow(view.windowToken, 0)
 }
 
-fun makeSnackBar(view: View, stringId: Int?, message: String = ""): Snackbar {
+enum class SnackType { ERROR, SUCCESS }
+
+fun makeSnackBar(view: View, stringId: Int?, message: String = "", type: SnackType = SnackType.SUCCESS): Snackbar {
     val typedValue = TypedValue()
     val theme = view.context.theme
-    theme.resolveAttribute(com.google.android.material.R.attr.colorSecondaryContainer, typedValue, true)
+    if (type == SnackType.SUCCESS) {
+        theme.resolveAttribute(com.google.android.material.R.attr.colorSecondaryContainer, typedValue, true)
+    }
+    else {
+        theme.resolveAttribute(com.google.android.material.R.attr.colorError, typedValue, true)
+    }
     val backgroundColor = typedValue.data
-    theme.resolveAttribute(com.google.android.material.R.attr.colorTertiary, typedValue, true)
+    if (type == SnackType.SUCCESS) {
+        theme.resolveAttribute(com.google.android.material.R.attr.colorTertiary, typedValue, true)
+    }
+    else {
+        theme.resolveAttribute(com.google.android.material.R.attr.colorOnError, typedValue, true)
+    }
     val textColor = typedValue.data
 
     val snackBar = stringId?.let { Snackbar.make(view, stringId, Snackbar.LENGTH_SHORT) } ?: Snackbar.make(view, message, Snackbar.LENGTH_SHORT)

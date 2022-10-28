@@ -238,7 +238,7 @@ class MainActivity : AppCompatActivity() {
                             nwResultSingle
                         ) { a: List<Subreddit>, b: List<Subreddit> -> a + b }
                             .subscribe { subs ->
-                                subs.distinctBy { it.address.toLowerCase() }.let { distinctSubs ->
+                                subs.distinctBy { it.address.lowercase() }.let { distinctSubs ->
                                     searchResults = distinctSubs
                                     searchResultsChanged.onNext(Unit)
                                 }

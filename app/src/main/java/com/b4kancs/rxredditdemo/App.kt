@@ -4,6 +4,7 @@ import android.app.Application
 import android.os.StrictMode
 import androidx.preference.PreferenceManager
 import com.b4kancs.rxredditdemo.database.SubredditRoomDatabase
+import com.b4kancs.rxredditdemo.database.FavoritesRoomDatabase
 import com.b4kancs.rxredditdemo.networking.RedditJsonPagingSource
 import com.b4kancs.rxredditdemo.networking.RedditJsonService
 import com.b4kancs.rxredditdemo.ui.home.HomeViewModel
@@ -35,6 +36,10 @@ class App : Application() {
         single {
             logcat { "Koin providing Single SubredditDatabase instant." }
             SubredditRoomDatabase.fetchDatabase(this@App)
+        }
+        single {
+            logcat { "Koin providing Single FavoritesDatabase instant." }
+            FavoritesRoomDatabase.fetchDatabase(this@App)
         }
         single {
             logcat { "Koin providing Single RxSharedPreferences instant." }

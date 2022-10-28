@@ -13,6 +13,7 @@ import androidx.core.view.isVisible
 import androidx.paging.PagingDataAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.b4kancs.rxredditdemo.R
+import com.b4kancs.rxredditdemo.database.PostFavoritesDbEntry
 import com.b4kancs.rxredditdemo.databinding.RvItemPostSubLandscapeBinding
 import com.b4kancs.rxredditdemo.databinding.RvItemPostSubPortraitBinding
 import com.b4kancs.rxredditdemo.model.Post
@@ -29,6 +30,8 @@ import com.bumptech.glide.request.transition.DrawableCrossFadeFactory
 import com.google.android.material.imageview.ShapeableImageView
 import com.google.android.material.textview.MaterialTextView
 import com.jakewharton.rxbinding4.view.clicks
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
+import io.reactivex.rxjava3.core.Single
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.kotlin.addTo
@@ -37,7 +40,11 @@ import jp.wasabeef.glide.transformations.BlurTransformation
 import logcat.LogPriority
 import logcat.logcat
 
-class PostSubredditAdapter(private val context: Context, var disableTransformations: Boolean) :
+class PostSubredditAdapter(
+    private val context: Context,
+    var disableTransformations: Boolean,
+    val getFavorites: () -> Single<List<PostFavoritesDbEntry>>
+) :
     PagingDataAdapter<Post, RecyclerView.ViewHolder>(PostComparator) {
 
     companion object {
@@ -117,6 +124,14 @@ class PostSubredditAdapter(private val context: Context, var disableTransformati
                 commentsTextView.text = "${post.numOfComments} comments"
                 dateAuthorTextView.text = calculateDateAuthorSubredditText(post)
                 scoreTextView.text = "${post.score}"
+                getFavorites()
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .doOnSubscribe { logcat { "getFavorites.onSubscribe" } }
+                    .subscribe { favorites ->
+                        if (post.name in favorites.map { it.name }) {
+                            animateShowViewAlpha(favoriteIndicatorImageView)
+                        }
+                    }.addTo(disposables)
 
                 if (post.crossPostFrom != null) {
                     crossPostTextView.visibility = View.VISIBLE
@@ -308,6 +323,7 @@ class PostSubredditAdapter(private val context: Context, var disableTransformati
         val scoreTextView: MaterialTextView,
         val galleryIndicatorImageView: ImageView,
         val galleryItemsTextView: MaterialTextView,
+        val favoriteIndicatorImageView: ImageView,
         val nsfwTagTextView: MaterialTextView,
         val crossPostTextView: MaterialTextView,
         val commentsTextView: MaterialTextView,
@@ -323,6 +339,7 @@ class PostSubredditAdapter(private val context: Context, var disableTransformati
                     binding.scoreTextView,
                     binding.galleryIndicatorImageView,
                     binding.galleryItemsTextView,
+                    binding.favoriteIndicatorImageView,
                     binding.nsfwTagTextView,
                     binding.crossPostTextView,
                     binding.commentsTextView,
@@ -337,6 +354,7 @@ class PostSubredditAdapter(private val context: Context, var disableTransformati
                     binding.scoreTextView,
                     binding.galleryIndicatorImageView,
                     binding.galleryItemsTextView,
+                    binding.favoriteIndicatorImageView,
                     binding.nsfwTagTextView,
                     binding.crossPostTextView,
                     binding.commentsTextView,
@@ -344,5 +362,4 @@ class PostSubredditAdapter(private val context: Context, var disableTransformati
                 )
         }
     }
-
 }

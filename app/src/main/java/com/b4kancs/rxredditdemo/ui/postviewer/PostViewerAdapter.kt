@@ -16,6 +16,7 @@ import androidx.core.view.isVisible
 import androidx.paging.PagingDataAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.b4kancs.rxredditdemo.R
+import com.b4kancs.rxredditdemo.database.PostFavoritesDbEntry
 import com.b4kancs.rxredditdemo.databinding.PostViewerListItemBinding
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.ui.PostComparator
@@ -33,7 +34,9 @@ import com.jakewharton.rxbinding4.view.clicks
 import com.jakewharton.rxbinding4.view.focusChanges
 import com.jakewharton.rxbinding4.widget.editorActionEvents
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
+import io.reactivex.rxjava3.core.Completable
 import io.reactivex.rxjava3.core.Observable
+import io.reactivex.rxjava3.core.Single
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.kotlin.addTo
@@ -49,7 +52,9 @@ class PostViewerAdapter(
     private val context: Context,
     // This is how the ViewPager scrolls to the next/previous ViewHolder.
     private val onPositionChangedCallback: (Int) -> Unit,
-    isSlideShowOnGoing: Boolean = false
+    private val onFavoritesActionCallback: (Boolean, Post) -> Completable,
+    isSlideShowOnGoing: Boolean = false,
+    private val getFavoritePosts: () -> Single<List<PostFavoritesDbEntry>>
 ) : PagingDataAdapter<Post, PostViewerAdapter.PostViewerViewHolder>(PostComparator) {
     companion object {
         private const val SLIDESHOW_INTERVAL_KEY = "slideshowInterval"
@@ -117,6 +122,10 @@ class PostViewerAdapter(
             .subscribe { newInterval ->
                 rxSharedPreferences.getLong(SLIDESHOW_INTERVAL_KEY).set(newInterval)
             }.addTo(disposables)
+
+        // For to debug ye olde code
+        val favoritePosts = getFavoritePosts().blockingGet()
+        logcat { "Favorite database size = ${favoritePosts.size}, entries: ${favoritePosts.map { it.name }}" }
 
         super.onAttachedToRecyclerView(recyclerView)
     }
@@ -197,9 +206,10 @@ class PostViewerAdapter(
         val noLongerShownSubject = PublishSubject.create<Unit>()
         val hudElements = ArrayList<View>()
         lateinit var post: Post
-        var isGallery: Boolean = false
+        var isGallery = false
         var currentGalleryPosition = 0
-        private var hasAppliedBlur: Boolean = false
+        private var hasAppliedBlur = false
+        private var isFavorited = false
 
         init {
             logcat { "PostViewerViewHolder.init" }
@@ -229,6 +239,7 @@ class PostViewerAdapter(
                 setUpImageViewAndHud(post, this@PostViewerViewHolder)
                 setUpSlideshowAction()
                 setUpSlideshowControls()
+                setUpFavoritesAction()
                 // Always start with the ScrollView scrolled to the top.
                 postLargeScrollView.apply {
                     doOnLayout {
@@ -495,7 +506,7 @@ class PostViewerAdapter(
 
         private fun setUpSlideshowControls() {
             logcat { "setUpSlideShowControls" }
-            binding.postLargeItemSlideshowDelayEditText.let { editText ->
+            binding.postLargeItemSlideshowDelayEditText.also { editText ->
                 editText.focusChanges()
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe { isFocused ->
@@ -525,6 +536,82 @@ class PostViewerAdapter(
                         }
                     }.addTo(disposables)
             }
+        }
+
+        private fun setUpFavoritesAction() {
+            logcat { "setUpFavoritesAction" }
+            val favView = binding.postLargeItemFavoriteImageView
+            var isFavorite = false
+
+            // Setup
+            val favoriteAction: () -> Unit = {
+                favView.setImageResource(R.drawable.ic_baseline_favorite_filled_60)
+                onFavoritesActionCallback(true, post)
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(
+                        {
+                            logcat(LogPriority.INFO) { "Post ${post.name} was favorited." }
+                            makeSnackBar(view = favView, stringId = null, message = "Post favorited!")
+                                .show()
+                            isFavorite = true
+                        },
+                        {
+                            logcat(LogPriority.ERROR) { "Could not favorite post ${post.name} !\tMessage: ${it.message}" }
+                            makeSnackBar(view = favView, stringId = null, message = "Failed to favorite post :(", type = SnackType.ERROR)
+                                .show()
+                            favView.setImageResource(R.drawable.ic_baseline_favorite_border_60)
+                        }
+                    )
+                    .addTo(disposables)
+            }
+
+            val unfavoriteAction: () -> Unit = {
+                favView.setImageResource(R.drawable.ic_baseline_favorite_border_60)
+                onFavoritesActionCallback(false, post)
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(
+                        {
+                            logcat(LogPriority.INFO) { "Post ${post.name} was deleted from favorites." }
+                            makeSnackBar(view = favView, stringId = null, message = "Post no longer in Favorites!")
+                                .show()
+                            isFavorite = false
+                        },
+                        {
+                            logcat(LogPriority.ERROR) { "Error deleting post ${post.name} from favorites!\tMessage: ${it.message}" }
+                            makeSnackBar(
+                                view = favView,
+                                stringId = null,
+                                message = "Failed to remove post from favorites :(",
+                                type = SnackType.ERROR
+                            ).show()
+                            favView.setImageResource(R.drawable.ic_baseline_favorite_filled_60)
+                        }
+                    )
+                    .addTo(disposables)
+            }
+
+            // Initialization
+            getFavoritePosts()
+                .observeOn(AndroidSchedulers.mainThread())
+                .doOnSubscribe { logcat { "getFavoritePosts.onSubscribe" } }
+                .subscribe { favorites: List<PostFavoritesDbEntry> ->
+                    isFavorite = post.name in favorites.map { it.name }
+                    logcat { "Post ${post.name} isFavorite = $isFavorite" }
+
+                    if (isFavorite) favView.setImageResource(R.drawable.ic_baseline_favorite_filled_60)
+                    else favView.setImageResource(R.drawable.ic_baseline_favorite_border_60)
+                }.addTo(disposables)
+
+            favView.clicks()
+                .observeOn(AndroidSchedulers.mainThread())
+                .doOnNext { logcat { "Favorites ImageView clicked." } }
+                .subscribe {
+                    if (isFavorite) {
+                        unfavoriteAction()
+                    } else {
+                        favoriteAction()
+                    }
+                }.addTo(disposables)
         }
     }
 }

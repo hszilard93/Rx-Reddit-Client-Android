@@ -96,7 +96,11 @@ class HomeFragment : Fragment() {
                     logcat { "Disabling glide transformations" }
                     true
                 } else false
-                recyclerPosts.adapter = PostSubredditAdapter(activity, shouldDisableTransformations)
+                recyclerPosts.adapter = PostSubredditAdapter(
+                    activity,
+                    shouldDisableTransformations,
+                    { homeViewModel.getFavoritePosts() }
+                )
             }
             val postSubredditAdapter = recyclerPosts.adapter as PostSubredditAdapter
 
