@@ -1,7 +1,6 @@
 package com.b4kancs.rxredditdemo.database
 
 import androidx.room.*
-import com.b4kancs.rxredditdemo.model.Post
 import io.reactivex.rxjava3.core.Completable
 import io.reactivex.rxjava3.core.Single
 
@@ -13,6 +12,9 @@ interface PostFavoritesDao {
 
     @Query("SELECT * FROM favoritePosts ORDER BY name")
     fun getFavorites(): Single<List<PostFavoritesDbEntry>>
+
+    @Query("SELECT * FROM favoritePosts ORDER BY addedDate ASC LIMIT :limit OFFSET :offset")
+    fun getFavoritesPaged(limit: Int, offset: Int): Single<List<PostFavoritesDbEntry>>
 
     @Delete
     fun deletePost(post: PostFavoritesDbEntry): Completable

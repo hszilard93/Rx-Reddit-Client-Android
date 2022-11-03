@@ -8,11 +8,11 @@
     tools:context=".ui.home.HomeFragment">
 
     <com.google.android.material.textview.MaterialTextView
-        android:id="@+id/no_media_in_sub_info_text_view"
+        android:id="@+id/text_view_home_no_media"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:padding="16dp"
-        android:text="@string/no_media_in_sub_info"
+        android:text="@string/home_no_media_in_sub_info"
         android:textAlignment="center"
         android:textColor="?attr/colorPrimary"
         android:textSize="20sp"
@@ -22,7 +22,7 @@
         app:layout_constraintBottom_toBottomOf="parent"/>
 
     <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-        android:id="@+id/swipe_refresh_layout"
+        android:id="@+id/srl_home"
         android:layout_width="0dp"
         android:layout_height="0dp"
         app:layout_constraintBottom_toBottomOf="parent"
@@ -31,7 +31,7 @@
         app:layout_constraintTop_toTopOf="parent">
 
         <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/recycler_posts"
+            android:id="@+id/rv_home_posts"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:clipToPadding="false"
@@ -40,7 +40,7 @@
     </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
     <ProgressBar
-        android:id="@+id/large_progress_bar"
+        android:id="@+id/progress_bar_home_large"
         style="?attr/progressBarStyle"
         android:layout_width="120dp"
         android:layout_height="120dp"

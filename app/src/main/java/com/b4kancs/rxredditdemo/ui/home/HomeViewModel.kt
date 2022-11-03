@@ -13,7 +13,7 @@ import com.b4kancs.rxredditdemo.database.FavoritesDatabase
 import com.b4kancs.rxredditdemo.database.PostFavoritesDbEntry
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.model.Subreddit
-import com.b4kancs.rxredditdemo.networking.RedditJsonPagingSource
+import com.b4kancs.rxredditdemo.pagination.RedditJsonPagingSource
 import com.b4kancs.rxredditdemo.ui.PostPagingDataObservableProvider
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.core.Single
@@ -21,7 +21,7 @@ import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.schedulers.Schedulers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import logcat.logcat
-import org.koin.java.KoinJavaComponent
+import org.koin.java.KoinJavaComponent.inject
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeViewModel : ViewModel(), PostPagingDataObservableProvider {
@@ -31,7 +31,7 @@ class HomeViewModel : ViewModel(), PostPagingDataObservableProvider {
 //    }
 //    val text: LiveData<String> = _text
 
-    private val favoritesDatabase: FavoritesDatabase by KoinJavaComponent.inject(FavoritesDatabase::class.java)
+    private val favoritesDatabase: FavoritesDatabase by inject(FavoritesDatabase::class.java)
     private val subredditLiveData = MutableLiveData(RedditJsonPagingSource.defaultSubreddit)
     private val _subredditNameLiveData = MutableLiveData(subredditLiveData.value?.name!!)
     val subredditNameLiveData: LiveData<String> = _subredditNameLiveData

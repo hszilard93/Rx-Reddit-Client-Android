@@ -1,4 +1,4 @@
-package com.b4kancs.rxredditdemo.ui.home
+package com.b4kancs.rxredditdemo.ui.shared
 
 import android.annotation.SuppressLint
 import android.content.Context
@@ -10,10 +10,13 @@ import android.widget.ImageView
 import android.widget.ProgressBar
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.view.isVisible
+import androidx.paging.CombinedLoadStates
+import androidx.paging.LoadState
 import androidx.paging.PagingDataAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.database.PostFavoritesDbEntry
+import com.b4kancs.rxredditdemo.databinding.AdapterPostLoadingListItemBinding
 import com.b4kancs.rxredditdemo.databinding.RvItemPostSubLandscapeBinding
 import com.b4kancs.rxredditdemo.databinding.RvItemPostSubPortraitBinding
 import com.b4kancs.rxredditdemo.model.Post
@@ -40,10 +43,10 @@ import jp.wasabeef.glide.transformations.BlurTransformation
 import logcat.LogPriority
 import logcat.logcat
 
-class PostSubredditAdapter(
+class PostVerticalRvAdapter(
     private val context: Context,
     var disableTransformations: Boolean,
-    val getFavorites: () -> Single<List<PostFavoritesDbEntry>>
+    val getFavorites: (() -> Single<List<PostFavoritesDbEntry>>)?
 ) :
     PagingDataAdapter<Post, RecyclerView.ViewHolder>(PostComparator) {
 
@@ -55,6 +58,7 @@ class PostSubredditAdapter(
     val postClickedSubject: PublishSubject<Pair<Int, View>> = PublishSubject.create()
     val readyToBeDrawnSubject: PublishSubject<Int> = PublishSubject.create()
     val disposables = CompositeDisposable()
+    var bottomLoadingIndicator: SmallBottomLoadingIndicatorViewHolder? = null
     private lateinit var orientation: Orientation
     private lateinit var postView: View
 
@@ -92,7 +96,7 @@ class PostSubredditAdapter(
         if (holder is PostSubredditViewHolder)
             getItem(position)?.let { holder.bind(it) }
         else
-            (holder as SmallBottomLoadingIndicatorViewHolder).bind(itemCount > 1)
+            (holder as SmallBottomLoadingIndicatorViewHolder).bind()
     }
 
     override fun onViewRecycled(holder: RecyclerView.ViewHolder) {
@@ -124,14 +128,17 @@ class PostSubredditAdapter(
                 commentsTextView.text = "${post.numOfComments} comments"
                 dateAuthorTextView.text = calculateDateAuthorSubredditText(post)
                 scoreTextView.text = "${post.score}"
-                getFavorites()
-                    .observeOn(AndroidSchedulers.mainThread())
-                    .doOnSubscribe { logcat { "getFavorites.onSubscribe" } }
-                    .subscribe { favorites ->
-                        if (post.name in favorites.map { it.name }) {
-                            animateShowViewAlpha(favoriteIndicatorImageView)
-                        }
-                    }.addTo(disposables)
+
+                getFavorites?.apply {   // This is a nullable because it doesn't make sense to have it in the FavoritesFragment
+                    invoke()
+                        .observeOn(AndroidSchedulers.mainThread())
+                        .doOnSubscribe { logcat { "getFavorites.onSubscribe" } }
+                        .subscribe { favorites ->
+                            if (post.name in favorites.map { it.name }) {
+                                animateShowViewAlpha(favoriteIndicatorImageView)
+                            }
+                        }.addTo(disposables)
+                }
 
                 if (post.crossPostFrom != null) {
                     crossPostTextView.visibility = View.VISIBLE
@@ -303,15 +310,33 @@ class PostSubredditAdapter(
         }
     }
 
-    inner class SmallBottomLoadingIndicatorViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        private val smallBottomLoadingProgressBar: ProgressBar = view.findViewById(R.id.small_progress_bar)
+    inner class SmallBottomLoadingIndicatorViewHolder(val view: View) : RecyclerView.ViewHolder(view) {
+        private lateinit var smallBottomLoadingProgressBar: ProgressBar
 
-        fun bind(makeVisible: Boolean) {
+        fun bind() {
             logcat { "SmallBottomLoadingIndicatorViewHolder.bind" }
-            smallBottomLoadingProgressBar.isVisible = makeVisible
+            val binding = AdapterPostLoadingListItemBinding.bind(view)
+            smallBottomLoadingProgressBar = binding.smallProgressBar
+            bottomLoadingIndicator = this
+
+            this@PostVerticalRvAdapter.addOnPagesUpdatedListener {
+
+            }
+            this@PostVerticalRvAdapter.addLoadStateListener { combinedLoadStates ->
+                logcat(LogPriority.INFO) { "combinedLoadState = ${combinedLoadStates.refresh}, layoutPosition = $layoutPosition" }
+                this.view.isVisible = combinedLoadStates.refresh is LoadState.Loading && layoutPosition >= 1
+            }
+            // TODO: make this work as the Creator intended
+//            this@PostVerticalRvAdapter.registerAdapterDataObserver(object : RecyclerView.AdapterDataObserver() {
+//                override fun onItemRangeInserted(positionStart: Int, itemCount: Int) {
+//                    super.onItemRangeInserted(positionStart, itemCount)
+//                    if (layoutPosition >= 1) {
+//                        view.isVisible = true
+//                    }
+//                }
+//            })
         }
     }
-
 
     // Since we have virtually identical Bindings for both the portrait and landscape layouts, I found this
     // 'replacement' data class to be the simplest solution to the problem of using them with the same ViewHolder

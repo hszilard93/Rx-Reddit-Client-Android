@@ -1,18 +1,19 @@
 <resources>
     <string name="app_name">RxRedditDemoApp</string>
-    <string name="title_home">Home</string>
-    <string name="title_dashboard">Favorites</string>
-    <string name="title_notifications">Subscriptions</string>
-    <string name="post_text_placeholder_text">Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</string>
-    <string name="date_author_placeholder_text">submitted … by …</string>
-    <string name="comments_placeholder_text">0 comments</string>
-    <string name="default_subreddits">Default image subreddits</string>
-    <string name="your_subreddits_header">Your subreddits</string>
-    <string name="default_subreddits_header">Recommended subreddits</string>
-    <string name="nsfw_tag">NSFW</string>
+    <string name="home_title">Home</string>
+    <string name="bottom_favorites_title">Favorites</string>
+    <string name="bottom_subscriptions_title">Subscriptions</string>
+    <string name="common_placeholder_text">Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</string>
+    <string name="common_date_author_placeholder_text">submitted … by …</string>
+    <string name="common_comments_placeholder_text">0 comments</string>
+    <string name="drawer_headers_default_subreddits">Default image subreddits</string>
+    <string name="drawer_header_your_subreddits">Your subreddits</string>
+    <string name="drawer_header_recommended_subreddits">Recommended subreddits</string>
+    <string name="common_nsfw_tag">NSFW</string>
     <string name="drawer_title_subreddits">Subreddits</string>
-    <string name="no_media_in_sub_info">This subreddit does not seem to contain any direct media link posts.\n Please try a picture subreddit.</string>
-    <string name="title_post_viewer">Post Viewer</string>
-    <string name="slideshow_on">Slideshow started.</string>
-    <string name="slideshow_off">Slideshow stopped.</string>
+    <string name="home_no_media_in_sub_info">This subreddit does not seem to contain any direct media link posts.\n Please try a picture subreddit.</string>
+    <string name="post_viewer_title">Post Viewer</string>
+    <string name="post_viewer_slideshow_on">Slideshow started.</string>
+    <string name="post_viewer_slideshow_off">Slideshow stopped.</string>
+    <string name="favorites_no_media">There are no favorited posts to show yet!</string>
 </resources>

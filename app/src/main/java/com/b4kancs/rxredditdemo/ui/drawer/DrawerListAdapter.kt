@@ -10,7 +10,7 @@ import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.database.SubredditDatabase
 import com.b4kancs.rxredditdemo.model.Subreddit
 import com.b4kancs.rxredditdemo.model.Subreddit.Status
-import com.b4kancs.rxredditdemo.networking.RedditJsonPagingSource
+import com.b4kancs.rxredditdemo.pagination.RedditJsonPagingSource
 import com.b4kancs.rxredditdemo.utils.dpToPixel
 import com.f2prateek.rx.preferences2.RxSharedPreferences
 import com.google.android.material.textview.MaterialTextView
@@ -52,8 +52,8 @@ class DrawerListAdapter(
 
     private fun setUpInitialState() {
         val homeSubredditAddress = rxSharedPreferences.getString(
-            RedditJsonPagingSource.defaultSubredditPreferenceKey,
-            RedditJsonPagingSource.defaultSubredditPreferenceValue
+            RedditJsonPagingSource.DEFAULT_SUBREDDIT_PREFERENCE_KEY,
+            RedditJsonPagingSource.DEFAULT_SUBREDDIT_PREFERENCE_VALUE
         ).get()
         defaultSubreddit = database.subredditDao().getSubredditByAddress(homeSubredditAddress)
             .subscribeOn(Schedulers.io())
@@ -84,7 +84,7 @@ class DrawerListAdapter(
         if (position == 0) {
             val headerViewItem = inflater.inflate(R.layout.drawer_header_list_view_item, parent, false)
             val headerTextView = headerViewItem.findViewById<MaterialTextView>(R.id.subreddit_header_text_view)
-            headerTextView.text = context.getString(R.string.your_subreddits_header)
+            headerTextView.text = context.getString(R.string.drawer_header_your_subreddits)
             return headerViewItem
         }
         if (subreddits
@@ -92,7 +92,7 @@ class DrawerListAdapter(
         ) {
             val headerViewItem = inflater.inflate(R.layout.drawer_header_list_view_item, parent, false)
             val headerTextView = headerViewItem.findViewById<MaterialTextView>(R.id.subreddit_header_text_view)
-            headerTextView.text = context.getString(R.string.default_subreddits_header)
+            headerTextView.text = context.getString(R.string.drawer_header_recommended_subreddits)
             return headerViewItem
         }
 

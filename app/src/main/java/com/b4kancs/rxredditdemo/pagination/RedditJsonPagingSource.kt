@@ -1,10 +1,11 @@
-package com.b4kancs.rxredditdemo.networking
+package com.b4kancs.rxredditdemo.pagination
 
-import android.util.Log
 import androidx.paging.PagingState
 import androidx.paging.rxjava3.RxPagingSource
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.model.Subreddit
+import com.b4kancs.rxredditdemo.networking.RedditPostListingModel
+import com.b4kancs.rxredditdemo.networking.RedditJsonService
 import io.reactivex.rxjava3.core.Maybe
 import io.reactivex.rxjava3.core.Single
 import io.reactivex.rxjava3.schedulers.Schedulers
@@ -17,8 +18,8 @@ class RedditJsonPagingSource(val subreddit: String) : RxPagingSource<String, Pos
     companion object RedditJsonClient {
         const val FEED_URL = "https://www.reddit.com"
         const val PAGE_SIZE = 50
-        const val defaultSubredditPreferenceKey = "default_subreddit"
-        const val defaultSubredditPreferenceValue = "user/kjoneslol/m/sfwpornnetwork"
+        const val DEFAULT_SUBREDDIT_PREFERENCE_KEY = "default_subreddit"
+        const val DEFAULT_SUBREDDIT_PREFERENCE_VALUE = "user/kjoneslol/m/sfwpornnetwork"
         var defaultSubreddit = Subreddit("SFWPornNetwork", "user/kjoneslol/m/sfwpornnetwork", Subreddit.Status.FAVORITED)
 
         private val service: RedditJsonService by inject(RedditJsonService::class.java)
@@ -30,7 +31,7 @@ class RedditJsonPagingSource(val subreddit: String) : RxPagingSource<String, Pos
                 .map { response ->
                     if (!response.isSuccessful) {
                         logcat(LogPriority.ERROR) { "Error getting gallery items for $url. Error: ${response.code()}" }
-                        return@map emptyList<RedditGalleryListingModel.RedditPostDataChildDataGalleryDataItem>()
+                        return@map emptyList<RedditPostListingModel.RedditPostDataChildDataGalleryDataItem>()
                     }
                     response.body()!!
                         .first().data.children.first().data.galleryData.items

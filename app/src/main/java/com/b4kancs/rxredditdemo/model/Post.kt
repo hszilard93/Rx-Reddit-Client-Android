@@ -1,7 +1,7 @@
 package com.b4kancs.rxredditdemo.model
 
 import com.b4kancs.rxredditdemo.networking.RedditJsonListingModel.RedditPostDataModel
-import com.b4kancs.rxredditdemo.networking.RedditJsonPagingSource
+import com.b4kancs.rxredditdemo.pagination.RedditJsonPagingSource
 import logcat.logcat
 
 data class Post(

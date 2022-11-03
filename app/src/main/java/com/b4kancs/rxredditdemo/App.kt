@@ -5,8 +5,9 @@ import android.os.StrictMode
 import androidx.preference.PreferenceManager
 import com.b4kancs.rxredditdemo.database.SubredditRoomDatabase
 import com.b4kancs.rxredditdemo.database.FavoritesRoomDatabase
-import com.b4kancs.rxredditdemo.networking.RedditJsonPagingSource
+import com.b4kancs.rxredditdemo.pagination.RedditJsonPagingSource
 import com.b4kancs.rxredditdemo.networking.RedditJsonService
+import com.b4kancs.rxredditdemo.ui.favorites.FavoritesViewModel
 import com.b4kancs.rxredditdemo.ui.home.HomeViewModel
 import com.b4kancs.rxredditdemo.ui.postviewer.PostViewerViewModel
 import com.f2prateek.rx.preferences2.RxSharedPreferences
@@ -52,6 +53,10 @@ class App : Application() {
         viewModel {
             logcat { "Koin providing ViewModel PostViewerViewModel instant." }
             PostViewerViewModel(get())
+        }
+        viewModel {
+            logcat { "Koin providing ViewModel PostViewerViewModel instant." }
+            FavoritesViewModel()
         }
         single {
             logcat { "Koin providing single AssetManager instant." }

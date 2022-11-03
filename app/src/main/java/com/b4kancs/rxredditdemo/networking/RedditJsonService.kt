@@ -17,8 +17,14 @@ interface RedditJsonService {
     ): Single<Response<RedditJsonListingModel>>
 
     @GET
-    fun getGalleryJson(@Url url: String): Single<Response<List<RedditGalleryListingModel>>>
+    fun getGalleryJson(@Url url: String): Single<Response<List<RedditPostListingModel>>>
 
     @GET("subreddits/search.json")
     fun searchSubredditsByKeyword(@Query("q") keyword: String): Single<Response<RedditSubredditsListingModel>>
+
+    @GET("/r/{subreddit}/comments/{postName}/.json")
+    fun getPostJson(
+        @Path("subreddit") subreddit: String,
+        @Path("postName") postName: String
+    ): Single<Response<List<RedditPostListingModel>>>
 }

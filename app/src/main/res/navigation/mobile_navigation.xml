@@ -8,7 +8,7 @@
     <fragment
         android:id="@+id/navigation_subreddit"
         android:name="com.b4kancs.rxredditdemo.ui.home.HomeFragment"
-        android:label="@string/title_home"
+        android:label="@string/home_title"
         tools:layout="@layout/fragment_home">
 
         <action
@@ -19,19 +19,19 @@
     <fragment
         android:id="@+id/navigation_favorites"
         android:name="com.b4kancs.rxredditdemo.ui.favorites.FavoritesFragment"
-        android:label="@string/title_dashboard"
+        android:label="@string/bottom_favorites_title"
         tools:layout="@layout/fragment_favorites" />
 
     <fragment
         android:id="@+id/navigation_subscriptions"
         android:name="com.b4kancs.rxredditdemo.ui.subscriptions.SubscriptionsFragment"
-        android:label="@string/title_notifications"
+        android:label="@string/bottom_subscriptions_title"
         tools:layout="@layout/fragment_subscriptions" />
 
     <fragment
         android:id="@+id/navigation_post_viewer"
         android:name="com.b4kancs.rxredditdemo.ui.postviewer.PostViewerFragment"
-        android:label="@string/title_post_viewer"
+        android:label="@string/post_viewer_title"
         tools:layout="@layout/fragment_post_viewer">
 
         <argument

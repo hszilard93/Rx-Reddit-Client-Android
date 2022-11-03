@@ -103,7 +103,7 @@ class PostViewerAdapter(
 
                     makeSnackBar(
                         getViewHolderForPosition(currentLayoutPosition!!)!!.itemView,
-                        R.string.slideshow_on
+                        R.string.post_viewer_slideshow_on
                     ).show()
                 } else {
                     logcat(LogPriority.INFO) { "Stopping slideshow." }
@@ -113,7 +113,7 @@ class PostViewerAdapter(
 
                     makeSnackBar(
                         getViewHolderForPosition(currentLayoutPosition!!)!!.itemView,
-                        R.string.slideshow_off
+                        R.string.post_viewer_slideshow_off
                     ).show()
                 }
             }.addTo(disposables)

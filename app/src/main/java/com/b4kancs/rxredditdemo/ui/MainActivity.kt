@@ -3,7 +3,6 @@ package com.b4kancs.rxredditdemo.ui
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
 import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GravityCompat
@@ -17,7 +16,7 @@ import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.database.SubredditDatabase
 import com.b4kancs.rxredditdemo.databinding.ActivityMainBinding
 import com.b4kancs.rxredditdemo.model.Subreddit
-import com.b4kancs.rxredditdemo.networking.RedditJsonPagingSource
+import com.b4kancs.rxredditdemo.pagination.RedditJsonPagingSource
 import com.b4kancs.rxredditdemo.ui.drawer.DrawerListAdapter
 import com.b4kancs.rxredditdemo.ui.drawer.DrawerSearchListAdapter
 import com.b4kancs.rxredditdemo.utils.*
@@ -167,7 +166,7 @@ class MainActivity : AppCompatActivity() {
             },
             onMakeDefaultSubClickedCallback = { sub ->
                 rxSharedPreferences
-                    .getString(RedditJsonPagingSource.defaultSubredditPreferenceKey)
+                    .getString(RedditJsonPagingSource.DEFAULT_SUBREDDIT_PREFERENCE_KEY)
                     .set(sub.address)
                 subredditDatabase.subredditDao().insertSubreddit(sub)
                     .subscribeOn(Schedulers.io())
@@ -279,7 +278,7 @@ class MainActivity : AppCompatActivity() {
         logcat { "setUpDefaultSubredditSharedPreferences" }
 
         val defaultSubredditPreference = rxSharedPreferences.getString(
-            RedditJsonPagingSource.defaultSubredditPreferenceKey,
+            RedditJsonPagingSource.DEFAULT_SUBREDDIT_PREFERENCE_KEY,
             RedditJsonPagingSource.defaultSubreddit.address
         )
 

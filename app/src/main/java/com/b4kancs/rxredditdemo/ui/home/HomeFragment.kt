@@ -14,6 +14,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.b4kancs.rxredditdemo.databinding.FragmentHomeBinding
 import com.b4kancs.rxredditdemo.ui.MainActivity
 import com.b4kancs.rxredditdemo.ui.postviewer.PostViewerFragment
+import com.b4kancs.rxredditdemo.ui.shared.PostVerticalRvAdapter
 import com.b4kancs.rxredditdemo.utils.CustomLinearLayoutManager
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Observable
@@ -37,7 +38,7 @@ class HomeFragment : Fragment() {
 
     private val homeViewModel: HomeViewModel by sharedViewModel()
     private var _binding: FragmentHomeBinding? = null
-    private val binding get() = _binding!!  // This property is only valid between onCreateView and onDestroyView.
+    private val binding get() = _binding!!
     private val disposables = CompositeDisposable()
     private var positionToGoTo: Int? = null
     private var justChangedSubreddits = false
@@ -83,53 +84,53 @@ class HomeFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         logcat { "onViewCreated" }
-        val activity = activity as MainActivity
+        val mainActivity = activity as MainActivity
 
         binding.apply {
-            recyclerPosts.layoutManager = CustomLinearLayoutManager(requireContext(), LinearLayoutManager.VERTICAL)
+            rvHomePosts.layoutManager = CustomLinearLayoutManager(requireContext(), LinearLayoutManager.VERTICAL)
                 .apply { canScrollHorizontally = false }
 
-            if (recyclerPosts.adapter == null) {
+            if (rvHomePosts.adapter == null) {
                 // If positionToNavigateTo is not null, we need to disable glide transformations and some other stuff for the
                 // shared element transition to work properly
                 val shouldDisableTransformations = if (positionToGoTo != null) {
                     logcat { "Disabling glide transformations" }
                     true
                 } else false
-                recyclerPosts.adapter = PostSubredditAdapter(
-                    activity,
+                rvHomePosts.adapter = PostVerticalRvAdapter(
+                    mainActivity,
                     shouldDisableTransformations,
                     { homeViewModel.getFavoritePosts() }
                 )
             }
-            val postSubredditAdapter = recyclerPosts.adapter as PostSubredditAdapter
+            val postsHomeAdapter = rvHomePosts.adapter as PostVerticalRvAdapter
 
             homeViewModel.cachedPagingObservable
                 .subscribe { pagingData ->
                     try {
-                        postSubredditAdapter.submitData(viewLifecycleOwner.lifecycle, pagingData)
+                        postsHomeAdapter.submitData(viewLifecycleOwner.lifecycle, pagingData)
                         // Make the RecyclerView visible and scroll to the top only when the new data has been loaded!
-                        postSubredditAdapter.loadStateFlow
+                        postsHomeAdapter.loadStateFlow
                             .filter { loadStates -> loadStates.refresh is LoadState.NotLoading }
                             .take(1)
                             .onEach {
                                 // If the subreddit feed contains no displayable posts (images etc.), display a textview
-                                if (postSubredditAdapter.itemCount == 1) {   // The 1 is because of the always-present bottom loading indicator
-                                    binding.noMediaInSubInfoTextView.isVisible = true
+                                if (postsHomeAdapter.itemCount == 1) {   // The 1 is because of the always-present bottom loading indicator
+                                    binding.textViewHomeNoMedia.isVisible = true
                                 } else {
-                                    binding.noMediaInSubInfoTextView.isVisible = false
+                                    binding.textViewHomeNoMedia.isVisible = false
                                     positionToGoTo?.let { pos ->
                                         logcat(LogPriority.INFO) { "Scrolling to position: $pos" }
-                                        recyclerPosts.scrollToPosition(pos)
+                                        rvHomePosts.scrollToPosition(pos)
                                     }
                                     // This delay stops the flickering after a subreddit change
                                     if (justChangedSubreddits) {
-                                        recyclerPosts.scrollToPosition(0)
-                                        recyclerPosts.visibility = View.INVISIBLE
+                                        rvHomePosts.scrollToPosition(0)
+                                        rvHomePosts.visibility = View.INVISIBLE
                                         Observable.timer(FLICKERING_DELAY, TimeUnit.MILLISECONDS)
                                             .observeOn(AndroidSchedulers.mainThread())
                                             .subscribe {
-                                                recyclerPosts.isVisible = true
+                                                rvHomePosts.isVisible = true
                                                 justChangedSubreddits = false
                                             }.addTo(disposables)
                                     }
@@ -143,80 +144,80 @@ class HomeFragment : Fragment() {
                 }
                 .addTo(disposables)
 
-            postSubredditAdapter.addLoadStateListener { combinedLoadStates ->
-                largeProgressBar.isVisible = combinedLoadStates.refresh is LoadState.Loading
+            postsHomeAdapter.addLoadStateListener { combinedLoadStates ->
+                progressBarHomeLarge.isVisible = combinedLoadStates.refresh is LoadState.Loading
             }
 
-            homeViewModel.subredditNameLiveData.observe(activity) { subredditName ->
-                activity.supportActionBar?.title = subredditName
+            homeViewModel.subredditNameLiveData.observe(mainActivity) { subredditName ->
+                mainActivity.supportActionBar?.title = subredditName
             }
 
-            activity.selectedSubredditChangedSubject
+            mainActivity.selectedSubredditChangedSubject
                 .debounce(1, TimeUnit.SECONDS)
                 .observeOn(AndroidSchedulers.mainThread())
                 .doOnNext { logcat(LogPriority.INFO) { "selectedSubredditChangedSubject.doOnNext: ${it.name}" } }
                 .subscribe { sub ->
-                    recyclerPosts.isVisible = false
+                    rvHomePosts.isVisible = false
                     homeViewModel.changeSubreddit(sub)
                     justChangedSubreddits = true
-                    postSubredditAdapter.refresh()
+                    postsHomeAdapter.refresh()
                 }
                 .addTo(disposables)
 
-            swipeRefreshLayout.apply {
+            srlHome.apply {
                 setOnRefreshListener {
-                    postSubredditAdapter.refresh()
-                    recyclerPosts.scrollToPosition(0)
+                    postsHomeAdapter.refresh()
+                    rvHomePosts.scrollToPosition(0)
                     isRefreshing = false
                 }
             }
 
-            postSubredditAdapter.postClickedSubject
+            postsHomeAdapter.postClickedSubject
                 .observeOn(AndroidSchedulers.mainThread())
                 .doOnNext { logcat(LogPriority.INFO) { "postClickedSubject.doOnNext: pos = ${it.first}" } }
                 .subscribe { (position, view) ->
                     createNewPostViewerFragment(position, view)
-                    (recyclerPosts.layoutManager as CustomLinearLayoutManager).canScrollVertically = false
+                    (rvHomePosts.layoutManager as CustomLinearLayoutManager).canScrollVertically = false
                     // By disposing of the subscriptions here, we stop the user from accidentally clicking on a post
                     // while the transition takes place.
-                    postSubredditAdapter.disposables.dispose()
+                    postsHomeAdapter.disposables.dispose()
                 }.addTo(disposables)
 
-            postSubredditAdapter.readyToBeDrawnSubject
+            postsHomeAdapter.readyToBeDrawnSubject
                 .observeOn(AndroidSchedulers.mainThread())
                 .filter { it == (positionToGoTo ?: 0) }
                 .take(1)
                 .doOnNext { logcat(LogPriority.INFO) { "readyToBeDrawnSubject.onNext: pos = $it" } }
                 .subscribe {
                     // Fine scroll to better position the imageview
-                    val toScrollY = binding.recyclerPosts
+                    val toScrollY = binding.rvHomePosts
                         .findViewHolderForLayoutPosition(positionToGoTo ?: 0)
                         ?.itemView
                         ?.y
                         ?: 0f
-                    logcat(LogPriority.INFO) { "Scrolling by y = $toScrollY" }
-                    binding.recyclerPosts.scrollBy(0, toScrollY.toInt())
+                    logcat { "Scrolling by y = $toScrollY" }
+                    binding.rvHomePosts.scrollBy(0, toScrollY.toInt())
 
                     // We put these reveals here so that they will be synced with the SharedElementTransition.
-                    activity.animateShowActionBar()
-                    activity.animateShowBottomNavBar()
+                    mainActivity.animateShowActionBar()
+                    mainActivity.animateShowBottomNavBar()
 
                     Observable.timer(50, TimeUnit.MILLISECONDS)
                         .observeOn(AndroidSchedulers.mainThread())
                         .subscribe {
                             val transitionName =
-                                (recyclerPosts.findViewHolderForLayoutPosition(positionToGoTo ?: 0)
-                                        as PostSubredditAdapter.PostSubredditViewHolder)
+                                (rvHomePosts.findViewHolderForLayoutPosition(positionToGoTo ?: 0)
+                                        as PostVerticalRvAdapter.PostSubredditViewHolder)
                                     .binding
                                     .postImageView
                                     .transitionName
                             logcat(LogPriority.INFO) { "Transition name = $transitionName" }
-                            logcat(LogPriority.INFO) { "startPostponedEnterTransition()" }
+                            logcat { "startPostponedEnterTransition()" }
                             startPostponedEnterTransition()
-                            logcat(LogPriority.INFO) { "Disposing of delayedTransitionTriggerDisposable" }
+                            logcat { "Disposing of delayedTransitionTriggerDisposable" }
                             delayedTransitionTriggerDisposable.dispose()
 
-                            postSubredditAdapter.disableTransformations = false
+                            postsHomeAdapter.disableTransformations = false
                         }.addTo(disposables)
                 }.addTo(disposables)
         }

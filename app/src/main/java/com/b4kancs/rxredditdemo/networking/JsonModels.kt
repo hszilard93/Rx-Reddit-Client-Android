@@ -18,6 +18,7 @@ data class RedditJsonListingModel(
         val data: RedditPostDataModel
     )
 
+    // This is a post's data.
     // "/data/children/data/"
     data class RedditPostDataModel(
         val name: String,
@@ -28,6 +29,7 @@ data class RedditJsonListingModel(
         val permalink: String,
         val domain: String,
         val score: Int,
+        val galleryData: RedditPostListingModel.RedditPostDataChildDataGalleryData,
         @SerializedName("created") val createdAt: Int,
         @SerializedName("over_18") val nsfw: Boolean,
         @SerializedName("num_comments") val numOfComments: Int,
@@ -41,28 +43,24 @@ data class RedditJsonListingModel(
     )
 }
 
-// A post's listing. Contains the pictures from the gallery.
-data class RedditGalleryListingModel(
-    val data: RedditGalleryPostData
+// A post's listing. Contains all the post's data.
+// For example: https://old.reddit.com/r/EarthPorn/comments/yiirgv/0/.json
+data class RedditPostListingModel(
+    val data: RedditPostData
 ) {
 
     // "/0/data/"
-    data class RedditGalleryPostData(
-        val children: List<RedditGalleryPostDataChild>
+    data class RedditPostData(
+        val children: List<RedditPostDataChild>
     )
 
     // "/0/data/children/0/"
-    data class RedditGalleryPostDataChild(
-        val data: RedditGalleryPostDataChildData
-    )
-
-    // "/0/data/children/0/data/"
-    data class RedditGalleryPostDataChildData(
-        val galleryData: RedditGalleryPostDataChildDataGalleryData
+    data class RedditPostDataChild(
+        val data: RedditJsonListingModel.RedditPostDataModel
     )
 
     // "/0/data/children/0/data/gallery_data"
-    data class RedditGalleryPostDataChildDataGalleryData(
+    data class RedditPostDataChildDataGalleryData(
         val items: List<RedditPostDataChildDataGalleryDataItem>
     )
 
