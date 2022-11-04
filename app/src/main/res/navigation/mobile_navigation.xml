@@ -12,15 +12,20 @@
         tools:layout="@layout/fragment_home">
 
         <action
-            android:id="@+id/action_open_post_viewer"
-            app:destination="@+id/navigation_post_viewer" />
+            android:id="@+id/action_home_to_post_viewer"
+            app:destination="@id/navigation_post_viewer" />
     </fragment>
 
     <fragment
         android:id="@+id/navigation_favorites"
         android:name="com.b4kancs.rxredditdemo.ui.favorites.FavoritesFragment"
         android:label="@string/bottom_favorites_title"
-        tools:layout="@layout/fragment_favorites" />
+        tools:layout="@layout/fragment_favorites">
+
+        <action
+            android:id="@+id/action_favorites_to_post_viewer"
+            app:destination="@id/navigation_post_viewer" />
+    </fragment>
 
     <fragment
         android:id="@+id/navigation_subscriptions"
@@ -36,12 +41,12 @@
 
         <argument
             android:name="position"
-            app:argType="integer"
-            android:defaultValue="0" />
+            android:defaultValue="0"
+            app:argType="integer" />
 
         <argument
             android:name="pagingDataObservableProvider"
-            app:argType="string"
-            android:defaultValue="HomeViewModel" />
+            android:defaultValue="no_value_provided"
+            app:argType="string" />
     </fragment>
 </navigation>

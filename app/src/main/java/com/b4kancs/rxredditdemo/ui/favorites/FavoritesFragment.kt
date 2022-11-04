@@ -6,12 +6,12 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
+import androidx.navigation.fragment.FragmentNavigatorExtras
 import androidx.navigation.fragment.findNavController
 import androidx.paging.LoadState
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.b4kancs.rxredditdemo.databinding.FragmentFavoritesBinding
 import com.b4kancs.rxredditdemo.ui.MainActivity
-import com.b4kancs.rxredditdemo.ui.home.HomeFragment
 import com.b4kancs.rxredditdemo.ui.postviewer.PostViewerFragment
 import com.b4kancs.rxredditdemo.ui.shared.PostVerticalRvAdapter
 import com.b4kancs.rxredditdemo.utils.CustomLinearLayoutManager
@@ -36,7 +36,7 @@ class FavoritesFragment : Fragment() {
     private var _binding: FragmentFavoritesBinding? = null
     private val binding get() = _binding!!
     private val disposables = CompositeDisposable()
-    private var positionToGoTo: Int? = null
+    private var positionToReturnTo: Int? = null
     private lateinit var delayedTransitionTriggerDisposable: Disposable
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
@@ -49,9 +49,9 @@ class FavoritesFragment : Fragment() {
         }
 
         with(findNavController().currentBackStackEntry) {
-            positionToGoTo = this?.savedStateHandle?.get<Int>(PostViewerFragment.SAVED_STATE_POSITION_KEY)
+            positionToReturnTo = this?.savedStateHandle?.get<Int>(PostViewerFragment.SAVED_STATE_POSITION_KEY)
             this?.savedStateHandle?.remove<Int>(PostViewerFragment.SAVED_STATE_POSITION_KEY)
-            logcat(LogPriority.INFO) { "Recovered position from PostViewerFragment. positionToGoTo = $positionToGoTo" }
+            logcat(LogPriority.INFO) { "Recovered position from PostViewerFragment. positionToGoTo = $positionToReturnTo" }
         }
 
         _binding = FragmentFavoritesBinding.inflate(inflater,container, false)
@@ -82,7 +82,7 @@ class FavoritesFragment : Fragment() {
             if (rvFavoritesPosts.adapter == null) {
                 // If positionToNavigateTo is not null, we need to disable glide transformations and some other stuff for the
                 // shared element transition to work properly
-                val shouldDisableTransformations = if (positionToGoTo != null) {
+                val shouldDisableTransformations = if (positionToReturnTo != null) {
                     logcat { "Disabling glide transformations" }
                     true
                 } else false
@@ -108,7 +108,7 @@ class FavoritesFragment : Fragment() {
                                     binding.textViewFavoritesNoMedia.isVisible = true
                                 } else {
                                     binding.textViewFavoritesNoMedia.isVisible = false
-                                    positionToGoTo?.let { pos ->
+                                    (positionToReturnTo ?: 0).let { pos ->
                                         logcat(LogPriority.INFO) { "Scrolling to position: $pos" }
                                         rvFavoritesPosts.scrollToPosition(pos)
                                     }
@@ -121,27 +121,26 @@ class FavoritesFragment : Fragment() {
                     }
                 }.addTo(disposables)
 
+            postsFavoritesAdapter.refresh()
+
             postsFavoritesAdapter.addLoadStateListener { combinedLoadStates ->
                 progressBarFavoritesLarge.isVisible = combinedLoadStates.refresh is LoadState.Loading
             }
 
-            srlFavorites.apply {
-                setOnRefreshListener {
-                    postsFavoritesAdapter.refresh()
-                    rvFavoritesPosts.scrollToPosition(0)
-                    isRefreshing = false
-                }
+            srlFavorites.setOnRefreshListener {
+                postsFavoritesAdapter.refresh()
+                srlFavorites.isRefreshing = false
             }
 
             postsFavoritesAdapter.readyToBeDrawnSubject
                 .observeOn(AndroidSchedulers.mainThread())
-                .filter { it == (positionToGoTo ?: 0) }      // When the target of the SharedElementTransition or the first element is ready
+                .filter { it == (positionToReturnTo ?: 0) }      // When the target of the SharedElementTransition or the first element is ready
                 .take(1)
                 .doOnNext { logcat(LogPriority.INFO) { "readyToBeDrawnSubject.onNext: pos = $it" } }
                 .subscribe {
                     // Fine scroll to better position the imageview
                     val toScrollY = binding.rvFavoritesPosts
-                        .findViewHolderForLayoutPosition(positionToGoTo ?: 0)
+                        .findViewHolderForLayoutPosition(positionToReturnTo ?: 0)
                         ?.itemView
                         ?.y
                         ?: 0f
@@ -156,7 +155,7 @@ class FavoritesFragment : Fragment() {
                         .observeOn(AndroidSchedulers.mainThread())
                         .subscribe {
                             val transitionName =
-                                (rvFavoritesPosts.findViewHolderForLayoutPosition(positionToGoTo ?: 0)
+                                (rvFavoritesPosts.findViewHolderForLayoutPosition(positionToReturnTo ?: 0)
                                         as PostVerticalRvAdapter.PostSubredditViewHolder)
                                     .binding
                                     .postImageView
@@ -170,7 +169,28 @@ class FavoritesFragment : Fragment() {
                             postsFavoritesAdapter.disableTransformations = false
                         }.addTo(disposables)
                 }.addTo(disposables)
+
+            postsFavoritesAdapter.postClickedSubject
+                .observeOn(AndroidSchedulers.mainThread())
+                .doOnNext { logcat(LogPriority.INFO) { "postClickedSubject.onNext: post = ${it.first}" } }
+                .subscribe { (position, view) ->
+                    createNewPostViewerFragment(position, view)
+                    (rvFavoritesPosts.layoutManager as CustomLinearLayoutManager).canScrollVertically = false
+                    postsFavoritesAdapter.disposables.dispose()
+                }.addTo(disposables)
         }
     }
 
+    private fun createNewPostViewerFragment(position: Int, sharedView: View) {
+        logcat { "createNewPostViewerFragment" }
+        val sharedElementExtras = FragmentNavigatorExtras(sharedView to sharedView.transitionName)
+        val action = FavoritesFragmentDirections.actionFavoritesToPostViewer(position, favoritesViewModel::class.simpleName!!)
+        findNavController().navigate(action, sharedElementExtras)
+    }
+
+    override fun onDestroyView() {
+        logcat { "onDestroyView" }
+        super.onDestroyView()
+        _binding = null
+    }
 }

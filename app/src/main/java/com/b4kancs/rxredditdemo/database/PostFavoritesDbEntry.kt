@@ -27,8 +27,8 @@ data class PostFavoritesDbEntry(
                     dbEntry.name.substring(3) // Instead of 't3_someth' (the post's name), we need to pass 'someth"
                 )
                     .subscribeOn(Schedulers.io())
-                    .blockingGet().let {
-                        if (it.isSuccessful) it.body()
+                    .blockingGet().let { response ->
+                        if (response.isSuccessful) response.body()
                         else null
                     } ?: return null
             // TODO: Better error handling

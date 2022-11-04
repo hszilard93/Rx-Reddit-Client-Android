@@ -22,6 +22,7 @@ import com.b4kancs.rxredditdemo.databinding.FragmentPostViewerBinding
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.ui.MainActivity
 import com.b4kancs.rxredditdemo.ui.PostPagingDataObservableProvider
+import com.b4kancs.rxredditdemo.ui.favorites.FavoritesViewModel
 import com.b4kancs.rxredditdemo.ui.home.HomeViewModel
 import com.b4kancs.rxredditdemo.utils.ANIMATION_DURATION_SHORT
 import com.google.android.material.bottomnavigation.BottomNavigationView
@@ -148,8 +149,7 @@ class PostViewerFragment : Fragment() {
         val onFavoritesActionCallback = { toFavorite: Boolean, post: Post ->
             if (toFavorite) {
                 viewModel.addPostToFavorites(post)
-            }
-            else {
+            } else {
                 viewModel.removePostFromFavorites(post)
             }
         }
@@ -210,13 +210,19 @@ class PostViewerFragment : Fragment() {
 
         val pagingDataObservableProviderName = args.pagingDataObservableProvider
         val pagingDataObservableProvider: Lazy<PostPagingDataObservableProvider> =
-            if (pagingDataObservableProviderName == HomeViewModel::class.java.simpleName) {
-                logcat { "The pagingDataObservableProvider is a HomeViewModel class." }
-                sharedViewModel<HomeViewModel>()
-            }
-            else {
-                logcat(LogPriority.ERROR) { "Can't find a valid pagingDataObservableProvider class." }
-                throw IllegalArgumentException()
+            when (pagingDataObservableProviderName) {
+                HomeViewModel::class.simpleName -> {
+                    logcat { "The pagingDataObservableProvider is a HomeViewModel class." }
+                    sharedViewModel<HomeViewModel>()
+                }
+                FavoritesViewModel::class.simpleName -> {
+                    logcat { "The pagingDataObservableProvider is a FavoritesViewModel class." }
+                    sharedViewModel<FavoritesViewModel>()
+                }
+                else -> {
+                    logcat(LogPriority.ERROR) { "Provided class $pagingDataObservableProviderName is not a pagingDataObservableProvider." }
+                    throw IllegalArgumentException()
+                }
             }
         viewModel = viewModel<PostViewerViewModel> { parametersOf(pagingDataObservableProvider.value) }.value
     }

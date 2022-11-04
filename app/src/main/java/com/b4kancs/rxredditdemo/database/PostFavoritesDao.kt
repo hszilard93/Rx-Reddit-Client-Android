@@ -13,7 +13,7 @@ interface PostFavoritesDao {
     @Query("SELECT * FROM favoritePosts ORDER BY name")
     fun getFavorites(): Single<List<PostFavoritesDbEntry>>
 
-    @Query("SELECT * FROM favoritePosts ORDER BY addedDate ASC LIMIT :limit OFFSET :offset")
+    @Query("SELECT * FROM favoritePosts ORDER BY addedDate DESC LIMIT :limit OFFSET :offset")
     fun getFavoritesPaged(limit: Int, offset: Int): Single<List<PostFavoritesDbEntry>>
 
     @Delete

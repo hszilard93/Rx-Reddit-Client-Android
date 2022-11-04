@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.graphics.drawable.Drawable
+import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -364,82 +365,107 @@ class PostViewerAdapter(
         @SuppressLint("CheckResult", "ClickableViewAccessibility")
         private fun setUpImageViewAndHud(post: Post, holder: PostViewerViewHolder) {
             logcat { "setUpImageViewAndHud" }
+            with(binding) {
+                currentGalleryPosition = 0
+                postLargeItemImageView.transitionName = post.links!!.first()
+                nsfwTagTextView.isVisible = post.toBlur
 
-            currentGalleryPosition = 0
-            binding.postLargeItemImageView.transitionName = post.links!!.first()
-            binding.nsfwTagTextView.isVisible = post.toBlur
+                val zoomableImageView = postLargeItemImageView
+                loadImageWithGlide(zoomableImageView, post.links[0], false, post.toBlur)
 
-            val zoomableImageView = binding.postLargeItemImageView
-            loadImageWithGlide(zoomableImageView, post.links[0], false, post.toBlur)
+                val colorGreyTypedValue = TypedValue()
+                context.theme.resolveAttribute(
+                    com.google.android.material.R.attr.colorSurfaceVariant,
+                    colorGreyTypedValue,
+                    true
+                )
+                val colorNormalTypedValue = TypedValue()
+                context.theme.resolveAttribute(
+                    com.google.android.material.R.attr.colorPrimary,
+                    colorNormalTypedValue,
+                    true
+                )
 
-            binding.postLargeItemLeftHudConstraintLayout.clicks()
-                .subscribe {
-                    logcat(LogPriority.INFO) { "Left hud clicked, paging left." }
-                    positionSubject.onNext(layoutPosition to layoutPosition - 1)
-                }.addTo(disposables)
+                if (layoutPosition == 0) {
+                    postLargeItemPreviousImageView.setColorFilter(colorGreyTypedValue.data)
+                } else {
+                    postLargeItemPreviousImageView.setColorFilter(colorNormalTypedValue.data)
+                    postLargeItemLeftHudConstraintLayout.clicks()
+                        .subscribe {
+                            logcat(LogPriority.INFO) { "Left hud clicked, paging left." }
+                            positionSubject.onNext(layoutPosition to layoutPosition - 1)
+                        }.addTo(disposables)
+                }
 
-            binding.postLargeItemRightHudConstraintLayout.clicks()
-                .subscribe {
-                    logcat(LogPriority.INFO) { "Right hud clicked, paging right." }
-                    positionSubject.onNext(layoutPosition to layoutPosition + 1)
-                }.addTo(disposables)
+                if (layoutPosition == this@PostViewerAdapter.itemCount - 1) {
+                    postLargeItemNextImageView.setColorFilter(colorGreyTypedValue.data)
+                }
+                else {
+                    postLargeItemNextImageView.setColorFilter(colorNormalTypedValue.data)
+                    postLargeItemRightHudConstraintLayout.clicks()
+                        .subscribe {
+                            logcat(LogPriority.INFO) { "Right hud clicked, paging right." }
+                            positionSubject.onNext(layoutPosition to layoutPosition + 1)
+                        }.addTo(disposables)
+                }
 
-            val singleTapSubject: PublishSubject<Unit> = PublishSubject.create()
-            singleTapSubject
-                .observeOn(AndroidSchedulers.mainThread())
-                .doOnNext { logcat { "onSingleTapSubject.onNext" } }
-                .subscribe {
-                    logcat { "hasAppliedBlur: $hasAppliedBlur" }
-                    if (hasAppliedBlur) {
-                        logcat(LogPriority.INFO) { "Unblurring image." }
-                        post.toBlur = false
-                        hasAppliedBlur = false
-                        binding.nsfwTagTextView.isVisible = false
-                        loadImageWithGlide(zoomableImageView, post.links[0], true, post.toBlur)
-                    } else {
-                        logcat { "isHudVisible = $isHudVisible" }
-                        if (!isHudVisible) {
-                            logcat(LogPriority.INFO) { "Showing HUD." }
-                            showHud()
+                val singleTapSubject: PublishSubject<Unit> = PublishSubject.create()
+                singleTapSubject
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .doOnNext { logcat { "onSingleTapSubject.onNext" } }
+                    .subscribe {
+                        logcat { "hasAppliedBlur: $hasAppliedBlur" }
+                        if (hasAppliedBlur) {
+                            logcat(LogPriority.INFO) { "Unblurring image." }
+                            post.toBlur = false
+                            hasAppliedBlur = false
+                            nsfwTagTextView.isVisible = false
+                            loadImageWithGlide(zoomableImageView, post.links[0], true, post.toBlur)
                         } else {
-                            logcat(LogPriority.INFO) { "Hiding HUD." }
-                            hideHud()
+                            logcat { "isHudVisible = $isHudVisible" }
+                            if (!isHudVisible) {
+                                logcat(LogPriority.INFO) { "Showing HUD." }
+                                showHud()
+                            } else {
+                                logcat(LogPriority.INFO) { "Hiding HUD." }
+                                hideHud()
+                            }
                         }
+                    }.addTo(disposables)
+
+                // Setup for gallery
+                if (isGallery) {
+                    postLargeItemGalleryIndicatorImageView.visibility = View.VISIBLE
+                    postLargeItemGalleryItemsTextView.visibility = View.VISIBLE
+                    postLargeItemGalleryItemsTextView.text = post.links.size.toString()
+                }
+
+                zoomableImageView.setOnTouchListener(object : OnSwipeTouchListener(context) {
+
+                    override fun onSingleTap(): Boolean {
+                        logcat(LogPriority.INFO) { "GestureDetector: onSingleTapConfirmed" }
+                        singleTapSubject.onNext(Unit)
+                        return true
                     }
-                }.addTo(disposables)
 
-            // Setup for gallery
-            if (isGallery) {
-                binding.postLargeItemGalleryIndicatorImageView.visibility = View.VISIBLE
-                binding.postLargeItemGalleryItemsTextView.visibility = View.VISIBLE
-                binding.postLargeItemGalleryItemsTextView.text = post.links.size.toString()
+                    override fun onDoubleTap(): Boolean {
+                        logcat(LogPriority.INFO) { "GestureDetector: onDoubleTap" }
+                        return false
+                    }
+
+                    override fun onSwipeRight() {
+                        if (!isGallery) return
+                        logcat(LogPriority.INFO) { "Gallery, right swipe detected." }
+                        showPreviousInGallery()
+                    }
+
+                    override fun onSwipeLeft() {
+                        if (!isGallery) return
+                        logcat(LogPriority.INFO) { "Gallery, left swipe detected." }
+                        showNextInGallery()
+                    }
+                })
             }
-
-            zoomableImageView.setOnTouchListener(object : OnSwipeTouchListener(context) {
-
-                override fun onSingleTap(): Boolean {
-                    logcat(LogPriority.INFO) { "GestureDetector: onSingleTapConfirmed" }
-                    singleTapSubject.onNext(Unit)
-                    return true
-                }
-
-                override fun onDoubleTap(): Boolean {
-                    logcat(LogPriority.INFO) { "GestureDetector: onDoubleTap" }
-                    return false
-                }
-
-                override fun onSwipeRight() {
-                    if (!isGallery) return
-                    logcat(LogPriority.INFO) { "Gallery, right swipe detected." }
-                    showPreviousInGallery()
-                }
-
-                override fun onSwipeLeft() {
-                    if (!isGallery) return
-                    logcat(LogPriority.INFO) { "Gallery, left swipe detected." }
-                    showNextInGallery()
-                }
-            })
         }
 
         @SuppressLint("CheckResult")

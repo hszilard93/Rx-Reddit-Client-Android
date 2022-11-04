@@ -10,7 +10,6 @@ import android.widget.ImageView
 import android.widget.ProgressBar
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.view.isVisible
-import androidx.paging.CombinedLoadStates
 import androidx.paging.LoadState
 import androidx.paging.PagingDataAdapter
 import androidx.recyclerview.widget.RecyclerView
@@ -324,17 +323,8 @@ class PostVerticalRvAdapter(
             }
             this@PostVerticalRvAdapter.addLoadStateListener { combinedLoadStates ->
                 logcat(LogPriority.INFO) { "combinedLoadState = ${combinedLoadStates.refresh}, layoutPosition = $layoutPosition" }
-                this.view.isVisible = combinedLoadStates.refresh is LoadState.Loading && layoutPosition >= 1
+                this.view.isVisible = combinedLoadStates.source.append is LoadState.Loading && layoutPosition >= 1
             }
-            // TODO: make this work as the Creator intended
-//            this@PostVerticalRvAdapter.registerAdapterDataObserver(object : RecyclerView.AdapterDataObserver() {
-//                override fun onItemRangeInserted(positionStart: Int, itemCount: Int) {
-//                    super.onItemRangeInserted(positionStart, itemCount)
-//                    if (layoutPosition >= 1) {
-//                        view.isVisible = true
-//                    }
-//                }
-//            })
         }
     }
 

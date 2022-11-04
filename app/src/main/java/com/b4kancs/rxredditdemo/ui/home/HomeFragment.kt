@@ -226,7 +226,7 @@ class HomeFragment : Fragment() {
     private fun createNewPostViewerFragment(position: Int, sharedView: View) {
         logcat { "createNewPostViewerFragment" }
         val sharedElementExtras = FragmentNavigatorExtras(sharedView to sharedView.transitionName)
-        val action = HomeFragmentDirections.actionOpenPostViewer(position, homeViewModel.javaClass.simpleName)
+        val action = HomeFragmentDirections.actionHomeToPostViewer(position, homeViewModel.javaClass.simpleName)
         findNavController().navigate(action, sharedElementExtras)
     }
 
