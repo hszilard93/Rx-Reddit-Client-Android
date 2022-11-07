@@ -5,6 +5,7 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.GravityCompat
 import androidx.core.view.isVisible
 import androidx.drawerlayout.widget.DrawerLayout
@@ -268,7 +269,7 @@ class MainActivity : AppCompatActivity() {
                 val listView = binding.drawerSearchResultsListView
                 val oldHeight = abs(listView.measuredHeight)
                 val newHeight = dpToPixel(40, this) * subs.size
-                animateViewLayoutHeightChange(listView, oldHeight, newHeight, 150)
+                animateViewHeightChange(listView, oldHeight, newHeight, 150)
             }.addTo(disposables)
 
         binding.drawerSearchResultsListView.adapter = searchListAdapter
@@ -299,11 +300,13 @@ class MainActivity : AppCompatActivity() {
     fun lockDrawerClosed() {
         logcat { "lockDrawerClosed" }
         binding.drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
+        setAlternativeNavigationBehaviour()
     }
 
     fun unlockDrawer() {
         logcat { "unlockDrawer" }
         binding.drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED)
+        resetNavigationBehaviour()
     }
 
     fun animateHideActionBar(viewToSynchronizeWith: View? = null) {
@@ -374,7 +377,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         viewToSynchronizeWith?.let {
-            animateViewLayoutHeightChange(
+            animateViewHeightChange(
                 it,
                 it.height,
                 it.height + binding.navView.height,
@@ -398,5 +401,16 @@ class MainActivity : AppCompatActivity() {
                 .setDuration(ANIMATION_DURATION_LONG)
                 .start()
         }
+    }
+
+    private fun setAlternativeNavigationBehaviour() {
+        logcat { "hideNavigationIcon" }
+        binding.toolbar.navigationIcon = ResourcesCompat.getDrawable(resources, R.drawable.ic_baseline_arrow_back_24, theme)
+        binding.toolbar.setNavigationOnClickListener { onBackPressed() }
+    }
+
+    private fun resetNavigationBehaviour() {
+        logcat { "hideNavigationIcon" }
+        binding.toolbar.setNavigationOnClickListener { binding.drawerLayout.open() }
     }
 }

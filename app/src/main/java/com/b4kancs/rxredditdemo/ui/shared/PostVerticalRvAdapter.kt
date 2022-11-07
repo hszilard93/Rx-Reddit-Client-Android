@@ -6,8 +6,8 @@ import android.graphics.drawable.Drawable
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowManager
 import android.widget.ImageView
-import android.widget.ProgressBar
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.view.isVisible
 import androidx.paging.LoadState
@@ -57,7 +57,6 @@ class PostVerticalRvAdapter(
     val postClickedSubject: PublishSubject<Pair<Int, View>> = PublishSubject.create()
     val readyToBeDrawnSubject: PublishSubject<Int> = PublishSubject.create()
     val disposables = CompositeDisposable()
-    var bottomLoadingIndicator: SmallBottomLoadingIndicatorViewHolder? = null
     private lateinit var orientation: Orientation
     private lateinit var postView: View
 
@@ -85,14 +84,14 @@ class PostVerticalRvAdapter(
                     )
             }
         postView = bindingReplacement.root
-        return PostSubredditViewHolder(bindingReplacement)
+        return PostViewHolder(bindingReplacement)
     }
 
     override fun getItemViewType(position: Int): Int = if (position == itemCount - 1) ITEM_VIEW_TYPE_LOAD else ITEM_VIEW_TYPE_POST
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         logcat { "onBindViewHolder: position = $position" }
-        if (holder is PostSubredditViewHolder)
+        if (holder is PostViewHolder)
             getItem(position)?.let { holder.bind(it) }
         else
             (holder as SmallBottomLoadingIndicatorViewHolder).bind()
@@ -100,7 +99,7 @@ class PostVerticalRvAdapter(
 
     override fun onViewRecycled(holder: RecyclerView.ViewHolder) {
         logcat { "onViewRecycled" }
-        if (holder is PostSubredditViewHolder) {
+        if (holder is PostViewHolder) {
             // Resetting views before the RecyclerView reuses the ViewHolder
             with(holder.binding) {
                 postImageView.setImageDrawable(null)
@@ -109,6 +108,7 @@ class PostVerticalRvAdapter(
                 galleryIndicatorImageView.isVisible = false
                 galleryItemsTextView.isVisible = false
                 nsfwTagTextView.isVisible = false
+                favoriteIndicatorImageView.isVisible = false
             }
         }
         super.onViewRecycled(holder)
@@ -118,7 +118,12 @@ class PostVerticalRvAdapter(
         return super.getItemCount() + 1     // Plus one is for the bottom loading indicator
     }
 
-    inner class PostSubredditViewHolder(val binding: RvItemPostSubBindingReplacement) : RecyclerView.ViewHolder(postView) {
+    override fun onDetachedFromRecyclerView(recyclerView: RecyclerView) {
+        super.onDetachedFromRecyclerView(recyclerView)
+        disposables.dispose()
+    }
+
+    inner class PostViewHolder(val binding: RvItemPostSubBindingReplacement) : RecyclerView.ViewHolder(postView) {
 
         fun bind(post: Post) {
             logcat { "bind: post = ${post.name}" }
@@ -283,7 +288,7 @@ class PostVerticalRvAdapter(
                             if (disableTransformations)
                                 imageView.layoutParams.height = newImageViewHeight
                             else
-                                animateViewLayoutHeightChange(imageView, oldImageViewHeight, newImageViewHeight, 150)
+                                animateViewHeightChange(imageView, oldImageViewHeight, newImageViewHeight, 150)
                         }
 
                         readyToBeDrawnSubject.onNext(layoutPosition)
@@ -309,21 +314,18 @@ class PostVerticalRvAdapter(
         }
     }
 
+    // In the future, might use LoadStateFooter instead, but this solution is also satisfactory.
+    // https://developer.android.com/topic/libraries/architecture/paging/load-state#kotlin
     inner class SmallBottomLoadingIndicatorViewHolder(val view: View) : RecyclerView.ViewHolder(view) {
-        private lateinit var smallBottomLoadingProgressBar: ProgressBar
 
         fun bind() {
             logcat { "SmallBottomLoadingIndicatorViewHolder.bind" }
-            val binding = AdapterPostLoadingListItemBinding.bind(view)
-            smallBottomLoadingProgressBar = binding.smallProgressBar
-            bottomLoadingIndicator = this
+            AdapterPostLoadingListItemBinding.bind(view)
 
-            this@PostVerticalRvAdapter.addOnPagesUpdatedListener {
-
-            }
             this@PostVerticalRvAdapter.addLoadStateListener { combinedLoadStates ->
                 logcat(LogPriority.INFO) { "combinedLoadState = ${combinedLoadStates.refresh}, layoutPosition = $layoutPosition" }
-                this.view.isVisible = combinedLoadStates.source.append is LoadState.Loading && layoutPosition >= 1
+                view.isVisible = combinedLoadStates.source.append is LoadState.Loading && layoutPosition >= 1
+                view.layoutParams.height = if (view.isVisible) WindowManager.LayoutParams.WRAP_CONTENT else 0
             }
         }
     }

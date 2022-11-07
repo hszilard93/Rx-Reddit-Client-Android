@@ -49,7 +49,8 @@ class HomeViewModel : ViewModel(), PostPagingDataObservableProvider {
                 initialLoadSize = RedditJsonPagingSource.PAGE_SIZE
             )
         ) { RedditJsonPagingSource(subredditAddress!!) }
-        cachedPagingObservable = pager.observable.cachedIn(this.viewModelScope)
+        cachedPagingObservable = pager.observable
+            .cachedIn(this.viewModelScope)
     }
 
     fun changeSubreddit(newSub: Subreddit) {

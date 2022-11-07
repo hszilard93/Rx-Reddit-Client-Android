@@ -201,6 +201,11 @@ class PostViewerAdapter(
         return null
     }
 
+    override fun onDetachedFromRecyclerView(recyclerView: RecyclerView) {
+        super.onDetachedFromRecyclerView(recyclerView)
+        disposables.dispose()
+    }
+
     inner class PostViewerViewHolder(val binding: PostViewerListItemBinding) : RecyclerView.ViewHolder(binding.root) {
 
         val shownSubject = PublishSubject.create<Unit>()

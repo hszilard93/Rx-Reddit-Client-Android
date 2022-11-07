@@ -121,7 +121,7 @@ class PostViewerFragment : Fragment() {
     override fun onDestroy() {
         logcat { "onDestroy" }
         super.onDestroy()
-        (binding.viewPagerPostViewer.adapter as PostViewerAdapter).disposables.dispose()
+        disposables.dispose()
         (activity as MainActivity).apply {
             supportActionBar?.show()
             findViewById<BottomNavigationView>(R.id.nav_view).isVisible = true

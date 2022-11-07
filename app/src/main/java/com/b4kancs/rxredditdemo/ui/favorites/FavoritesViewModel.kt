@@ -29,7 +29,8 @@ class FavoritesViewModel : ViewModel(), PostPagingDataObservableProvider {
                 initialLoadSize = RedditJsonPagingSource.PAGE_SIZE
             )
         ) { FavoritesDbPagingSource() }
-        cachedPagingObservable = pager.observable.cachedIn(this.viewModelScope)
+        cachedPagingObservable = pager.observable
+            .cachedIn(this.viewModelScope)
     }
 
     override fun cachedPagingObservable(): Observable<PagingData<Post>> = cachedPagingObservable

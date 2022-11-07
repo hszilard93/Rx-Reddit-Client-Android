@@ -22,10 +22,7 @@ import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.kotlin.addTo
 import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.flow.*
 import logcat.LogPriority
 import logcat.logcat
 import org.koin.androidx.viewmodel.ext.android.sharedViewModel
@@ -42,6 +39,7 @@ class HomeFragment : Fragment() {
     private val disposables = CompositeDisposable()
     private var positionToGoTo: Int? = null
     private var justChangedSubreddits = false
+    private var isBeingReconstructed = false
     private lateinit var delayedTransitionTriggerDisposable: Disposable
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
@@ -53,7 +51,7 @@ class HomeFragment : Fragment() {
             }"
         }
 
-        with (findNavController().currentBackStackEntry) {
+        with(findNavController().currentBackStackEntry) {
             positionToGoTo = this?.savedStateHandle?.get<Int>(PostViewerFragment.SAVED_STATE_POSITION_KEY)
             this?.savedStateHandle?.remove<Int>(PostViewerFragment.SAVED_STATE_POSITION_KEY)
             positionToGoTo?.let { logcat(LogPriority.INFO) { "Recovered position from PostViewerFragment. positionToGoTo = $it" } }
@@ -67,10 +65,14 @@ class HomeFragment : Fragment() {
 
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
 
+        if (justChangedSubreddits) positionToGoTo = 0
+        logcat(LogPriority.INFO) { "positionToGoTo = $positionToGoTo" }
+
         logcat(LogPriority.INFO) { "postponeEnterTransition()" }
         postponeEnterTransition()
 
-        delayedTransitionTriggerDisposable = Observable.timer(350, TimeUnit.MILLISECONDS)
+        // If, for some reason, the transition doesn't get triggered in time (the image is slow in loading, etc), we force it after a delay.
+        delayedTransitionTriggerDisposable = Observable.timer(500, TimeUnit.MILLISECONDS)
             .observeOn(AndroidSchedulers.mainThread())
             .doOnSubscribe { logcat(LogPriority.INFO) { "Starting delayed enter transition timer." } }
             .subscribe {
@@ -84,8 +86,12 @@ class HomeFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         logcat { "onViewCreated" }
-        val mainActivity = activity as MainActivity
+        setUpRecyclerView()
+    }
 
+    private fun setUpRecyclerView() {
+        logcat { "setUpRecyclerView" }
+        val mainActivity = activity as MainActivity
         binding.apply {
             rvHomePosts.layoutManager = CustomLinearLayoutManager(requireContext(), LinearLayoutManager.VERTICAL)
                 .apply { canScrollHorizontally = false }
@@ -100,7 +106,7 @@ class HomeFragment : Fragment() {
                 rvHomePosts.adapter = PostVerticalRvAdapter(
                     mainActivity,
                     shouldDisableTransformations,
-                    { homeViewModel.getFavoritePosts() }
+                    getFavorites = { homeViewModel.getFavoritePosts() }
                 )
             }
             val postsHomeAdapter = rvHomePosts.adapter as PostVerticalRvAdapter
@@ -114,6 +120,7 @@ class HomeFragment : Fragment() {
                             .filter { loadStates -> loadStates.refresh is LoadState.NotLoading }
                             .take(1)
                             .onEach {
+                                logcat { "loadStateFlow.onEach" }
                                 // If the subreddit feed contains no displayable posts (images etc.), display a textview
                                 if (postsHomeAdapter.itemCount == 1) {   // The 1 is because of the always-present bottom loading indicator
                                     binding.textViewHomeNoMedia.isVisible = true
@@ -123,10 +130,12 @@ class HomeFragment : Fragment() {
                                         logcat(LogPriority.INFO) { "Scrolling to position: $pos" }
                                         rvHomePosts.scrollToPosition(pos)
                                     }
-                                    // This delay stops the flickering after a subreddit change
+
                                     if (justChangedSubreddits) {
+                                        logcat(LogPriority.INFO) { "justChangedSubreddits = true; scrolling to position 0" }
                                         rvHomePosts.scrollToPosition(0)
                                         rvHomePosts.visibility = View.INVISIBLE
+                                        // This delay stops the flickering after a subreddit change
                                         Observable.timer(FLICKERING_DELAY, TimeUnit.MILLISECONDS)
                                             .observeOn(AndroidSchedulers.mainThread())
                                             .subscribe {
@@ -164,12 +173,10 @@ class HomeFragment : Fragment() {
                 }
                 .addTo(disposables)
 
-            srlHome.apply {
-                setOnRefreshListener {
-                    postsHomeAdapter.refresh()
-                    rvHomePosts.scrollToPosition(0)
-                    isRefreshing = false
-                }
+            srlHome.setOnRefreshListener {
+                postsHomeAdapter.refresh()
+                rvHomePosts.scrollToPosition(0)
+                srlHome.isRefreshing = false
             }
 
             postsHomeAdapter.postClickedSubject
@@ -185,7 +192,7 @@ class HomeFragment : Fragment() {
 
             postsHomeAdapter.readyToBeDrawnSubject
                 .observeOn(AndroidSchedulers.mainThread())
-                .filter { it == (positionToGoTo ?: 0) }
+                .filter { if (positionToGoTo != null) it == positionToGoTo else true }
                 .take(1)
                 .doOnNext { logcat(LogPriority.INFO) { "readyToBeDrawnSubject.onNext: pos = $it" } }
                 .subscribe {
@@ -194,6 +201,7 @@ class HomeFragment : Fragment() {
                         .findViewHolderForLayoutPosition(positionToGoTo ?: 0)
                         ?.itemView
                         ?.y
+                        ?.minus(20f)
                         ?: 0f
                     logcat { "Scrolling by y = $toScrollY" }
                     binding.rvHomePosts.scrollBy(0, toScrollY.toInt())
@@ -205,18 +213,20 @@ class HomeFragment : Fragment() {
                     Observable.timer(50, TimeUnit.MILLISECONDS)
                         .observeOn(AndroidSchedulers.mainThread())
                         .subscribe {
-                            val transitionName =
-                                (rvHomePosts.findViewHolderForLayoutPosition(positionToGoTo ?: 0)
-                                        as PostVerticalRvAdapter.PostSubredditViewHolder)
-                                    .binding
-                                    .postImageView
-                                    .transitionName
-                            logcat(LogPriority.INFO) { "Transition name = $transitionName" }
+                            rvHomePosts.findViewHolderForLayoutPosition(positionToGoTo ?: 0)
+                                ?.let { viewHolderAtPosition ->
+                                    val transitionName =
+                                        (viewHolderAtPosition as PostVerticalRvAdapter.PostViewHolder)
+                                            .binding
+                                            .postImageView
+                                            .transitionName
+                                    logcat(LogPriority.INFO) { "Transition name = $transitionName" }
+                                    logcat { "startPostponedEnterTransition()" }
+                                }
                             logcat { "startPostponedEnterTransition()" }
                             startPostponedEnterTransition()
                             logcat { "Disposing of delayedTransitionTriggerDisposable" }
                             delayedTransitionTriggerDisposable.dispose()
-
                             postsHomeAdapter.disableTransformations = false
                         }.addTo(disposables)
                 }.addTo(disposables)
@@ -234,5 +244,11 @@ class HomeFragment : Fragment() {
         logcat { "onDestroyView" }
         super.onDestroyView()
         _binding = null
+    }
+
+    override fun onDestroy() {
+        logcat { "onDestroy" }
+        super.onDestroy()
+        disposables.dispose()
     }
 }

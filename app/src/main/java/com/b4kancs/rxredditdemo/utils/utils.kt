@@ -49,7 +49,7 @@ fun dpToPixel(dp: Int, context: Context): Int = (dp * context.resources.displayM
 
 fun Int.dpToPx(context: Context): Int = dpToPixel(this, context)
 
-fun animateViewLayoutHeightChange(
+fun animateViewHeightChange(
     view: View,
     oldHeight: Int,
     newHeight: Int,
