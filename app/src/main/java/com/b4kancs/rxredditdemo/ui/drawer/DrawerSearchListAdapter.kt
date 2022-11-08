@@ -21,7 +21,7 @@ class DrawerSearchListAdapter(
     searchResultsChangedSubject: Subject<List<Subreddit>>,
     private val onClickCallback: (subreddit: Subreddit) -> Unit,
     private val onActionClickedCallback: (subreddit: Subreddit) -> Subreddit
-) : ArrayAdapter<Subreddit>(c, R.layout.drawer_search_list_item) {
+) : ArrayAdapter<Subreddit>(c, R.layout.list_item_drawer_search) {
 
     val disposables = CompositeDisposable()
     private var subreddits = ArrayList<Subreddit>()
@@ -41,9 +41,9 @@ class DrawerSearchListAdapter(
     @SuppressLint("ViewHolder")
     override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
         val inflater = LayoutInflater.from(c)
-        val container = inflater.inflate(R.layout.drawer_search_list_item, parent, false)
-        val subredditNameTextView: MaterialTextView = container.findViewById(R.id.search_list_item_name_text_view)
-        val actionImageView: ImageView = container.findViewById(R.id.search_list_item_action_image_view)
+        val container = inflater.inflate(R.layout.list_item_drawer_search, parent, false)
+        val subredditNameTextView: MaterialTextView = container.findViewById(R.id.text_view_drawer_list_item_action_search)
+        val actionImageView: ImageView = container.findViewById(R.id.image_view_drawer_list_item_action_search)
 
         val sub: Subreddit = subreddits[position]
         subredditNameTextView.text = sub.address

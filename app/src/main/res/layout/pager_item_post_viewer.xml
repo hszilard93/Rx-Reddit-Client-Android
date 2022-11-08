@@ -1,17 +1,17 @@
 <androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/post_large_scroll_view"
+    android:id="@+id/scroll_view_post_outer"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical">
 
     <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/post_large_item_outer_constraint_layout"
+        android:id="@+id/constraint_post_large_item_outer"
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
         <com.jsibbold.zoomage.ZoomageView
-            android:id="@+id/post_large_item_image_view"
+            android:id="@+id/image_view_post_main_image"
             android:layout_width="0dp"
             android:layout_height="4000dp"
             android:background="?attr/colorImageBackground"
@@ -20,7 +20,7 @@
             app:layout_constraintTop_toTopOf="parent" />
 
         <com.google.android.material.textview.MaterialTextView
-            android:id="@+id/nsfw_tag_text_view"
+            android:id="@+id/text_view_rv_nsfw_tag"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:background="@drawable/sh_rectangle_half_rounded"
@@ -35,7 +35,7 @@
             app:layout_constraintTop_toTopOf="parent" />
 
         <ImageView
-            android:id="@+id/post_large_item_gallery_indicator_image_view"
+            android:id="@+id/image_view_post_main_gallery_indicator"
             android:layout_width="36dp"
             android:layout_height="36dp"
             android:layout_marginRight="4dp"
@@ -43,11 +43,11 @@
             android:alpha="0.7"
             android:src="@drawable/ic_gallery_256"
             android:visibility="invisible"
-            app:layout_constraintBottom_toBottomOf="@id/post_large_item_image_view"
-            app:layout_constraintRight_toLeftOf="@id/post_large_item_gallery_items_text_view" />
+            app:layout_constraintBottom_toBottomOf="@id/image_view_post_main_image"
+            app:layout_constraintRight_toLeftOf="@id/text_view_post_main_gallery_items" />
 
         <com.google.android.material.textview.MaterialTextView
-            android:id="@+id/post_large_item_gallery_items_text_view"
+            android:id="@+id/text_view_post_main_gallery_items"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginRight="8dp"
@@ -57,21 +57,21 @@
             android:textColor="@color/md_theme_light_inversePrimary"
             android:textSize="20sp"
             android:visibility="invisible"
-            app:layout_constraintBottom_toBottomOf="@id/post_large_item_image_view"
-            app:layout_constraintEnd_toEndOf="@id/post_large_item_image_view" />
+            app:layout_constraintBottom_toBottomOf="@id/image_view_post_main_image"
+            app:layout_constraintEnd_toEndOf="@id/image_view_post_main_image" />
 
         <androidx.constraintlayout.widget.ConstraintLayout
-            android:id="@+id/post_large_item_left_hud_constraint_layout"
+            android:id="@+id/constraint_post_main_hud_left"
             android:layout_width="100dp"
             android:layout_height="0dp"
-            android:background="@drawable/sh_gradient_left_hud"
+            android:background="@drawable/sh_hud_gradient_left"
             android:visibility="gone"
-            app:layout_constraintBottom_toBottomOf="@id/post_large_item_image_view"
-            app:layout_constraintStart_toStartOf="@id/post_large_item_image_view"
-            app:layout_constraintTop_toTopOf="@id/post_large_item_image_view">
+            app:layout_constraintBottom_toBottomOf="@id/image_view_post_main_image"
+            app:layout_constraintStart_toStartOf="@id/image_view_post_main_image"
+            app:layout_constraintTop_toTopOf="@id/image_view_post_main_image">
 
             <ImageView
-                android:id="@+id/post_large_item_slideshow_image_view"
+                android:id="@+id/image_view_post_main_hud_left_slideshow"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="24dp"
@@ -82,15 +82,15 @@
                 app:tint="?attr/colorPrimary" />
 
             <androidx.constraintlayout.widget.ConstraintLayout
-                android:id="@+id/post_large_item_slideshow_controls_constraint_layout"
+                android:id="@+id/constraint_post_main_hud_left_slideshow_controls"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/post_large_item_slideshow_image_view">
+                app:layout_constraintTop_toBottomOf="@id/image_view_post_main_hud_left_slideshow">
 
                 <EditText
-                    android:id="@+id/post_large_item_slideshow_delay_edit_text"
+                    android:id="@+id/edit_text_post_main_hud_left_slideshow_delay"
                     android:layout_width="24dp"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="-16dp"
@@ -110,12 +110,12 @@
                     android:checked="false"
                     android:text="s"
                     android:textSize="20sp"
-                    app:layout_constraintBaseline_toBaselineOf="@id/post_large_item_slideshow_delay_edit_text"
-                    app:layout_constraintStart_toEndOf="@id/post_large_item_slideshow_delay_edit_text" />
+                    app:layout_constraintBaseline_toBaselineOf="@id/edit_text_post_main_hud_left_slideshow_delay"
+                    app:layout_constraintStart_toEndOf="@id/edit_text_post_main_hud_left_slideshow_delay" />
             </androidx.constraintlayout.widget.ConstraintLayout>
 
             <ImageView
-                android:id="@+id/post_large_item_previous_image_view"
+                android:id="@+id/image_view_post_main_hud_left_previous"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:src="@drawable/ic_baseline_keyboard_arrow_left_48"
@@ -127,17 +127,17 @@
         </androidx.constraintlayout.widget.ConstraintLayout>
 
         <androidx.constraintlayout.widget.ConstraintLayout
-            android:id="@+id/post_large_item_right_hud_constraint_layout"
+            android:id="@+id/constraint_post_main_hud_right"
             android:layout_width="100dp"
             android:layout_height="0dp"
-            android:background="@drawable/sh_gradient_right_hud"
+            android:background="@drawable/sh_hud_gradient_right"
             android:visibility="gone"
-            app:layout_constraintBottom_toBottomOf="@id/post_large_item_image_view"
-            app:layout_constraintEnd_toEndOf="@id/post_large_item_image_view"
-            app:layout_constraintTop_toTopOf="@id/post_large_item_image_view">
+            app:layout_constraintBottom_toBottomOf="@id/image_view_post_main_image"
+            app:layout_constraintEnd_toEndOf="@id/image_view_post_main_image"
+            app:layout_constraintTop_toTopOf="@id/image_view_post_main_image">
 
             <ImageView
-                android:id="@+id/post_large_item_favorite_image_view"
+                android:id="@+id/image_view_post_main_hud_right_favorite"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="24dp"
@@ -148,7 +148,7 @@
                 app:tint="?attr/colorPrimary" />
 
             <ImageView
-                android:id="@+id/post_large_item_next_image_view"
+                android:id="@+id/image_view_post_main_hud_right_next"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:src="@drawable/ic_baseline_keyboard_arrow_right_60"
@@ -160,15 +160,15 @@
         </androidx.constraintlayout.widget.ConstraintLayout>
 
         <androidx.constraintlayout.widget.ConstraintLayout
-            android:id="@+id/post_large_item_comments_constraint_layout"
+            android:id="@+id/constraint_post_lower"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/post_large_item_image_view">
+            app:layout_constraintTop_toBottomOf="@id/image_view_post_main_image">
 
             <com.google.android.material.textview.MaterialTextView
-                android:id="@+id/post_large_item_title_text_view"
+                android:id="@+id/text_view_post_lower_title"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="16dp"
@@ -184,7 +184,7 @@
                 app:layout_constraintTop_toTopOf="parent" />
 
             <com.google.android.material.textview.MaterialTextView
-                android:id="@+id/post_large_item_date_author_text_view"
+                android:id="@+id/text_view_post_lower_date_author"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="16dp"
@@ -196,33 +196,33 @@
                 android:text="@string/common_date_author_placeholder_text"
                 android:textSize="14sp"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/post_large_item_title_text_view" />
+                app:layout_constraintTop_toBottomOf="@id/text_view_post_lower_title" />
 
             <ImageView
-                android:id="@+id/post_large_item_score_image_view"
+                android:id="@+id/image_view_post_lower_score"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
                 android:paddingStart="12dp"
                 android:src="@drawable/ic_baseline_arrow_drop_up_36"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/post_large_item_date_author_text_view"
+                app:layout_constraintTop_toBottomOf="@id/text_view_post_lower_date_author"
                 app:tint="?attr/colorPrimaryInverse" />
 
             <com.google.android.material.textview.MaterialTextView
-                android:id="@+id/post_large_item_score_text_view"
+                android:id="@+id/text_view_post_lower_score"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:paddingStart="4dp"
                 android:text="1024"
                 android:textSize="14sp"
                 android:textStyle="bold"
-                app:layout_constraintBottom_toBottomOf="@id/post_large_item_score_image_view"
-                app:layout_constraintStart_toEndOf="@id/post_large_item_score_image_view"
-                app:layout_constraintTop_toTopOf="@id/post_large_item_score_image_view" />
+                app:layout_constraintBottom_toBottomOf="@id/image_view_post_lower_score"
+                app:layout_constraintStart_toEndOf="@id/image_view_post_lower_score"
+                app:layout_constraintTop_toTopOf="@id/image_view_post_lower_score" />
 
             <com.google.android.material.textview.MaterialTextView
-                android:id="@+id/post_large_item_comments_text_view"
+                android:id="@+id/text_view_post_lower_comments"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:gravity="end"
@@ -231,30 +231,30 @@
                 android:text="256 comments"
                 android:textSize="14sp"
                 android:textStyle="bold"
-                app:layout_constraintBottom_toBottomOf="@id/post_large_item_score_image_view"
+                app:layout_constraintBottom_toBottomOf="@id/image_view_post_lower_score"
                 app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toEndOf="@id/post_large_item_score_text_view"
-                app:layout_constraintTop_toTopOf="@id/post_large_item_score_image_view" />
+                app:layout_constraintStart_toEndOf="@id/text_view_post_lower_score"
+                app:layout_constraintTop_toTopOf="@id/image_view_post_lower_score" />
 
             <TextView
-                android:id="@+id/post_large_item_placeholder_comment_text_view1"
+                android:id="@+id/text_view_post_lower_comment_placeholder1"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:padding="8dp"
                 android:text="this is a comment placeholder"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/post_large_item_score_image_view" />
+                app:layout_constraintTop_toBottomOf="@id/image_view_post_lower_score" />
 
             <TextView
-                android:id="@+id/placeholder_comment_text_view2"
+                android:id="@+id/text_view_post_lower_comment_placeholder2"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:padding="8dp"
                 android:text="this is another comment placeholder"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/post_large_item_placeholder_comment_text_view1" />
+                app:layout_constraintTop_toBottomOf="@id/text_view_post_lower_comment_placeholder1" />
         </androidx.constraintlayout.widget.ConstraintLayout>
     </androidx.constraintlayout.widget.ConstraintLayout>
 </androidx.core.widget.NestedScrollView>

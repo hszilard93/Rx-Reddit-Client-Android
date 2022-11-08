@@ -7,7 +7,7 @@
     android:orientation="vertical">
 
     <com.google.android.material.textview.MaterialTextView
-        android:id="@+id/option_remove_your_text_view"
+        android:id="@+id/text_view_drawer_popup_option_remove"
         android:layout_width="match_parent"
         android:layout_height="36dp"
         android:fontFamily="sans-serif-light"
@@ -19,14 +19,14 @@
 
 
     <com.google.android.material.divider.MaterialDivider
-        android:id="@+id/option_remove_your_divider"
+        android:id="@+id/divider_drawer_popup_option"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         app:dividerColor="?attr/colorControlHighlight"
         app:dividerThickness="0.1dp" />
 
     <com.google.android.material.textview.MaterialTextView
-        android:id="@+id/option_delete_sub_text_view"
+        android:id="@+id/text_view_drawer_popup_option_delete"
         android:layout_width="match_parent"
         android:layout_height="36dp"
         android:fontFamily="sans-serif-light"
@@ -43,7 +43,7 @@
         app:dividerThickness="0.1dp" />
 
     <com.google.android.material.textview.MaterialTextView
-        android:id="@+id/option_set_default_sub_text_view"
+        android:id="@+id/text_view_drawer_option_set_default"
         android:layout_width="match_parent"
         android:layout_height="36dp"
         android:fontFamily="sans-serif-light"

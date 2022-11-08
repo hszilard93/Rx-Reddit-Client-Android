@@ -27,7 +27,7 @@ class DrawerListAdapter(
     private val onOptionRemoveClickedCallback: (subreddit: Subreddit) -> Unit,
     private val onOptionDeleteClickedCallback: (subreddit: Subreddit) -> Unit,
     private val onMakeDefaultSubClickedCallback: (subreddit: Subreddit) -> Unit
-) : ArrayAdapter<Subreddit>(c, R.layout.drawer_subreddit_list_item) {
+) : ArrayAdapter<Subreddit>(c, R.layout.list_item_drawer_subreddit) {
 
     private val database: SubredditDatabase by inject(SubredditDatabase::class.java)
     private val rxSharedPreferences: RxSharedPreferences by inject(RxSharedPreferences::class.java)
@@ -82,16 +82,16 @@ class DrawerListAdapter(
         val inflater = LayoutInflater.from(c)
         // Let's figure out if the view needs to be a header
         if (position == 0) {
-            val headerViewItem = inflater.inflate(R.layout.drawer_header_list_view_item, parent, false)
-            val headerTextView = headerViewItem.findViewById<MaterialTextView>(R.id.subreddit_header_text_view)
+            val headerViewItem = inflater.inflate(R.layout.list_item_drawer_header, parent, false)
+            val headerTextView = headerViewItem.findViewById<MaterialTextView>(R.id.text_view_drawer_header_title)
             headerTextView.text = context.getString(R.string.drawer_header_your_subreddits)
             return headerViewItem
         }
         if (subreddits
                 .count { it.status != Status.IN_DEFAULTS_LIST || it.status == Status.FAVORITED || it == defaultSubreddit } + 1 == position
         ) {
-            val headerViewItem = inflater.inflate(R.layout.drawer_header_list_view_item, parent, false)
-            val headerTextView = headerViewItem.findViewById<MaterialTextView>(R.id.subreddit_header_text_view)
+            val headerViewItem = inflater.inflate(R.layout.list_item_drawer_header, parent, false)
+            val headerTextView = headerViewItem.findViewById<MaterialTextView>(R.id.text_view_drawer_header_title)
             headerTextView.text = context.getString(R.string.drawer_header_recommended_subreddits)
             return headerViewItem
         }
@@ -107,8 +107,8 @@ class DrawerListAdapter(
 
         val sub = subreddits[pos]
 
-        val listViewItem = inflater.inflate(R.layout.drawer_subreddit_list_item, parent, false)
-        val actionImageView = listViewItem.findViewById<ImageView?>(R.id.subreddit_action_image_view)!!
+        val listViewItem = inflater.inflate(R.layout.list_item_drawer_subreddit, parent, false)
+        val actionImageView = listViewItem.findViewById<ImageView?>(R.id.image_view_drawer_subreddit_action)!!
             .also {
                 when {
                     sub == defaultSubreddit -> {
@@ -126,8 +126,8 @@ class DrawerListAdapter(
                 }
             }
 
-        val subredditTextView: MaterialTextView = listViewItem.findViewById(R.id.subreddit_name_text_view)
-        val optionsImageView: ImageView = listViewItem.findViewById(R.id.subreddit_options_image_view)
+        val subredditTextView: MaterialTextView = listViewItem.findViewById(R.id.text_view_drawer_subreddit_name)
+        val optionsImageView: ImageView = listViewItem.findViewById(R.id.image_view_drawer_subreddit_options)
 
         subredditTextView.text = sub.name
 
@@ -144,7 +144,7 @@ class DrawerListAdapter(
 
         optionsImageView.clicks()
             .subscribe {
-                val popupView = inflater.inflate(R.layout.popup_drawer_options_list, parent, false)
+                val popupView = inflater.inflate(R.layout.popup_drawer_list_options, parent, false)
                 val popupWindow = PopupWindow(
                     popupView,
                     WindowManager.LayoutParams.WRAP_CONTENT,
@@ -152,7 +152,7 @@ class DrawerListAdapter(
                     true
                 )
 
-                val removeFromYourSubsTextView = popupView.findViewById<MaterialTextView>(R.id.option_remove_your_text_view)
+                val removeFromYourSubsTextView = popupView.findViewById<MaterialTextView>(R.id.text_view_drawer_popup_option_remove)
                     .apply {
                         if (sub.status == Status.IN_DEFAULTS_LIST || sub === defaultSubreddit)
                             visibility = View.GONE
@@ -164,7 +164,7 @@ class DrawerListAdapter(
                         }.addTo(disposables)
                     }
 
-                val deleteFromSubredditsTextView = popupView.findViewById<MaterialTextView>(R.id.option_delete_sub_text_view)
+                val deleteFromSubredditsTextView = popupView.findViewById<MaterialTextView>(R.id.text_view_drawer_popup_option_delete)
                     .apply {
                         if (sub === defaultSubreddit)
                             visibility = View.GONE
@@ -176,7 +176,7 @@ class DrawerListAdapter(
                         }.addTo(disposables)
                     }
 
-                val setAsDefaultSubTextView = popupView.findViewById<MaterialTextView>(R.id.option_set_default_sub_text_view)
+                val setAsDefaultSubTextView = popupView.findViewById<MaterialTextView>(R.id.text_view_drawer_option_set_default)
                     .apply {
                         if (sub == defaultSubreddit) {
                             isVisible = false

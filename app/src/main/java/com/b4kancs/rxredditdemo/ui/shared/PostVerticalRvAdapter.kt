@@ -15,9 +15,7 @@ import androidx.paging.PagingDataAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.database.PostFavoritesDbEntry
-import com.b4kancs.rxredditdemo.databinding.AdapterPostLoadingListItemBinding
-import com.b4kancs.rxredditdemo.databinding.RvItemPostSubLandscapeBinding
-import com.b4kancs.rxredditdemo.databinding.RvItemPostSubPortraitBinding
+import com.b4kancs.rxredditdemo.databinding.*
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.ui.PostComparator
 import com.b4kancs.rxredditdemo.utils.*
@@ -65,7 +63,7 @@ class PostVerticalRvAdapter(
 
         logcat { "itemType: $viewType" }
         if (viewType == ITEM_VIEW_TYPE_LOAD) {
-            val view = LayoutInflater.from(parent.context).inflate(R.layout.adapter_post_loading_list_item, parent, false)
+            val view = LayoutInflater.from(parent.context).inflate(R.layout.adapter_common_loading_list_item, parent, false)
             return SmallBottomLoadingIndicatorViewHolder(view).apply { setIsRecyclable(false) }
         }
 
@@ -75,12 +73,12 @@ class PostVerticalRvAdapter(
             when (orientation) {
                 Orientation.PORTRAIT ->
                     RvItemPostSubBindingReplacement.from(
-                        RvItemPostSubPortraitBinding.inflate(LayoutInflater.from(context), parent, false)
+                        RvItemCommonRedditPostPortraitBinding.inflate(LayoutInflater.from(context), parent, false)
                     )
 
                 Orientation.LANDSCAPE ->
                     RvItemPostSubBindingReplacement.from(
-                        RvItemPostSubLandscapeBinding.inflate(LayoutInflater.from(context), parent, false)
+                        RvItemCommonRedditPostLandscapeBinding.inflate(LayoutInflater.from(context), parent, false)
                     )
             }
         postView = bindingReplacement.root
@@ -320,7 +318,7 @@ class PostVerticalRvAdapter(
 
         fun bind() {
             logcat { "SmallBottomLoadingIndicatorViewHolder.bind" }
-            AdapterPostLoadingListItemBinding.bind(view)
+            AdapterCommonLoadingListItemBinding.bind(view)
 
             this@PostVerticalRvAdapter.addLoadStateListener { combinedLoadStates ->
                 logcat(LogPriority.INFO) { "combinedLoadState = ${combinedLoadStates.refresh}, layoutPosition = $layoutPosition" }
@@ -348,34 +346,34 @@ class PostVerticalRvAdapter(
     ) {
         companion object {
 
-            fun from(binding: RvItemPostSubPortraitBinding) =
+            fun from(binding: RvItemCommonRedditPostPortraitBinding) =
                 RvItemPostSubBindingReplacement(
                     binding.root,
-                    binding.postImageView,
-                    binding.titleTextView,
-                    binding.scoreTextView,
-                    binding.galleryIndicatorImageView,
-                    binding.galleryItemsTextView,
-                    binding.favoriteIndicatorImageView,
-                    binding.nsfwTagTextView,
-                    binding.crossPostTextView,
-                    binding.commentsTextView,
-                    binding.dateAuthorTextView
+                    binding.imageViewRvMainImage,
+                    binding.textViewRvTitle,
+                    binding.textViewRvScore,
+                    binding.imageViewRvGalleryIndicator,
+                    binding.textViewRvGalleryItems,
+                    binding.imageViewRvFavoriteIndicator,
+                    binding.textViewRvNsfwTag,
+                    binding.textViewRvCrossPost,
+                    binding.textViewRvComments,
+                    binding.textViewRvDateAuthor
                 )
 
-            fun from(binding: RvItemPostSubLandscapeBinding) =
+            fun from(binding: RvItemCommonRedditPostLandscapeBinding) =
                 RvItemPostSubBindingReplacement(
                     binding.root,
-                    binding.postImageView,
-                    binding.titleTextView,
-                    binding.scoreTextView,
-                    binding.galleryIndicatorImageView,
-                    binding.galleryItemsTextView,
-                    binding.favoriteIndicatorImageView,
-                    binding.nsfwTagTextView,
-                    binding.crossPostTextView,
-                    binding.commentsTextView,
-                    binding.dateAuthorTextView
+                    binding.imageViewRvMainImage,
+                    binding.textViewRvTitle,
+                    binding.textViewRvScore,
+                    binding.imageViewRvGalleryIndicator,
+                    binding.textViewRvGalleryItems,
+                    binding.imageViewRvFavoriteIndicator,
+                    binding.textViewRvNsfwTag,
+                    binding.textViewRvCrossPost,
+                    binding.textViewRvComments,
+                    binding.textViewRvDateAuthor
                 )
         }
     }

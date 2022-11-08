@@ -18,7 +18,7 @@ import androidx.paging.PagingDataAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.database.PostFavoritesDbEntry
-import com.b4kancs.rxredditdemo.databinding.PostViewerListItemBinding
+import com.b4kancs.rxredditdemo.databinding.PagerItemPostViewerBinding
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.ui.PostComparator
 import com.b4kancs.rxredditdemo.utils.*
@@ -98,7 +98,7 @@ class PostViewerAdapter(
                 if (toShow) {
                     logcat(LogPriority.INFO) { "Starting slideshow." }
 
-                    slideshowStartViewHolder.binding.postLargeItemSlideshowImageView.setImageResource(R.drawable.ic_baseline_pause_slideshow_60)
+                    slideshowStartViewHolder.binding.imageViewPostMainHudLeftSlideshow.setImageResource(R.drawable.ic_baseline_pause_slideshow_60)
                     slideshowStartViewHolder.showSlideShowControls()
                     startSlideShow()
 
@@ -108,7 +108,7 @@ class PostViewerAdapter(
                     ).show()
                 } else {
                     logcat(LogPriority.INFO) { "Stopping slideshow." }
-                    slideshowStartViewHolder.binding.postLargeItemSlideshowImageView.setImageResource(R.drawable.ic_baseline_slideshow_60)
+                    slideshowStartViewHolder.binding.imageViewPostMainHudLeftSlideshow.setImageResource(R.drawable.ic_baseline_slideshow_60)
                     slideshowStartViewHolder.hideSlideShowControls()
                     cancelSlideshow()
 
@@ -162,7 +162,7 @@ class PostViewerAdapter(
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PostViewerViewHolder {
         logcat { "onCreateViewHolder" }
         return PostViewerViewHolder(
-            PostViewerListItemBinding.inflate(LayoutInflater.from(context), parent, false)
+            PagerItemPostViewerBinding.inflate(LayoutInflater.from(context), parent, false)
         )
     }
 
@@ -186,8 +186,8 @@ class PostViewerAdapter(
         logcat { "onViewRecycled" }
         holder.hudElements.clear()
         with(holder.binding) {
-            postLargeItemGalleryIndicatorImageView.isVisible = false
-            postLargeItemGalleryItemsTextView.isVisible = false
+            imageViewPostMainGalleryIndicator.isVisible = false
+            textViewPostMainGalleryItems.isVisible = false
         }
         super.onViewRecycled(holder)
     }
@@ -206,7 +206,7 @@ class PostViewerAdapter(
         disposables.dispose()
     }
 
-    inner class PostViewerViewHolder(val binding: PostViewerListItemBinding) : RecyclerView.ViewHolder(binding.root) {
+    inner class PostViewerViewHolder(val binding: PagerItemPostViewerBinding) : RecyclerView.ViewHolder(binding.root) {
 
         val shownSubject = PublishSubject.create<Unit>()
         val noLongerShownSubject = PublishSubject.create<Unit>()
@@ -231,7 +231,7 @@ class PostViewerAdapter(
                         statusBarHeight +
                         if (navBarHeight > 0) 0 else 100
             logcat { "The imageview's height will be set to: $imageViewNewHeight" }
-            binding.postLargeItemImageView.layoutParams.height = imageViewNewHeight
+            binding.imageViewPostMainImage.layoutParams.height = imageViewNewHeight
         }
 
         fun bind(post_: Post) {
@@ -247,20 +247,19 @@ class PostViewerAdapter(
                 setUpSlideshowControls()
                 setUpFavoritesAction()
                 // Always start with the ScrollView scrolled to the top.
-                postLargeScrollView.apply {
-                    doOnLayout {
-                        binding.postLargeScrollView.fling(-20000)
-                    }
+                scrollViewPostOuter.doOnLayout {
+                    scrollViewPostOuter.fling(-20000)
                 }
-                postLargeItemTitleTextView.text = post.title
-                postLargeItemScoreTextView.text = post.score.toString()
-                postLargeItemCommentsTextView.text = "${post.numOfComments} comments"
-                postLargeItemDateAuthorTextView.text = calculateDateAuthorSubredditText(post)
+
+                textViewPostLowerTitle.text = post.title
+                textViewPostLowerScore.text = post.score.toString()
+                textViewPostLowerComments.text = "${post.numOfComments} comments"
+                textViewPostLowerDateAuthor.text = calculateDateAuthorSubredditText(post)
 
                 hudElements.addAll(
                     listOf<View>(
-                        postLargeItemLeftHudConstraintLayout,
-                        postLargeItemRightHudConstraintLayout
+                        constraintPostMainHudLeft,
+                        constraintPostMainHudRight
                     )
                 )
             }
@@ -275,14 +274,14 @@ class PostViewerAdapter(
                     currentLayoutPosition = layoutPosition
 
                     val isSlideshowVisible = slideShowOnOffSubject.value!!
-                    binding.postLargeItemSlideshowImageView.setImageResource(
+                    binding.imageViewPostMainHudLeftSlideshow.setImageResource(
                         if (isSlideshowVisible)
                             R.drawable.ic_baseline_pause_slideshow_60
                         else
                             R.drawable.ic_baseline_slideshow_60
                     )
-                    binding.postLargeItemSlideshowControlsConstraintLayout.isVisible = isSlideshowVisible
-                    binding.postLargeItemSlideshowDelayEditText.setText(slideshowIntervalValueSubject.value!!.toString())
+                    binding.constraintPostMainHudLeftSlideshowControls.isVisible = isSlideshowVisible
+                    binding.editTextPostMainHudLeftSlideshowDelay.setText(slideshowIntervalValueSubject.value!!.toString())
                 }.addTo(disposables)
 
             noLongerShownSubject
@@ -312,7 +311,7 @@ class PostViewerAdapter(
         private fun changeGalleryPosition(position: Int) {
             logcat { "changeGalleryPosition" }
             logcat(LogPriority.INFO) { "New gallery position: $position" }
-            loadImageWithGlide(binding.postLargeItemImageView, post.links!![position], updateExisting = true, toBlur = false)
+            loadImageWithGlide(binding.imageViewPostMainImage, post.links!![position], updateExisting = true, toBlur = false)
             currentGalleryPosition = position
         }
 
@@ -359,12 +358,12 @@ class PostViewerAdapter(
 
         fun showSlideShowControls() {
             logcat { "showSlideShowControls" }
-            animateShowViewAlpha(binding.postLargeItemSlideshowControlsConstraintLayout)
+            animateShowViewAlpha(binding.constraintPostMainHudLeftSlideshowControls)
         }
 
         fun hideSlideShowControls() {
             logcat { "hideSlideShowControls" }
-            animateHideViewAlpha(binding.postLargeItemSlideshowControlsConstraintLayout)
+            animateHideViewAlpha(binding.constraintPostMainHudLeftSlideshowControls)
         }
 
         @SuppressLint("CheckResult", "ClickableViewAccessibility")
@@ -372,10 +371,10 @@ class PostViewerAdapter(
             logcat { "setUpImageViewAndHud" }
             with(binding) {
                 currentGalleryPosition = 0
-                postLargeItemImageView.transitionName = post.links!!.first()
-                nsfwTagTextView.isVisible = post.toBlur
+                imageViewPostMainImage.transitionName = post.links!!.first()
+                textViewRvNsfwTag.isVisible = post.toBlur
 
-                val zoomableImageView = postLargeItemImageView
+                val zoomableImageView = imageViewPostMainImage
                 loadImageWithGlide(zoomableImageView, post.links[0], false, post.toBlur)
 
                 val colorGreyTypedValue = TypedValue()
@@ -392,10 +391,10 @@ class PostViewerAdapter(
                 )
 
                 if (layoutPosition == 0) {
-                    postLargeItemPreviousImageView.setColorFilter(colorGreyTypedValue.data)
+                    imageViewPostMainHudLeftPrevious.setColorFilter(colorGreyTypedValue.data)
                 } else {
-                    postLargeItemPreviousImageView.setColorFilter(colorNormalTypedValue.data)
-                    postLargeItemLeftHudConstraintLayout.clicks()
+                    imageViewPostMainHudLeftPrevious.setColorFilter(colorNormalTypedValue.data)
+                    constraintPostMainHudLeft.clicks()
                         .subscribe {
                             logcat(LogPriority.INFO) { "Left hud clicked, paging left." }
                             positionSubject.onNext(layoutPosition to layoutPosition - 1)
@@ -403,11 +402,10 @@ class PostViewerAdapter(
                 }
 
                 if (layoutPosition == this@PostViewerAdapter.itemCount - 1) {
-                    postLargeItemNextImageView.setColorFilter(colorGreyTypedValue.data)
-                }
-                else {
-                    postLargeItemNextImageView.setColorFilter(colorNormalTypedValue.data)
-                    postLargeItemRightHudConstraintLayout.clicks()
+                    imageViewPostMainHudRightNext.setColorFilter(colorGreyTypedValue.data)
+                } else {
+                    imageViewPostMainHudRightNext.setColorFilter(colorNormalTypedValue.data)
+                    constraintPostMainHudRight.clicks()
                         .subscribe {
                             logcat(LogPriority.INFO) { "Right hud clicked, paging right." }
                             positionSubject.onNext(layoutPosition to layoutPosition + 1)
@@ -424,7 +422,7 @@ class PostViewerAdapter(
                             logcat(LogPriority.INFO) { "Unblurring image." }
                             post.toBlur = false
                             hasAppliedBlur = false
-                            nsfwTagTextView.isVisible = false
+                            textViewRvNsfwTag.isVisible = false
                             loadImageWithGlide(zoomableImageView, post.links[0], true, post.toBlur)
                         } else {
                             logcat { "isHudVisible = $isHudVisible" }
@@ -440,9 +438,9 @@ class PostViewerAdapter(
 
                 // Setup for gallery
                 if (isGallery) {
-                    postLargeItemGalleryIndicatorImageView.visibility = View.VISIBLE
-                    postLargeItemGalleryItemsTextView.visibility = View.VISIBLE
-                    postLargeItemGalleryItemsTextView.text = post.links.size.toString()
+                    imageViewPostMainGalleryIndicator.visibility = View.VISIBLE
+                    textViewPostMainGalleryItems.visibility = View.VISIBLE
+                    textViewPostMainGalleryItems.text = post.links.size.toString()
                 }
 
                 zoomableImageView.setOnTouchListener(object : OnSwipeTouchListener(context) {
@@ -523,7 +521,7 @@ class PostViewerAdapter(
         private fun setUpSlideshowAction() {
             logcat { "setUpSlideShowAction" }
             with(binding) {
-                postLargeItemSlideshowImageView.clicks()
+                imageViewPostMainHudLeftSlideshow.clicks()
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe {
                         logcat(LogPriority.INFO) { "Slideshow button clicked." }
@@ -537,7 +535,7 @@ class PostViewerAdapter(
 
         private fun setUpSlideshowControls() {
             logcat { "setUpSlideShowControls" }
-            binding.postLargeItemSlideshowDelayEditText.also { editText ->
+            binding.editTextPostMainHudLeftSlideshowDelay.also { editText ->
                 editText.focusChanges()
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe { isFocused ->
@@ -571,7 +569,7 @@ class PostViewerAdapter(
 
         private fun setUpFavoritesAction() {
             logcat { "setUpFavoritesAction" }
-            val favView = binding.postLargeItemFavoriteImageView
+            val favView = binding.imageViewPostMainHudRightFavorite
             var isFavorite = false
 
             // Setup

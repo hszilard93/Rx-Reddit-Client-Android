@@ -2,7 +2,7 @@
 
 <androidx.drawerlayout.widget.DrawerLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/drawer_layout"
+    android:id="@+id/drawer_main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:layout_gravity="start"
@@ -18,7 +18,7 @@
             android:layout_height="wrap_content">
 
             <androidx.appcompat.widget.Toolbar
-                android:id="@+id/toolbar"
+                android:id="@+id/toolbar_main"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="?attr/colorOnPrimary"
@@ -28,25 +28,25 @@
         </com.google.android.material.appbar.AppBarLayout>
 
         <androidx.constraintlayout.widget.ConstraintLayout
-            android:id="@+id/constraint_layout"
+            android:id="@+id/constr_main_host"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
             <fragment
-                android:id="@+id/nav_host_fragment_activity_main"
+                android:id="@+id/fragment_main_nav_host"
                 android:name="androidx.navigation.fragment.NavHostFragment"
                 android:layout_width="0dp"
                 android:layout_height="0dp"
                 app:defaultNavHost="true"
-                app:layout_constraintBottom_toTopOf="@id/nav_view"
+                app:layout_constraintBottom_toTopOf="@id/bottom_nav_view_main"
                 app:layout_constraintLeft_toLeftOf="parent"
                 app:layout_constraintRight_toRightOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
                 app:navGraph="@navigation/mobile_navigation" />
 
             <com.google.android.material.bottomnavigation.BottomNavigationView
-                android:id="@+id/nav_view"
+                android:id="@+id/bottom_nav_view_main"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="0dp"
@@ -60,6 +60,7 @@
     </androidx.coordinatorlayout.widget.CoordinatorLayout>
 
     <LinearLayout
+        android:id="@+id/linear_main_drawer_outer"
         android:layout_width="240dp"
         android:layout_height="match_parent"
         android:layout_gravity="start"
@@ -68,6 +69,7 @@
         android:orientation="vertical">
 
         <LinearLayout
+            android:id="@+id/linear_main_drawer_search"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="?attr/colorOnPrimary"
@@ -75,7 +77,7 @@
             android:orientation="vertical">
 
             <com.google.android.material.textview.MaterialTextView
-                android:id="@+id/drawer_title_text_view"
+                android:id="@+id/text_view_drawer_title"
                 android:layout_width="match_parent"
                 android:layout_height="80dp"
                 android:fontFamily="sans-serif-light"
@@ -86,7 +88,7 @@
                 android:textSize="30sp" />
 
             <SearchView
-                android:id="@+id/drawer_search_view"
+                android:id="@+id/search_view_drawer"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="-12dp"
@@ -95,7 +97,7 @@
                 android:queryHint="Add a new subreddit" />
 
             <ListView
-                android:id="@+id/drawer_search_results_list_view"
+                android:id="@+id/list_view_drawer_search_results"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:choiceMode="singleChoice"
@@ -104,10 +106,9 @@
         </LinearLayout>
 
         <ListView
-            android:id="@+id/drawer_list_view"
+            android:id="@+id/list_view_drawer_subreddits"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-
             android:background="?attr/colorMenuBackground"
             android:choiceMode="singleChoice"
             android:divider="?attr/colorControlHighlight"

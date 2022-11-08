@@ -124,7 +124,7 @@ class PostViewerFragment : Fragment() {
         disposables.dispose()
         (activity as MainActivity).apply {
             supportActionBar?.show()
-            findViewById<BottomNavigationView>(R.id.nav_view).isVisible = true
+            findViewById<BottomNavigationView>(R.id.bottom_nav_view_main).isVisible = true
             unlockDrawer()
         }
     }
@@ -241,7 +241,7 @@ class PostViewerFragment : Fragment() {
             val imageTransitionName =
                 visibleViewHolder
                     ?.binding
-                    ?.postLargeItemImageView
+                    ?.imageViewPostMainImage
                     ?.transitionName
             logcat(LogPriority.INFO) { "Transition name = $imageTransitionName" }
             imageTransitionName?.let { (sharedElementReturnTransition as Transition).addTarget(it) }

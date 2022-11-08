@@ -68,39 +68,39 @@ class MainActivity : AppCompatActivity() {
         with(binding) {
             setContentView(root)
 
-            setSupportActionBar(toolbar)
-            ActionBarDrawerToggle(this@MainActivity, drawerLayout, toolbar, R.string.app_name, R.string.app_name)
+            setSupportActionBar(toolbarMain)
+            ActionBarDrawerToggle(this@MainActivity, drawerMain, toolbarMain, R.string.app_name, R.string.app_name)
 
-            val navController = findNavController(R.id.nav_host_fragment_activity_main)
+            val navController = findNavController(R.id.fragment_main_nav_host)
             // Passing each menu ID as a set of Ids because each  menu should be considered as top level destinations.
             val appBarConfiguration = AppBarConfiguration(
                 setOf(
                     R.id.navigation_subreddit, R.id.navigation_favorites, R.id.navigation_subscriptions
                 ),
-                drawerLayout
+                drawerMain
             )
             setupActionBarWithNavController(navController, appBarConfiguration)
-            navView.setupWithNavController(navController)
+            bottomNavViewMain.setupWithNavController(navController)
 
             if (!isActionBarShowing) supportActionBar?.hide()
-            if (!isNavBarShowing) navView.isVisible = false
+            if (!isNavBarShowing) bottomNavViewMain.isVisible = false
 
             setUpSubredditDrawer()
-            setUpDrawerSearchViewAndList()
+            setUpsearchViewDrawerAndList()
 
             selectedSubredditChangedSubject
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe {
                     Observable.timer(300, TimeUnit.MILLISECONDS)
                         .subscribe {
-                            drawerLayout.closeDrawer(GravityCompat.START)
+                            drawerMain.closeDrawer(GravityCompat.START)
                         }
                         .addTo(disposables)
                 }
 
-            drawerLayout.addDrawerListener(object : DrawerLayout.SimpleDrawerListener() {
+            drawerMain.addDrawerListener(object : DrawerLayout.SimpleDrawerListener() {
                 override fun onDrawerClosed(drawerView: View) {
-                    drawerSearchView.setQuery("", true)
+                    searchViewDrawer.setQuery("", true)
                 }
             })
         }
@@ -109,8 +109,8 @@ class MainActivity : AppCompatActivity() {
     override fun onBackPressed() {
         logcat { "onBackPressed" }
 
-        if (binding.drawerLayout.isDrawerOpen(GravityCompat.START))
-            binding.drawerLayout.closeDrawer(GravityCompat.START)
+        if (binding.drawerMain.isDrawerOpen(GravityCompat.START))
+            binding.drawerMain.closeDrawer(GravityCompat.START)
         else
             super.onBackPressed()
     }
@@ -173,11 +173,11 @@ class MainActivity : AppCompatActivity() {
                     .subscribeOn(Schedulers.io())
                     .subscribe()
                     .addTo(disposables)
-                makeSnackBar(binding.drawerListView, null, "${sub.address} is set as the default subreddit!").show()
+                makeSnackBar(binding.listViewDrawerSubreddits, null, "${sub.address} is set as the default subreddit!").show()
             }
         )
 
-        binding.drawerListView.adapter = drawerListAdapter
+        binding.listViewDrawerSubreddits.adapter = drawerListAdapter
 
         subredditsChangedSubject
             .subscribeOn(AndroidSchedulers.mainThread())
@@ -185,12 +185,12 @@ class MainActivity : AppCompatActivity() {
             .addTo(disposables)
     }
 
-    private fun setUpDrawerSearchViewAndList() {
-        logcat { "setUpDrawerSearchViewAndList" }
+    private fun setUpsearchViewDrawerAndList() {
+        logcat { "setUpsearchViewDrawerAndList" }
         var searchResults: List<Subreddit> = emptyList()
         val searchResultsChanged = PublishSubject.create<Unit>()
 
-        binding.drawerSearchView.queryTextChangeEvents()
+        binding.searchViewDrawer.queryTextChangeEvents()
             .observeOn(AndroidSchedulers.mainThread())
             .debounce(250, TimeUnit.MILLISECONDS)
             .map {
@@ -252,7 +252,7 @@ class MainActivity : AppCompatActivity() {
                 val results = searchResults.take(15)
                 searchResultsChangedSubject
                     .onNext(results)
-                binding.drawerSearchResultsListView
+                binding.listViewDrawerSearchResults
             }.addTo(disposables)
 
         val searchListAdapter = DrawerSearchListAdapter(
@@ -266,13 +266,13 @@ class MainActivity : AppCompatActivity() {
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe { subs ->
                 logcat { "searchResultsChanged: ${subs.map { it.name }}" }
-                val listView = binding.drawerSearchResultsListView
+                val listView = binding.listViewDrawerSearchResults
                 val oldHeight = abs(listView.measuredHeight)
                 val newHeight = dpToPixel(40, this) * subs.size
                 animateViewHeightChange(listView, oldHeight, newHeight, 150)
             }.addTo(disposables)
 
-        binding.drawerSearchResultsListView.adapter = searchListAdapter
+        binding.listViewDrawerSearchResults.adapter = searchListAdapter
     }
 
     private fun setUpDefaultSubredditSharedPreferences() {
@@ -299,13 +299,13 @@ class MainActivity : AppCompatActivity() {
 
     fun lockDrawerClosed() {
         logcat { "lockDrawerClosed" }
-        binding.drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
+        binding.drawerMain.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
         setAlternativeNavigationBehaviour()
     }
 
     fun unlockDrawer() {
         logcat { "unlockDrawer" }
-        binding.drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED)
+        binding.drawerMain.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED)
         resetNavigationBehaviour()
     }
 
@@ -319,7 +319,7 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        binding.toolbar.animate()
+        binding.toolbarMain.animate()
             .translationY(actionBar.height * -1f)
             .setDuration(ANIMATION_DURATION_LONG)
             .withEndAction {
@@ -354,7 +354,7 @@ class MainActivity : AppCompatActivity() {
         if (!isActionBarShowing) {
             actionBar.show()
             isActionBarShowing = true
-            binding.toolbar.animate()
+            binding.toolbarMain.animate()
                 .translationY(0f)
                 .setDuration(ANIMATION_DURATION_LONG)
                 .start()
@@ -365,7 +365,7 @@ class MainActivity : AppCompatActivity() {
         logcat { "animateHideBottomNavBar" }
         if (!isNavBarShowing) return
 
-        binding.navView.let {
+        binding.bottomNavViewMain.let {
             it.animate()
                 .translationYBy(it.height.toFloat())
                 .setDuration(ANIMATION_DURATION_LONG)
@@ -380,7 +380,7 @@ class MainActivity : AppCompatActivity() {
             animateViewHeightChange(
                 it,
                 it.height,
-                it.height + binding.navView.height,
+                it.height + binding.bottomNavViewMain.height,
                 ANIMATION_DURATION_LONG,
                 endWithThis = {
                     it.layoutParams.height = ViewGroup.LayoutParams.MATCH_PARENT
@@ -393,7 +393,7 @@ class MainActivity : AppCompatActivity() {
         logcat { "animateShowBottomNavBar" }
         if (isNavBarShowing) return
 
-        binding.navView.let {
+        binding.bottomNavViewMain.let {
             it.isVisible = true
             isNavBarShowing = true
             it.animate()
@@ -405,12 +405,12 @@ class MainActivity : AppCompatActivity() {
 
     private fun setAlternativeNavigationBehaviour() {
         logcat { "hideNavigationIcon" }
-        binding.toolbar.navigationIcon = ResourcesCompat.getDrawable(resources, R.drawable.ic_baseline_arrow_back_24, theme)
-        binding.toolbar.setNavigationOnClickListener { onBackPressed() }
+        binding.toolbarMain.navigationIcon = ResourcesCompat.getDrawable(resources, R.drawable.ic_baseline_arrow_back_24, theme)
+        binding.toolbarMain.setNavigationOnClickListener { onBackPressed() }
     }
 
     private fun resetNavigationBehaviour() {
         logcat { "hideNavigationIcon" }
-        binding.toolbar.setNavigationOnClickListener { binding.drawerLayout.open() }
+        binding.toolbarMain.setNavigationOnClickListener { binding.drawerMain.open() }
     }
 }
