@@ -103,8 +103,6 @@ class FavoritesFragment : Fragment() {
             }
             val postsFavoritesAdapter = rvFavoritesPosts.adapter as PostVerticalRvAdapter
 
-            postsFavoritesAdapter.refresh()
-
             favoritesViewModel.cachedPagingObservable
                 .subscribe { pagingData ->
                     try {
@@ -204,6 +202,8 @@ class FavoritesFragment : Fragment() {
                 postsFavoritesAdapter.refresh()
                 srlFavorites.isRefreshing = false
             }
+
+            postsFavoritesAdapter.refresh()
         }
     }
 
