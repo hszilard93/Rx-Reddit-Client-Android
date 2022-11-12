@@ -1,4 +1,4 @@
-package com.b4kancs.rxredditdemo.utils
+package com.b4kancs.rxredditdemo.ui.uiutils
 
 import android.annotation.SuppressLint
 import android.content.Context

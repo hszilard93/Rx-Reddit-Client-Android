@@ -29,6 +29,8 @@
         <item name="colorSurfaceInverse">@color/md_theme_dark_inverseSurface</item>
         <item name="colorPrimaryInverse">@color/md_theme_dark_inversePrimary</item>
         <item name="android:editTextColor">@color/md_theme_dark_tertiary</item>
+        <item name="android:textColor">@color/md_theme_dark_tertiary</item> <!-- Color of the text in the actions menu -->
+        <item name="actionMenuTextColor">@color/md_theme_dark_tertiary</item>
         <item name="colorImageBackground">@color/md_theme_dark_inverseOnSurface</item>
         <item name="colorMenuBackground">@color/md_theme_dark_surface</item>
         <item name="colorHomeBackground">@color/md_theme_dark_surface</item>

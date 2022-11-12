@@ -1,12 +1,14 @@
-package com.b4kancs.rxredditdemo.ui
+package com.b4kancs.rxredditdemo.ui.main
 
 import android.os.Bundle
+import android.view.Menu
 import android.view.View
 import android.view.ViewGroup
 import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.GravityCompat
+import androidx.core.view.MenuCompat
 import androidx.core.view.isVisible
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.navigation.findNavController
@@ -14,14 +16,15 @@ import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.navigation.ui.setupWithNavController
 import com.b4kancs.rxredditdemo.R
-import com.b4kancs.rxredditdemo.database.SubredditDatabase
 import com.b4kancs.rxredditdemo.databinding.ActivityMainBinding
 import com.b4kancs.rxredditdemo.model.Subreddit
 import com.b4kancs.rxredditdemo.pagination.RedditJsonPagingSource
 import com.b4kancs.rxredditdemo.ui.drawer.DrawerListAdapter
 import com.b4kancs.rxredditdemo.ui.drawer.DrawerSearchListAdapter
+import com.b4kancs.rxredditdemo.ui.uiutils.ANIMATION_DURATION_LONG
+import com.b4kancs.rxredditdemo.ui.uiutils.animateViewHeightChange
+import com.b4kancs.rxredditdemo.ui.uiutils.dpToPixel
 import com.b4kancs.rxredditdemo.utils.*
-import com.f2prateek.rx.preferences2.RxSharedPreferences
 import com.jakewharton.rxbinding4.widget.queryTextChangeEvents
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Observable
@@ -32,7 +35,7 @@ import io.reactivex.rxjava3.schedulers.Schedulers
 import io.reactivex.rxjava3.subjects.PublishSubject
 import logcat.LogPriority
 import logcat.logcat
-import org.koin.android.ext.android.inject
+import org.koin.androidx.viewmodel.ext.android.viewModel
 import java.util.concurrent.TimeUnit
 import kotlin.math.abs
 
@@ -43,12 +46,9 @@ class MainActivity : AppCompatActivity() {
         private const val IS_NAV_BAR_SHOWING_KEY = "isNavBarShowing"
     }
 
-    val selectedSubredditChangedSubject: PublishSubject<Subreddit> = PublishSubject.create()
-    private val subredditsChangedSubject: PublishSubject<Unit> = PublishSubject.create()
-    private val subredditDatabase: SubredditDatabase by inject()
-    private val rxSharedPreferences: RxSharedPreferences by inject()
+    val viewModel: MainViewModel by viewModel()
     private val disposables = CompositeDisposable()
-    private val searchResultsChangedSubject = PublishSubject.create<List<Subreddit>>()
+    var menu: Menu? = null
     private var isActionBarShowing = true   // The ActionBar's isShowing method didn't return the correct answer
     private var isNavBarShowing = true
     private lateinit var binding: ActivityMainBinding
@@ -63,7 +63,6 @@ class MainActivity : AppCompatActivity() {
             isNavBarShowing = it.getBoolean(IS_NAV_BAR_SHOWING_KEY)
         }
 
-        setUpDefaultSubredditSharedPreferences()
         binding = ActivityMainBinding.inflate(layoutInflater)
         with(binding) {
             setContentView(root)
@@ -86,9 +85,9 @@ class MainActivity : AppCompatActivity() {
             if (!isNavBarShowing) bottomNavViewMain.isVisible = false
 
             setUpSubredditDrawer()
-            setUpsearchViewDrawerAndList()
+            setupSearchViewDrawerAndList()
 
-            selectedSubredditChangedSubject
+            viewModel.selectedSubredditChangedSubject
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe {
                     Observable.timer(300, TimeUnit.MILLISECONDS)
@@ -96,7 +95,7 @@ class MainActivity : AppCompatActivity() {
                             drawerMain.closeDrawer(GravityCompat.START)
                         }
                         .addTo(disposables)
-                }
+                }.addTo(disposables)
 
             drawerMain.addDrawerListener(object : DrawerLayout.SimpleDrawerListener() {
                 override fun onDrawerClosed(drawerView: View) {
@@ -104,6 +103,13 @@ class MainActivity : AppCompatActivity() {
                 }
             })
         }
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        menuInflater.inflate(R.menu.menu_toolbar_options, menu)
+        MenuCompat.setGroupDividerEnabled(menu!!, true)
+        this.menu = menu
+        return true
     }
 
     override fun onBackPressed() {
@@ -125,68 +131,25 @@ class MainActivity : AppCompatActivity() {
 
     private val genericOnClickCallback: (Subreddit) -> Unit = { sub ->
         logcat { "genericOnClickedCallback: ${sub.name}" }
-        selectedSubredditChangedSubject.onNext(sub)
-    }
-
-    private val genericOnActionClickedCallback: (Subreddit) -> Subreddit = { sub ->
-        logcat { "genericOnActionClickedCallback: ${sub.name}" }
-        val newStatus = when (sub.status) {
-            Subreddit.Status.NOT_IN_DB -> Subreddit.Status.IN_USER_LIST
-            Subreddit.Status.IN_DEFAULTS_LIST -> Subreddit.Status.IN_USER_LIST
-            Subreddit.Status.IN_USER_LIST -> Subreddit.Status.FAVORITED
-            Subreddit.Status.FAVORITED -> Subreddit.Status.IN_USER_LIST
-        }
-        val newSub = Subreddit(sub.name, sub.address, newStatus, sub.nsfw)
-
-        subredditDatabase.subredditDao().insertSubreddit(newSub)
-            .subscribeOn(Schedulers.io())
-            .subscribe()
-            .addTo(disposables)
-        subredditsChangedSubject.onNext(Unit)
-        newSub
     }
 
     private fun setUpSubredditDrawer() {
         logcat { "setUpSubredditDrawer" }
         drawerListAdapter = DrawerListAdapter(
             this,
-            onClickCallback = genericOnClickCallback,
-            onActionClickedCallback = genericOnActionClickedCallback,
-            onOptionRemoveClickedCallback = { sub ->
-                val newSub = Subreddit(sub.name, sub.address, Subreddit.Status.IN_DEFAULTS_LIST)
-                subredditDatabase.subredditDao().insertSubreddit(newSub)
-                    .subscribeOn(Schedulers.io())
-                    .subscribe()
-                    .addTo(disposables)
-            },
-            onOptionDeleteClickedCallback = { sub ->
-                subredditDatabase.subredditDao().deleteSubreddit(sub)
-                    .subscribeOn(Schedulers.io())
-                    .subscribe()
-                    .addTo(disposables)
-            },
-            onMakeDefaultSubClickedCallback = { sub ->
-                rxSharedPreferences
-                    .getString(RedditJsonPagingSource.DEFAULT_SUBREDDIT_PREFERENCE_KEY)
-                    .set(sub.address)
-                subredditDatabase.subredditDao().insertSubreddit(sub)
-                    .subscribeOn(Schedulers.io())
-                    .subscribe()
-                    .addTo(disposables)
-                makeSnackBar(binding.listViewDrawerSubreddits, null, "${sub.address} is set as the default subreddit!").show()
-            }
+            viewModel
         )
 
         binding.listViewDrawerSubreddits.adapter = drawerListAdapter
 
-        subredditsChangedSubject
-            .subscribeOn(AndroidSchedulers.mainThread())
+        viewModel.subredditsChangedSubject
+            .observeOn(AndroidSchedulers.mainThread())
             .subscribe { drawerListAdapter.notifyDataSetChanged() }
             .addTo(disposables)
     }
 
-    private fun setUpsearchViewDrawerAndList() {
-        logcat { "setUpsearchViewDrawerAndList" }
+    private fun setupSearchViewDrawerAndList() {
+        logcat { "setupSearchViewDrawerAndList" }
         var searchResults: List<Subreddit> = emptyList()
         val searchResultsChanged = PublishSubject.create<Unit>()
 
@@ -205,12 +168,13 @@ class MainActivity : AppCompatActivity() {
             }
             .subscribe { (keyword, isSubmitted) ->
                 logcat { "queryTextChangeEvents.subscribe: keyword $keyword isSubmitted $isSubmitted" }
+                // If isSubmitted is true, it means that the Search button was clicked. In this case, we should go straight to the subreddit entered.
                 if (isSubmitted) {
-                    val subInDb = subredditDatabase.subredditDao().getSubreddits().blockingGet().firstOrNull { it.name == keyword }
+                    val subInDb = viewModel.getSubredditFromDbByName(keyword).blockingGet()
                     if (subInDb != null) {
-                        selectedSubredditChangedSubject.onNext(subInDb)
+                        viewModel.selectedSubredditChangedSubject.onNext(subInDb)
                     } else {
-                        selectedSubredditChangedSubject.onNext(
+                        viewModel.selectedSubredditChangedSubject.onNext(
                             Subreddit(
                                 keyword,
                                 "r/$keyword",
@@ -218,24 +182,25 @@ class MainActivity : AppCompatActivity() {
                             )
                         )
                     }
-                } else {
+                }
+                // Otherwise, show the query search results in a list.
+                else {
                     if (keyword.isEmpty()) {
                         searchResults = emptyList()
                         searchResultsChanged.onNext(Unit)
                     } else {
-                        val dbResultSingle = subredditDatabase.subredditDao().getSubredditsByNameLike("%${keyword}%")
+                        val dbResultObservable = viewModel.getSubredditsFromDbByNameLike(keyword)
                             .toObservable()
-                            .subscribeOn(Schedulers.io())
-                        val nwResultSingle = RedditJsonPagingSource.getSubredditsByKeyword(keyword)
+
+                        val nwResultObservable = viewModel.getSubredditsFromNetworkByNameLike(keyword)
                             .toObservable()
-                            .subscribeOn(Schedulers.io())
-                            .doOnError { logcat(LogPriority.ERROR) { "Did not receive network response for query: $keyword" } }
+                            .doOnError { logcat(LogPriority.ERROR) { "Did not receive a network response for query: $keyword" } }
                             .onErrorComplete()
                             .startWith(Single.just(emptyList()))
 
                         Observable.combineLatest(
-                            dbResultSingle,
-                            nwResultSingle
+                            dbResultObservable,
+                            nwResultObservable
                         ) { a: List<Subreddit>, b: List<Subreddit> -> a + b }
                             .subscribe { subs ->
                                 subs.distinctBy { it.address.lowercase() }.let { distinctSubs ->
@@ -246,23 +211,27 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
             }
+            .addTo(disposables)
 
         searchResultsChanged
             .subscribe {
                 val results = searchResults.take(15)
-                searchResultsChangedSubject
+                viewModel.searchResultsChangedSubject
                     .onNext(results)
                 binding.listViewDrawerSearchResults
             }.addTo(disposables)
 
         val searchListAdapter = DrawerSearchListAdapter(
             this,
-            searchResultsChangedSubject,
-            onClickCallback = genericOnClickCallback,
-            onActionClickedCallback = genericOnActionClickedCallback
+            viewModel
         )
 
-        searchResultsChangedSubject
+        viewModel.subredditsChangedSubject
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe { searchListAdapter.notifyDataSetChanged() }
+            .addTo(disposables)
+
+        viewModel.searchResultsChangedSubject
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe { subs ->
                 logcat { "searchResultsChanged: ${subs.map { it.name }}" }
@@ -270,31 +239,10 @@ class MainActivity : AppCompatActivity() {
                 val oldHeight = abs(listView.measuredHeight)
                 val newHeight = dpToPixel(40, this) * subs.size
                 animateViewHeightChange(listView, oldHeight, newHeight, 150)
-            }.addTo(disposables)
-
-        binding.listViewDrawerSearchResults.adapter = searchListAdapter
-    }
-
-    private fun setUpDefaultSubredditSharedPreferences() {
-        logcat { "setUpDefaultSubredditSharedPreferences" }
-
-        val defaultSubredditPreference = rxSharedPreferences.getString(
-            RedditJsonPagingSource.DEFAULT_SUBREDDIT_PREFERENCE_KEY,
-            RedditJsonPagingSource.defaultSubreddit.address
-        )
-
-        defaultSubredditPreference.asObservable().toV3Observable()
-            .subscribe { address ->
-                try {
-                    RedditJsonPagingSource.defaultSubreddit = subredditDatabase.subredditDao().getSubredditByAddress(address)
-                        .subscribeOn(Schedulers.io())
-                        .blockingGet()
-                    logcat { "$address is made the default subreddit!" }
-                } catch (e: Exception) {
-                    logcat(LogPriority.ERROR) { "Could not get subreddit by address $address from database." }
-                }
             }
             .addTo(disposables)
+
+        binding.listViewDrawerSearchResults.adapter = searchListAdapter
     }
 
     fun lockDrawerClosed() {

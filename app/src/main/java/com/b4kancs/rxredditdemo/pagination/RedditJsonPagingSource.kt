@@ -18,9 +18,6 @@ class RedditJsonPagingSource(val subreddit: String) : RxPagingSource<String, Pos
     companion object RedditJsonClient {
         const val FEED_URL = "https://www.reddit.com"
         const val PAGE_SIZE = 50
-        const val DEFAULT_SUBREDDIT_PREFERENCE_KEY = "default_subreddit"
-        const val DEFAULT_SUBREDDIT_PREFERENCE_VALUE = "user/kjoneslol/m/sfwpornnetwork"
-        var defaultSubreddit = Subreddit("SFWPornNetwork", "user/kjoneslol/m/sfwpornnetwork", Subreddit.Status.FAVORITED)
 
         private val service: RedditJsonService by inject(RedditJsonService::class.java)
 

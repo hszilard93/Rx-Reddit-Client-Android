@@ -9,6 +9,7 @@ import android.widget.ArrayAdapter
 import android.widget.ImageView
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.model.Subreddit
+import com.b4kancs.rxredditdemo.ui.main.MainViewModel
 import com.google.android.material.textview.MaterialTextView
 import com.jakewharton.rxbinding4.view.clicks
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
@@ -18,16 +19,14 @@ import io.reactivex.rxjava3.subjects.Subject
 
 class DrawerSearchListAdapter(
     private val c: Context,
-    searchResultsChangedSubject: Subject<List<Subreddit>>,
-    private val onClickCallback: (subreddit: Subreddit) -> Unit,
-    private val onActionClickedCallback: (subreddit: Subreddit) -> Subreddit
+    private val viewModel: MainViewModel
 ) : ArrayAdapter<Subreddit>(c, R.layout.list_item_drawer_search) {
 
     val disposables = CompositeDisposable()
     private var subreddits = ArrayList<Subreddit>()
 
     init {
-        searchResultsChangedSubject
+        viewModel.searchResultsChangedSubject
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe {
                 subreddits = ArrayList()
@@ -48,7 +47,7 @@ class DrawerSearchListAdapter(
         val sub: Subreddit = subreddits[position]
         subredditNameTextView.text = sub.address
         subredditNameTextView.clicks()
-            .subscribe { onClickCallback(sub) }
+            .subscribe { viewModel.selectedSubredditChangedSubject.onNext(sub) }
             .addTo(disposables)
 
         if (sub.status == Subreddit.Status.FAVORITED)
@@ -58,7 +57,7 @@ class DrawerSearchListAdapter(
 
         actionImageView.clicks()
             .subscribe {
-                val newSub = onActionClickedCallback(sub)
+                val newSub = viewModel.handleActionOnSubredditInDrawer(sub)
                 subreddits[subreddits.indexOf(sub)] = newSub
                 notifyDataSetChanged()
             }

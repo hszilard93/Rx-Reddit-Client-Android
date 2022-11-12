@@ -10,12 +10,11 @@ import androidx.navigation.fragment.FragmentNavigatorExtras
 import androidx.navigation.fragment.findNavController
 import androidx.paging.LoadState
 import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
 import com.b4kancs.rxredditdemo.databinding.FragmentFavoritesBinding
-import com.b4kancs.rxredditdemo.ui.MainActivity
+import com.b4kancs.rxredditdemo.ui.main.MainActivity
 import com.b4kancs.rxredditdemo.ui.postviewer.PostViewerFragment
 import com.b4kancs.rxredditdemo.ui.shared.PostVerticalRvAdapter
-import com.b4kancs.rxredditdemo.utils.CustomLinearLayoutManager
+import com.b4kancs.rxredditdemo.ui.uiutils.CustomLinearLayoutManager
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.CompositeDisposable

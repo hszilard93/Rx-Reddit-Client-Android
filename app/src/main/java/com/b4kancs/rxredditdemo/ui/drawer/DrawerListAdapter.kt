@@ -8,10 +8,13 @@ import android.widget.PopupWindow
 import androidx.core.view.isVisible
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.database.SubredditDatabase
+import com.b4kancs.rxredditdemo.model.DefaultSubredditObject
 import com.b4kancs.rxredditdemo.model.Subreddit
 import com.b4kancs.rxredditdemo.model.Subreddit.Status
 import com.b4kancs.rxredditdemo.pagination.RedditJsonPagingSource
-import com.b4kancs.rxredditdemo.utils.dpToPixel
+import com.b4kancs.rxredditdemo.ui.main.MainViewModel
+import com.b4kancs.rxredditdemo.ui.uiutils.dpToPixel
+import com.b4kancs.rxredditdemo.ui.uiutils.makeSnackBar
 import com.f2prateek.rx.preferences2.RxSharedPreferences
 import com.google.android.material.textview.MaterialTextView
 import com.jakewharton.rxbinding4.view.clicks
@@ -22,11 +25,7 @@ import org.koin.java.KoinJavaComponent.inject
 
 class DrawerListAdapter(
     private val c: Context,
-    private val onClickCallback: (subreddit: Subreddit) -> Unit,
-    private val onActionClickedCallback: (subreddit: Subreddit) -> Subreddit,
-    private val onOptionRemoveClickedCallback: (subreddit: Subreddit) -> Unit,
-    private val onOptionDeleteClickedCallback: (subreddit: Subreddit) -> Unit,
-    private val onMakeDefaultSubClickedCallback: (subreddit: Subreddit) -> Unit
+    private val viewModel: MainViewModel
 ) : ArrayAdapter<Subreddit>(c, R.layout.list_item_drawer_subreddit) {
 
     private val database: SubredditDatabase by inject(SubredditDatabase::class.java)
@@ -52,12 +51,12 @@ class DrawerListAdapter(
 
     private fun setUpInitialState() {
         val homeSubredditAddress = rxSharedPreferences.getString(
-            RedditJsonPagingSource.DEFAULT_SUBREDDIT_PREFERENCE_KEY,
-            RedditJsonPagingSource.DEFAULT_SUBREDDIT_PREFERENCE_VALUE
+            DefaultSubredditObject.DEFAULT_SUBREDDIT_PREFERENCE_KEY,
+            DefaultSubredditObject.DEFAULT_SUBREDDIT_PREFERENCE_VALUE
         ).get()
         defaultSubreddit = database.subredditDao().getSubredditByAddress(homeSubredditAddress)
             .subscribeOn(Schedulers.io())
-            .onErrorResumeWith { RedditJsonPagingSource.defaultSubreddit }
+            .onErrorResumeWith { DefaultSubredditObject.defaultSubreddit }
             .blockingGet()
 
         subreddits = database.subredditDao().getSubreddits()
@@ -132,12 +131,21 @@ class DrawerListAdapter(
         subredditTextView.text = sub.name
 
         subredditTextView.clicks()
-            .subscribe { onClickCallback(sub) }
+            .subscribe {
+                viewModel.selectedSubredditChangedSubject.onNext(sub)
+            }
             .addTo(disposables)
 
         actionImageView.clicks()
             .subscribe {
-                onActionClickedCallback(sub)
+                val newStatus = when (sub.status) {
+                    Subreddit.Status.NOT_IN_DB -> Subreddit.Status.IN_USER_LIST
+                    Subreddit.Status.IN_DEFAULTS_LIST -> Subreddit.Status.IN_USER_LIST
+                    Subreddit.Status.IN_USER_LIST -> Subreddit.Status.FAVORITED
+                    Subreddit.Status.FAVORITED -> Subreddit.Status.IN_USER_LIST
+                }
+                val newSub = Subreddit(sub.name, sub.address, newStatus, sub.nsfw)
+                viewModel.saveSubredditToDb(newSub)
                 notifyDataSetChanged()
             }
             .addTo(disposables)
@@ -154,11 +162,14 @@ class DrawerListAdapter(
 
                 val removeFromYourSubsTextView = popupView.findViewById<MaterialTextView>(R.id.text_view_drawer_popup_option_remove)
                     .apply {
-                        if (sub.status == Status.IN_DEFAULTS_LIST || sub === defaultSubreddit)
-                            visibility = View.GONE
+                        if (sub.status == Status.IN_DEFAULTS_LIST || sub === defaultSubreddit) {
+                            isVisible = false
+                            return@apply
+                        }
 
                         clicks().subscribe {
-                            onOptionRemoveClickedCallback(sub)
+                            val newSub = Subreddit(sub.name, sub.address, Status.IN_DEFAULTS_LIST)
+                            viewModel.saveSubredditToDb(newSub)
                             notifyDataSetChanged()
                             popupWindow.dismiss()
                         }.addTo(disposables)
@@ -166,11 +177,13 @@ class DrawerListAdapter(
 
                 val deleteFromSubredditsTextView = popupView.findViewById<MaterialTextView>(R.id.text_view_drawer_popup_option_delete)
                     .apply {
-                        if (sub === defaultSubreddit)
-                            visibility = View.GONE
+                        if (sub === defaultSubreddit) {
+                            isVisible = false
+                            return@apply
+                        }
 
                         clicks().subscribe {
-                            onOptionDeleteClickedCallback(sub)
+                            viewModel.removeSubredditFromDb(sub)
                             notifyDataSetChanged()
                             popupWindow.dismiss()
                         }.addTo(disposables)
@@ -184,7 +197,10 @@ class DrawerListAdapter(
                         }
                         clicks().subscribe {
                             defaultSubreddit = Subreddit(sub.name, sub.address, Status.FAVORITED)
-                            onMakeDefaultSubClickedCallback(defaultSubreddit)
+                            viewModel.makeThisTheDefaultSub(defaultSubreddit)
+                            viewModel.saveSubredditToDb(defaultSubreddit)
+
+                            makeSnackBar(parent, null, "${sub.address} is set as the default subreddit!").show()
                             notifyDataSetChanged()
                             popupWindow.dismiss()
                         }.addTo(disposables)

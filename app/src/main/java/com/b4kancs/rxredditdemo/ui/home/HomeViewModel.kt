@@ -11,6 +11,7 @@ import androidx.paging.rxjava3.cachedIn
 import androidx.paging.rxjava3.observable
 import com.b4kancs.rxredditdemo.database.FavoritesDatabase
 import com.b4kancs.rxredditdemo.database.PostFavoritesDbEntry
+import com.b4kancs.rxredditdemo.model.DefaultSubredditObject
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.model.Subreddit
 import com.b4kancs.rxredditdemo.pagination.RedditJsonPagingSource
@@ -32,7 +33,7 @@ class HomeViewModel : ViewModel(), PostPagingDataObservableProvider {
 //    val text: LiveData<String> = _text
 
     private val favoritesDatabase: FavoritesDatabase by inject(FavoritesDatabase::class.java)
-    private val subredditLiveData = MutableLiveData(RedditJsonPagingSource.defaultSubreddit)
+    private val subredditLiveData = MutableLiveData(DefaultSubredditObject.defaultSubreddit)
     private val _subredditNameLiveData = MutableLiveData(subredditLiveData.value?.name!!)
     val subredditNameLiveData: LiveData<String> = _subredditNameLiveData
     val cachedPagingObservable: Observable<PagingData<Post>>

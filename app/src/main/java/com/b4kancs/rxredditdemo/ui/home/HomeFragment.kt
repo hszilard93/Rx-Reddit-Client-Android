@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.view.children
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.observe
@@ -11,11 +12,12 @@ import androidx.navigation.fragment.FragmentNavigatorExtras
 import androidx.navigation.fragment.findNavController
 import androidx.paging.LoadState
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.databinding.FragmentHomeBinding
-import com.b4kancs.rxredditdemo.ui.MainActivity
+import com.b4kancs.rxredditdemo.ui.main.MainActivity
 import com.b4kancs.rxredditdemo.ui.postviewer.PostViewerFragment
 import com.b4kancs.rxredditdemo.ui.shared.PostVerticalRvAdapter
-import com.b4kancs.rxredditdemo.utils.CustomLinearLayoutManager
+import com.b4kancs.rxredditdemo.ui.uiutils.CustomLinearLayoutManager
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.CompositeDisposable
@@ -39,7 +41,6 @@ class HomeFragment : Fragment() {
     private val disposables = CompositeDisposable()
     private var positionToGoTo: Int? = null
     private var justChangedSubreddits = false
-    private var isBeingReconstructed = false
     private lateinit var delayedTransitionTriggerDisposable: Disposable
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
@@ -87,6 +88,7 @@ class HomeFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         logcat { "onViewCreated" }
         setUpRecyclerView()
+        setUpOptionsMenu()
     }
 
     private fun setUpRecyclerView() {
@@ -161,7 +163,7 @@ class HomeFragment : Fragment() {
                 mainActivity.supportActionBar?.title = subredditName
             }
 
-            mainActivity.selectedSubredditChangedSubject
+            mainActivity.viewModel.selectedSubredditChangedSubject
                 .debounce(1, TimeUnit.SECONDS)
                 .observeOn(AndroidSchedulers.mainThread())
                 .doOnNext { logcat(LogPriority.INFO) { "selectedSubredditChangedSubject.doOnNext: ${it.name}" } }
@@ -230,6 +232,28 @@ class HomeFragment : Fragment() {
                             postsHomeAdapter.disableTransformations = false
                         }.addTo(disposables)
                 }.addTo(disposables)
+        }
+    }
+
+    private fun setUpOptionsMenu() {
+        val menu = (activity as MainActivity).menu
+        if (menu != null) {
+            val menuItems = menu.children
+            for (item in menuItems) {
+                when (item.groupId) {
+                    R.id.menu_group_toolbar_subreddit_actions -> item.isVisible = true
+                    R.id.menu_group_toolbar_app_actions -> item.isVisible = true
+                    else -> item.isVisible = false
+                }
+            }
+        }
+        else {
+            // It takes some time for the menu to become inflated, so we try again a bit later.
+            Observable.timer(200, TimeUnit.MILLISECONDS)
+                .doOnSubscribe { logcat { "Waiting for the options menu to become available." } }
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe { setUpOptionsMenu() }
+                .addTo(disposables)
         }
     }
 

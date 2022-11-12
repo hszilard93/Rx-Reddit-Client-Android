@@ -9,6 +9,7 @@ import com.b4kancs.rxredditdemo.pagination.RedditJsonPagingSource
 import com.b4kancs.rxredditdemo.networking.RedditJsonService
 import com.b4kancs.rxredditdemo.ui.favorites.FavoritesViewModel
 import com.b4kancs.rxredditdemo.ui.home.HomeViewModel
+import com.b4kancs.rxredditdemo.ui.main.MainViewModel
 import com.b4kancs.rxredditdemo.ui.postviewer.PostViewerViewModel
 import com.f2prateek.rx.preferences2.RxSharedPreferences
 import com.google.gson.FieldNamingPolicy
@@ -45,6 +46,10 @@ class App : Application() {
         single {
             logcat { "Koin providing Single RxSharedPreferences instant." }
             RxSharedPreferences.create(PreferenceManager.getDefaultSharedPreferences(this@App))
+        }
+        viewModel {
+            logcat { "Koin providing ViewModel MainViewModel instant." }
+            MainViewModel()
         }
         viewModel {
             logcat { "Koin providing ViewModel HomeViewModel instant." }
