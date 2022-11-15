@@ -15,7 +15,8 @@ import com.jakewharton.rxbinding4.view.clicks
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.addTo
-import io.reactivex.rxjava3.subjects.Subject
+import logcat.LogPriority
+import logcat.logcat
 
 class DrawerSearchListAdapter(
     private val c: Context,
@@ -26,11 +27,13 @@ class DrawerSearchListAdapter(
     private var subreddits = ArrayList<Subreddit>()
 
     init {
+        logcat { "init" }
         viewModel.searchResultsChangedSubject
             .observeOn(AndroidSchedulers.mainThread())
-            .subscribe {
+            .subscribe { searchResults ->
+                logcat(LogPriority.INFO) { "New searchresults: size = ${searchResults.size}; items = ${searchResults.map { it.name }}" }
                 subreddits = ArrayList()
-                subreddits.addAll(it)
+                subreddits.addAll(searchResults)
                 notifyDataSetChanged()
             }.addTo(disposables)
     }
@@ -39,6 +42,8 @@ class DrawerSearchListAdapter(
 
     @SuppressLint("ViewHolder")
     override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+        logcat(LogPriority.VERBOSE) { "getView: position = $position" }
+
         val inflater = LayoutInflater.from(c)
         val container = inflater.inflate(R.layout.list_item_drawer_search, parent, false)
         val subredditNameTextView: MaterialTextView = container.findViewById(R.id.text_view_drawer_list_item_action_search)
@@ -47,6 +52,7 @@ class DrawerSearchListAdapter(
         val sub: Subreddit = subreddits[position]
         subredditNameTextView.text = sub.address
         subredditNameTextView.clicks()
+            .doOnNext { "subredditNameTextView.clicks.onNext" }
             .subscribe { viewModel.selectedSubredditChangedSubject.onNext(sub) }
             .addTo(disposables)
 
@@ -56,8 +62,9 @@ class DrawerSearchListAdapter(
             actionImageView.setImageResource(R.drawable.ic_baseline_star_border_24)
 
         actionImageView.clicks()
+            .doOnNext { "actionImageView.clicks.onNext" }
             .subscribe {
-                val newSub = viewModel.handleActionOnSubredditInDrawer(sub)
+                val newSub = viewModel.changeSubredditStatus(sub)
                 subreddits[subreddits.indexOf(sub)] = newSub
                 notifyDataSetChanged()
             }

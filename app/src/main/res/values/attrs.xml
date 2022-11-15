@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <attr name="colorImageBackground" format="color"/>
-    <attr name="colorMenuBackground" format="color"/>
+    <attr name="colorDrawerBackground" format="color"/>
     <attr name="colorHomeBackground" format="color"/>
     <attr name="colorHudGradientStart" format="color"/>
     <attr name="colorHudGradientEnd" format="color"/>

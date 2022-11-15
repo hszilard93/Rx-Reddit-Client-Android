@@ -7,9 +7,7 @@ import android.view.ViewGroup
 import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.res.ResourcesCompat
-import androidx.core.view.GravityCompat
-import androidx.core.view.MenuCompat
-import androidx.core.view.isVisible
+import androidx.core.view.*
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.navigation.findNavController
 import androidx.navigation.ui.AppBarConfiguration
@@ -17,51 +15,34 @@ import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.navigation.ui.setupWithNavController
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.databinding.ActivityMainBinding
-import com.b4kancs.rxredditdemo.model.Subreddit
-import com.b4kancs.rxredditdemo.pagination.RedditJsonPagingSource
 import com.b4kancs.rxredditdemo.ui.drawer.DrawerListAdapter
 import com.b4kancs.rxredditdemo.ui.drawer.DrawerSearchListAdapter
 import com.b4kancs.rxredditdemo.ui.uiutils.ANIMATION_DURATION_LONG
+import com.b4kancs.rxredditdemo.ui.uiutils.ANIMATION_DURATION_SHORT
 import com.b4kancs.rxredditdemo.ui.uiutils.animateViewHeightChange
 import com.b4kancs.rxredditdemo.ui.uiutils.dpToPixel
-import com.b4kancs.rxredditdemo.utils.*
 import com.jakewharton.rxbinding4.widget.queryTextChangeEvents
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Observable
-import io.reactivex.rxjava3.core.Single
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.addTo
-import io.reactivex.rxjava3.schedulers.Schedulers
-import io.reactivex.rxjava3.subjects.PublishSubject
 import logcat.LogPriority
 import logcat.logcat
 import org.koin.androidx.viewmodel.ext.android.viewModel
 import java.util.concurrent.TimeUnit
 import kotlin.math.abs
+import kotlin.math.min
 
 class MainActivity : AppCompatActivity() {
-
-    companion object {
-        private const val IS_ACTION_BAR_SHOWING_KEY = "isActionBarShowing"
-        private const val IS_NAV_BAR_SHOWING_KEY = "isNavBarShowing"
-    }
-
     val viewModel: MainViewModel by viewModel()
     private val disposables = CompositeDisposable()
     var menu: Menu? = null
-    private var isActionBarShowing = true   // The ActionBar's isShowing method didn't return the correct answer
-    private var isNavBarShowing = true
     private lateinit var binding: ActivityMainBinding
-    private lateinit var drawerListAdapter: DrawerListAdapter
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         logcat { "onCreate" }
         super.onCreate(savedInstanceState)
-
-        savedInstanceState?.let {
-            isActionBarShowing = it.getBoolean(IS_ACTION_BAR_SHOWING_KEY)
-            isNavBarShowing = it.getBoolean(IS_NAV_BAR_SHOWING_KEY)
-        }
 
         binding = ActivityMainBinding.inflate(layoutInflater)
         with(binding) {
@@ -80,9 +61,8 @@ class MainActivity : AppCompatActivity() {
             )
             setupActionBarWithNavController(navController, appBarConfiguration)
             bottomNavViewMain.setupWithNavController(navController)
-
-            if (!isActionBarShowing) supportActionBar?.hide()
-            if (!isNavBarShowing) bottomNavViewMain.isVisible = false
+            if (!viewModel.isActionBarShowing) supportActionBar?.hide()
+            if (!viewModel.isNavBarShowing) bottomNavViewMain.isVisible = false
 
             setUpSubredditDrawer()
             setupSearchViewDrawerAndList()
@@ -90,6 +70,7 @@ class MainActivity : AppCompatActivity() {
             viewModel.selectedSubredditChangedSubject
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe {
+                    // I think this small delay before the closing animation gives a better "feel" to the UI.
                     Observable.timer(300, TimeUnit.MILLISECONDS)
                         .subscribe {
                             drawerMain.closeDrawer(GravityCompat.START)
@@ -105,12 +86,14 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
         menuInflater.inflate(R.menu.menu_toolbar_options, menu)
         MenuCompat.setGroupDividerEnabled(menu!!, true)
         this.menu = menu
         return true
     }
+
 
     override fun onBackPressed() {
         logcat { "onBackPressed" }
@@ -121,129 +104,102 @@ class MainActivity : AppCompatActivity() {
             super.onBackPressed()
     }
 
+
     override fun onSaveInstanceState(outState: Bundle) {
         logcat { "onSaveInstanceState" }
         super.onSaveInstanceState(outState)
-
-        outState.putBoolean(IS_ACTION_BAR_SHOWING_KEY, isActionBarShowing)
-        outState.putBoolean(IS_NAV_BAR_SHOWING_KEY, isNavBarShowing)
     }
 
-    private val genericOnClickCallback: (Subreddit) -> Unit = { sub ->
-        logcat { "genericOnClickedCallback: ${sub.name}" }
-    }
 
     private fun setUpSubredditDrawer() {
         logcat { "setUpSubredditDrawer" }
-        drawerListAdapter = DrawerListAdapter(
-            this,
-            viewModel
-        )
-
-        binding.listViewDrawerSubreddits.adapter = drawerListAdapter
+        val adapter = DrawerListAdapter(this, viewModel)
+        binding.listViewDrawerSubreddits.adapter = adapter
 
         viewModel.subredditsChangedSubject
             .observeOn(AndroidSchedulers.mainThread())
-            .subscribe { drawerListAdapter.notifyDataSetChanged() }
+            .subscribe { adapter.notifyDataSetChanged() }
             .addTo(disposables)
     }
 
+
     private fun setupSearchViewDrawerAndList() {
         logcat { "setupSearchViewDrawerAndList" }
-        var searchResults: List<Subreddit> = emptyList()
-        val searchResultsChanged = PublishSubject.create<Unit>()
 
         binding.searchViewDrawer.queryTextChangeEvents()
             .observeOn(AndroidSchedulers.mainThread())
             .debounce(250, TimeUnit.MILLISECONDS)
             .map {
-                val keyword = it.queryText
+                val query = it.queryText
                 if (it.isSubmitted) {
-                    logcat(LogPriority.INFO) { "Subreddit query text submitted: $keyword" }
+                    logcat(LogPriority.INFO) { "Subreddit query text submitted: $query" }
                     it.queryText.toString() to true
                 } else {
-                    logcat(LogPriority.INFO) { "Querying keyword: $keyword" }
+                    logcat(LogPriority.INFO) { "Querying keyword: $query" }
                     it.queryText.toString() to false
                 }
             }
-            .subscribe { (keyword, isSubmitted) ->
-                logcat { "queryTextChangeEvents.subscribe: keyword $keyword isSubmitted $isSubmitted" }
+            .subscribe { (query, isSubmitted) ->
+                logcat { "queryTextChangeEvents.subscribe: query $query isSubmitted $isSubmitted" }
                 // If isSubmitted is true, it means that the Search button was clicked. In this case, we should go straight to the subreddit entered.
                 if (isSubmitted) {
-                    val subInDb = viewModel.getSubredditFromDbByName(keyword).blockingGet()
-                    if (subInDb != null) {
-                        viewModel.selectedSubredditChangedSubject.onNext(subInDb)
-                    } else {
-                        viewModel.selectedSubredditChangedSubject.onNext(
-                            Subreddit(
-                                keyword,
-                                "r/$keyword",
-                                Subreddit.Status.NOT_IN_DB
-                            )
-                        )
-                    }
+                    viewModel.goToSubredditByName(query)
                 }
                 // Otherwise, show the query search results in a list.
                 else {
-                    if (keyword.isEmpty()) {
-                        searchResults = emptyList()
-                        searchResultsChanged.onNext(Unit)
-                    } else {
-                        val dbResultObservable = viewModel.getSubredditsFromDbByNameLike(keyword)
-                            .toObservable()
-
-                        val nwResultObservable = viewModel.getSubredditsFromNetworkByNameLike(keyword)
-                            .toObservable()
-                            .doOnError { logcat(LogPriority.ERROR) { "Did not receive a network response for query: $keyword" } }
-                            .onErrorComplete()
-                            .startWith(Single.just(emptyList()))
-
-                        Observable.combineLatest(
-                            dbResultObservable,
-                            nwResultObservable
-                        ) { a: List<Subreddit>, b: List<Subreddit> -> a + b }
-                            .subscribe { subs ->
-                                subs.distinctBy { it.address.lowercase() }.let { distinctSubs ->
-                                    searchResults = distinctSubs
-                                    searchResultsChanged.onNext(Unit)
-                                }
-                            }.addTo(disposables)
-                    }
+                    viewModel.getSearchResultsFromDbAndNw(query)
+                        .subscribe { searchResultSubs ->
+                            viewModel.searchResultsChangedSubject.onNext(searchResultSubs)
+                        }
+                        .addTo(disposables)
                 }
             }
             .addTo(disposables)
 
-        searchResultsChanged
-            .subscribe {
-                val results = searchResults.take(15)
-                viewModel.searchResultsChangedSubject
-                    .onNext(results)
-                binding.listViewDrawerSearchResults
-            }.addTo(disposables)
-
-        val searchListAdapter = DrawerSearchListAdapter(
-            this,
-            viewModel
-        )
-
-        viewModel.subredditsChangedSubject
-            .observeOn(AndroidSchedulers.mainThread())
-            .subscribe { searchListAdapter.notifyDataSetChanged() }
-            .addTo(disposables)
+        val searchListAdapter = DrawerSearchListAdapter(this, viewModel)
 
         viewModel.searchResultsChangedSubject
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe { subs ->
-                logcat { "searchResultsChanged: ${subs.map { it.name }}" }
-                val listView = binding.listViewDrawerSearchResults
-                val oldHeight = abs(listView.measuredHeight)
-                val newHeight = dpToPixel(40, this) * subs.size
-                animateViewHeightChange(listView, oldHeight, newHeight, 150)
+                // Setting the height of the list of the search results according to the available and the desired height.
+                fun redrawSearchResultsList() {
+                    logcat { "drawSearchResults" }
+                    val listView = binding.listViewDrawerSearchResults
+                    val oldHeight = abs(listView.measuredHeight)
+                    val desiredHeight = dpToPixel(40, this) * subs.size
+
+                    val listLocationInWindowArray = IntArray(2)
+                    binding.listViewDrawerSearchResults.getLocationInWindow(listLocationInWindowArray)
+                    val drawerLocationInWindowsArray = IntArray(2)
+                    binding.linearMainDrawerOuter.getLocationInWindow(drawerLocationInWindowsArray)
+                    // For example, drawer height is 500, it's Y is 24 (because of the status bar), search list's Y is 150.
+                    // The correct max height for the search results' list will be 500 + 24 - 150.
+                    val maxHeight =
+                        binding.linearMainDrawerOuter.measuredHeight + drawerLocationInWindowsArray[1] - listLocationInWindowArray[1]
+
+                    logcat { "Redrawing search results ListView. desiredHeight = $desiredHeight; maxHeight = $maxHeight" }
+                    val newHeight = min(desiredHeight, maxHeight)
+                    animateViewHeightChange(listView, oldHeight, newHeight, ANIMATION_DURATION_SHORT)
+                }
+                redrawSearchResultsList()
+                // Keyboard layout animation listener
+                ViewCompat.setWindowInsetsAnimationCallback(binding.listViewDrawerSearchResults,
+                    object : WindowInsetsAnimationCompat.Callback(DISPATCH_MODE_STOP) {
+                        override fun onProgress(
+                            insets: WindowInsetsCompat, runningAnimations: MutableList<WindowInsetsAnimationCompat>
+                        ): WindowInsetsCompat = insets
+
+                        override fun onEnd(animation: WindowInsetsAnimationCompat) {
+                            super.onEnd(animation)
+                            if (binding.drawerMain.isDrawerVisible(binding.linearMainDrawerOuter)) redrawSearchResultsList()
+                        }
+                    })
             }
             .addTo(disposables)
 
         binding.listViewDrawerSearchResults.adapter = searchListAdapter
     }
+
 
     fun lockDrawerClosed() {
         logcat { "lockDrawerClosed" }
@@ -257,9 +213,10 @@ class MainActivity : AppCompatActivity() {
         resetNavigationBehaviour()
     }
 
+
     fun animateHideActionBar(viewToSynchronizeWith: View? = null) {
         logcat { "animateHideActionBar" }
-        if (!isActionBarShowing) return
+        if (!viewModel.isActionBarShowing) return
 
         val actionBar = supportActionBar
         if (actionBar == null) {
@@ -272,7 +229,7 @@ class MainActivity : AppCompatActivity() {
             .setDuration(ANIMATION_DURATION_LONG)
             .withEndAction {
                 actionBar.hide()
-                isActionBarShowing = false
+                viewModel.isActionBarShowing = false
             }.start()
 
         // We also animate the position of the view below the ActionBar so that the whole thing doesn't jerk upwards suddenly
@@ -286,12 +243,11 @@ class MainActivity : AppCompatActivity() {
                 }
                 .start()
         }
-
     }
 
     fun animateShowActionBar() {
         logcat { "animateShowActionBar" }
-        if (isActionBarShowing) return
+        if (viewModel.isActionBarShowing) return
 
         val actionBar = supportActionBar
         if (actionBar == null) {
@@ -299,9 +255,9 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        if (!isActionBarShowing) {
+        if (!viewModel.isActionBarShowing) {
             actionBar.show()
-            isActionBarShowing = true
+            viewModel.isActionBarShowing = true
             binding.toolbarMain.animate()
                 .translationY(0f)
                 .setDuration(ANIMATION_DURATION_LONG)
@@ -309,9 +265,10 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+
     fun animateHideBottomNavBar(viewToSynchronizeWith: View? = null) {
         logcat { "animateHideBottomNavBar" }
-        if (!isNavBarShowing) return
+        if (!viewModel.isNavBarShowing) return
 
         binding.bottomNavViewMain.let {
             it.animate()
@@ -319,7 +276,7 @@ class MainActivity : AppCompatActivity() {
                 .setDuration(ANIMATION_DURATION_LONG)
                 .withEndAction {
                     it.isVisible = false
-                    isNavBarShowing = false
+                    viewModel.isNavBarShowing = false
                 }
                 .start()
         }
@@ -339,17 +296,18 @@ class MainActivity : AppCompatActivity() {
 
     fun animateShowBottomNavBar() {
         logcat { "animateShowBottomNavBar" }
-        if (isNavBarShowing) return
+        if (viewModel.isNavBarShowing) return
 
         binding.bottomNavViewMain.let {
             it.isVisible = true
-            isNavBarShowing = true
+            viewModel.isNavBarShowing = true
             it.animate()
                 .translationYBy(it.height * -1f)
                 .setDuration(ANIMATION_DURATION_LONG)
                 .start()
         }
     }
+
 
     private fun setAlternativeNavigationBehaviour() {
         logcat { "hideNavigationIcon" }

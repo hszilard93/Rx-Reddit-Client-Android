@@ -29,10 +29,11 @@
         <item name="colorSurfaceInverse">@color/md_theme_dark_inverseSurface</item>
         <item name="colorPrimaryInverse">@color/md_theme_dark_inversePrimary</item>
         <item name="android:editTextColor">@color/md_theme_dark_tertiary</item>
-        <item name="android:textColor">@color/md_theme_dark_tertiary</item> <!-- Color of the text in the actions menu -->
+        <item name="android:textColor">@color/md_theme_dark_tertiary</item> <!-- Color of the text in the options menu -->
+<!--        <item name="android:itemBackground">@color/md_theme_dark_surface</item> &lt;!&ndash; Item background color in the options menu &ndash;&gt;-->
         <item name="actionMenuTextColor">@color/md_theme_dark_tertiary</item>
         <item name="colorImageBackground">@color/md_theme_dark_inverseOnSurface</item>
-        <item name="colorMenuBackground">@color/md_theme_dark_surface</item>
+        <item name="colorDrawerBackground">@color/md_theme_dark_surface</item>
         <item name="colorHomeBackground">@color/md_theme_dark_surface</item>
         <item name="colorHudGradientStart">#55001F2A</item>
         <item name="colorHudGradientEnd">#AA001F2A</item>

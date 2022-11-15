@@ -21,25 +21,25 @@ class RedditJsonPagingSource(val subreddit: String) : RxPagingSource<String, Pos
 
         private val service: RedditJsonService by inject(RedditJsonService::class.java)
 
-        fun getPictureIdsFromGalleryPostAtUrl(url: String): Maybe<List<String>> {
+        fun getPictureIdTypePairsFromGalleryPostAtUrl(url: String): Maybe<List<Pair<String, String>>> {
             return service
                 .getGalleryJson("$url/.json")
                 .subscribeOn(Schedulers.io())
                 .map { response ->
                     if (!response.isSuccessful) {
                         logcat(LogPriority.ERROR) { "Error getting gallery items for $url. Error: ${response.code()}" }
-                        return@map emptyList<RedditPostListingModel.RedditPostDataChildDataGalleryDataItem>()
+                        return@map emptyList<RedditPostListingModel.RedditPostDataChildDataMediaMetadataItem>()
                     }
-                    response.body()!!
-                        .first().data.children.first().data.galleryData.items
+                    response.body()?.first()?.data?.children?.first()?.data?.mediaMetadata?.items
+                        ?: emptyList()
                 }
                 .flatMapMaybe { items ->
-                    val ids = ArrayList<String>()
+                    val idTypePairs = ArrayList<Pair<String, String>>()
                     if (items.isEmpty()) {
                         Maybe.empty()
                     } else {
-                        items.forEach { ids.add(it.mediaId) }
-                        Maybe.just(ids)
+                        items.forEach { idTypePairs.add(it.id to it.type) }
+                        Maybe.just(idTypePairs)
                     }
                 }
         }

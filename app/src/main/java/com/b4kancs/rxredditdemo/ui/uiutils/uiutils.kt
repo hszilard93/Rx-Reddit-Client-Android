@@ -49,6 +49,10 @@ fun dpToPixel(dp: Int, context: Context): Int = (dp * context.resources.displayM
 
 fun Int.dpToPx(context: Context): Int = dpToPixel(this, context)
 
+fun pixelToDp(px: Int, context: Context): Int = (px / context.resources.displayMetrics.density).toInt()
+
+fun Int.pxToDp(context: Context): Int = pixelToDp(this, context)
+
 fun animateViewHeightChange(
     view: View,
     oldHeight: Int,

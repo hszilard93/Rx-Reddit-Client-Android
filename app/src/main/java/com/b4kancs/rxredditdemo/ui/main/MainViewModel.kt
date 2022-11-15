@@ -1,18 +1,20 @@
 package com.b4kancs.rxredditdemo.ui.main
 
 import androidx.lifecycle.ViewModel
+import com.b4kancs.rxredditdemo.database.SubredditDatabase
 import com.b4kancs.rxredditdemo.model.DefaultSubredditObject
 import com.b4kancs.rxredditdemo.model.DefaultSubredditObject.DEFAULT_SUBREDDIT_PREFERENCE_KEY
-import com.b4kancs.rxredditdemo.database.SubredditDatabase
 import com.b4kancs.rxredditdemo.model.Subreddit
 import com.b4kancs.rxredditdemo.pagination.RedditJsonPagingSource
 import com.b4kancs.rxredditdemo.utils.toV3Observable
 import com.f2prateek.rx.preferences2.RxSharedPreferences
-import io.reactivex.rxjava3.core.Completable
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Maybe
+import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.core.Single
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.addTo
+import io.reactivex.rxjava3.kotlin.subscribeBy
 import io.reactivex.rxjava3.schedulers.Schedulers
 import io.reactivex.rxjava3.subjects.PublishSubject
 import logcat.LogPriority
@@ -23,13 +25,16 @@ class MainViewModel : ViewModel() {
     val selectedSubredditChangedSubject: PublishSubject<Subreddit> = PublishSubject.create()
     val subredditsChangedSubject: PublishSubject<Unit> = PublishSubject.create()
     val searchResultsChangedSubject: PublishSubject<List<Subreddit>> = PublishSubject.create()
+    var isActionBarShowing: Boolean = true
+    var isNavBarShowing: Boolean = true
     private val subredditDatabase: SubredditDatabase by inject(SubredditDatabase::class.java)
     private val rxSharedPreferences: RxSharedPreferences by inject(RxSharedPreferences::class.java)
     private val disposables = CompositeDisposable()
 
     init {
+        logcat { "init" }
         selectedSubredditChangedSubject.doOnNext { logcat(LogPriority.INFO) { "selectedSubredditChangedSubject.onNext()" } }
-        setupDefaultSubredditObservable()
+        setUpDefaultSubredditObservable()
     }
 
     fun getSubredditFromDbByName(name: String): Maybe<Subreddit> {
@@ -81,7 +86,8 @@ class MainViewModel : ViewModel() {
             .set(subreddit.address)
     }
 
-    fun handleActionOnSubredditInDrawer(subreddit: Subreddit): Subreddit {
+    fun changeSubredditStatus(subreddit: Subreddit): Subreddit {
+        logcat { "changeSubredditStatus: subreddit = $subreddit" }
         val newStatus = when (subreddit.status) {
             Subreddit.Status.NOT_IN_DB -> Subreddit.Status.IN_USER_LIST
             Subreddit.Status.IN_DEFAULTS_LIST -> Subreddit.Status.IN_USER_LIST
@@ -93,8 +99,61 @@ class MainViewModel : ViewModel() {
         return newSub
     }
 
+    fun goToSubredditByName(name: String) {
+        logcat { "goToSubredditByName: name = $name" }
+
+        fun goToNewSub() {
+            selectedSubredditChangedSubject.onNext(
+                Subreddit(
+                    name,
+                    "r/$name",
+                    Subreddit.Status.NOT_IN_DB
+                )
+            )
+        }
+        // We first check if we already know that subreddit.
+        getSubredditFromDbByName(name)
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribeBy(
+                // The sub was in the db. Let's work with that!
+                onSuccess = {
+                    selectedSubredditChangedSubject.onNext(it)
+                },
+                onComplete = {
+                    // The sub was not in the db. No problem, let's go to that address anyway.
+                    goToNewSub()
+                },
+                onError = { e ->
+                    logcat(LogPriority.ERROR) { "Error during DB operation 'getSubredditFromDbByName($name)'! Message: ${e.message}" }
+                    // Let's try going to that address anyway.
+                    goToNewSub()
+                }
+            )
+    }
+
+    fun getSearchResultsFromDbAndNw(query: String): Observable<List<Subreddit>> {
+        logcat { "getSearchResultsFromDbAndNw: query = $query" }
+        if (query.isEmpty()) return Observable.just(emptyList())
+
+        // Get the query results from both the DB and the network and combine them.
+        val dbResultObservable = getSubredditsFromDbByNameLike(query)
+            .toObservable()
+
+        val nwResultObservable = getSubredditsFromNetworkByNameLike(query)
+            .toObservable()
+            .doOnError { logcat(LogPriority.ERROR) { "Did not receive a network response for query: $query" } }
+            .onErrorComplete()
+            .startWith(Single.just(emptyList()))
+
+        return Observable.combineLatest(
+            dbResultObservable,
+            nwResultObservable
+        ) { a: List<Subreddit>, b: List<Subreddit> -> a + b }
+            .map { subs -> subs.distinctBy { it.address.lowercase() } }
+    }
+
     // When the default subreddit preference changes, we immediately change it's representation in our model
-    private fun setupDefaultSubredditObservable() {
+    private fun setUpDefaultSubredditObservable() {
         logcat { "getDefaultSubredditObservable" }
         val defaultSubredditAddress = rxSharedPreferences.getString(
             DEFAULT_SUBREDDIT_PREFERENCE_KEY,

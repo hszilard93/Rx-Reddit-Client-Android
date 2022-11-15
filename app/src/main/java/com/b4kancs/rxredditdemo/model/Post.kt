@@ -46,9 +46,12 @@ data class Post(
                             }
                         val galleryPostUrl = "https://www.reddit.com/r/$sub/comments/$galleryId"
                         logcat { "Attempting to get links to gallery items on post $name $title; gallery url $url; request url $galleryPostUrl." }
-                        val ids: List<String>? = RedditJsonPagingSource.getPictureIdsFromGalleryPostAtUrl(galleryPostUrl)
+                        val idTypePairs = RedditJsonPagingSource.getPictureIdTypePairsFromGalleryPostAtUrl(galleryPostUrl)
                             .blockingGet()
-                        ids?.map { imageId -> "https://i.redd.it/$imageId.jpg" }
+                        idTypePairs?.map { (imageId, imageType) ->
+                            val type = imageType.split("/").last()  // This data is in the format of "image/png", for example.
+                            "https://i.redd.it/$imageId.$type"
+                        }
                     }
                     // Or not a supported link
                     else {

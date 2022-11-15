@@ -109,7 +109,7 @@
             android:id="@+id/list_view_drawer_subreddits"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="?attr/colorMenuBackground"
+            android:background="?attr/colorDrawerBackground"
             android:choiceMode="singleChoice"
             android:divider="?attr/colorControlHighlight"
             android:dividerHeight="1dp" />
