@@ -3,10 +3,10 @@ package com.b4kancs.rxredditdemo
 import android.app.Application
 import android.os.StrictMode
 import androidx.preference.PreferenceManager
-import com.b4kancs.rxredditdemo.database.SubredditRoomDatabase
 import com.b4kancs.rxredditdemo.database.FavoritesRoomDatabase
-import com.b4kancs.rxredditdemo.pagination.RedditJsonPagingSource
+import com.b4kancs.rxredditdemo.database.SubredditRoomDatabase
 import com.b4kancs.rxredditdemo.networking.RedditJsonService
+import com.b4kancs.rxredditdemo.pagination.RedditJsonPagingSource
 import com.b4kancs.rxredditdemo.ui.favorites.FavoritesViewModel
 import com.b4kancs.rxredditdemo.ui.home.HomeViewModel
 import com.b4kancs.rxredditdemo.ui.main.MainViewModel
@@ -53,7 +53,7 @@ class App : Application() {
         }
         viewModel {
             logcat { "Koin providing ViewModel HomeViewModel instant." }
-            HomeViewModel()
+            HomeViewModel(mainViewModel = it.get())
         }
         viewModel {
             logcat { "Koin providing ViewModel PostViewerViewModel instant." }

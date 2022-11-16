@@ -166,8 +166,7 @@ class FavoritesFragment : Fragment() {
                                     logcat(LogPriority.INFO) { "Transition name = $transitionName" }
                                     logcat { "startPostponedEnterTransition()" }
                                 }
-                        }
-                        catch(e: Exception) {
+                        } catch (e: Exception) {
                             logcat(LogPriority.WARN) { e.message.toString() }
                         }
 

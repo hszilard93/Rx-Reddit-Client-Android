@@ -1,7 +1,7 @@
 package com.b4kancs.rxredditdemo.model
 
+import com.b4kancs.rxredditdemo.networking.RedditJsonClient
 import com.b4kancs.rxredditdemo.networking.RedditJsonListingModel.RedditPostDataModel
-import com.b4kancs.rxredditdemo.pagination.RedditJsonPagingSource
 import logcat.logcat
 
 data class Post(
@@ -46,7 +46,7 @@ data class Post(
                             }
                         val galleryPostUrl = "https://www.reddit.com/r/$sub/comments/$galleryId"
                         logcat { "Attempting to get links to gallery items on post $name $title; gallery url $url; request url $galleryPostUrl." }
-                        val idTypePairs = RedditJsonPagingSource.getPictureIdTypePairsFromGalleryPostAtUrl(galleryPostUrl)
+                        val idTypePairs = RedditJsonClient.getPictureIdTypePairsFromGalleryPostAtUrl(galleryPostUrl)
                             .blockingGet()
                         idTypePairs?.map { (imageId, imageType) ->
                             val type = imageType.split("/").last()  // This data is in the format of "image/png", for example.

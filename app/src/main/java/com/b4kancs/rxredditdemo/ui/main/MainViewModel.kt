@@ -5,7 +5,7 @@ import com.b4kancs.rxredditdemo.database.SubredditDatabase
 import com.b4kancs.rxredditdemo.model.DefaultSubredditObject
 import com.b4kancs.rxredditdemo.model.DefaultSubredditObject.DEFAULT_SUBREDDIT_PREFERENCE_KEY
 import com.b4kancs.rxredditdemo.model.Subreddit
-import com.b4kancs.rxredditdemo.pagination.RedditJsonPagingSource
+import com.b4kancs.rxredditdemo.networking.RedditJsonClient
 import com.b4kancs.rxredditdemo.utils.toV3Observable
 import com.f2prateek.rx.preferences2.RxSharedPreferences
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
@@ -15,6 +15,7 @@ import io.reactivex.rxjava3.core.Single
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.addTo
 import io.reactivex.rxjava3.kotlin.subscribeBy
+import io.reactivex.rxjava3.observables.ConnectableObservable
 import io.reactivex.rxjava3.schedulers.Schedulers
 import io.reactivex.rxjava3.subjects.PublishSubject
 import logcat.LogPriority
@@ -22,7 +23,8 @@ import logcat.logcat
 import org.koin.java.KoinJavaComponent.inject
 
 class MainViewModel : ViewModel() {
-    val selectedSubredditChangedSubject: PublishSubject<Subreddit> = PublishSubject.create()
+    val selectedSubredditPublishSubject: PublishSubject<Subreddit> = PublishSubject.create()
+    val selectedSubredditReplayObservable: ConnectableObservable<Subreddit> = selectedSubredditPublishSubject.replay(1)
     val subredditsChangedSubject: PublishSubject<Unit> = PublishSubject.create()
     val searchResultsChangedSubject: PublishSubject<List<Subreddit>> = PublishSubject.create()
     var isActionBarShowing: Boolean = true
@@ -33,7 +35,9 @@ class MainViewModel : ViewModel() {
 
     init {
         logcat { "init" }
-        selectedSubredditChangedSubject.doOnNext { logcat(LogPriority.INFO) { "selectedSubredditChangedSubject.onNext()" } }
+        selectedSubredditReplayObservable.connect()
+        selectedSubredditPublishSubject.doOnNext { logcat(LogPriority.INFO) { "selectedSubredditChangedSubject.onNext()" } }
+        selectedSubredditPublishSubject.onNext(DefaultSubredditObject.defaultSubreddit)
         setUpDefaultSubredditObservable()
     }
 
@@ -54,7 +58,7 @@ class MainViewModel : ViewModel() {
 
     fun getSubredditsFromNetworkByNameLike(keyword: String): Single<List<Subreddit>> {
         logcat { "getSubredditsFromNetworkByNameLike: keyword = $keyword" }
-        return RedditJsonPagingSource.getSubredditsByKeyword(keyword)
+        return RedditJsonClient.getSubredditsByKeyword(keyword)
             .subscribeOn(Schedulers.io())
     }
 
@@ -103,7 +107,7 @@ class MainViewModel : ViewModel() {
         logcat { "goToSubredditByName: name = $name" }
 
         fun goToNewSub() {
-            selectedSubredditChangedSubject.onNext(
+            selectedSubredditPublishSubject.onNext(
                 Subreddit(
                     name,
                     "r/$name",
@@ -117,7 +121,7 @@ class MainViewModel : ViewModel() {
             .subscribeBy(
                 // The sub was in the db. Let's work with that!
                 onSuccess = {
-                    selectedSubredditChangedSubject.onNext(it)
+                    selectedSubredditPublishSubject.onNext(it)
                 },
                 onComplete = {
                     // The sub was not in the db. No problem, let's go to that address anyway.
@@ -175,5 +179,4 @@ class MainViewModel : ViewModel() {
             }
             .addTo(disposables)
     }
-
 }

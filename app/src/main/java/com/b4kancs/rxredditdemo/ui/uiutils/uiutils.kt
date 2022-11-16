@@ -11,10 +11,7 @@ import android.view.animation.AccelerateDecelerateInterpolator
 import android.view.inputmethod.InputMethodManager
 import androidx.core.view.isVisible
 import com.b4kancs.rxredditdemo.model.Post
-import com.b4kancs.rxredditdemo.ui.uiutils.OnSwipeTouchListener
 import com.google.android.material.snackbar.Snackbar
-import hu.akarnokd.rxjava3.bridge.RxJavaBridge
-import io.reactivex.Observable
 import java.util.*
 
 const val ANIMATION_DURATION_LONG = 500L
@@ -117,20 +114,19 @@ fun makeSnackBar(view: View, stringId: Int?, message: String = "", type: SnackTy
     val theme = view.context.theme
     if (type == SnackType.SUCCESS) {
         theme.resolveAttribute(com.google.android.material.R.attr.colorSecondaryContainer, typedValue, true)
-    }
-    else {
+    } else {
         theme.resolveAttribute(com.google.android.material.R.attr.colorError, typedValue, true)
     }
     val backgroundColor = typedValue.data
     if (type == SnackType.SUCCESS) {
         theme.resolveAttribute(com.google.android.material.R.attr.colorTertiary, typedValue, true)
-    }
-    else {
+    } else {
         theme.resolveAttribute(com.google.android.material.R.attr.colorOnError, typedValue, true)
     }
     val textColor = typedValue.data
 
-    val snackBar = stringId?.let { Snackbar.make(view, stringId, Snackbar.LENGTH_SHORT) } ?: Snackbar.make(view, message, Snackbar.LENGTH_SHORT)
+    val snackBar =
+        stringId?.let { Snackbar.make(view, stringId, Snackbar.LENGTH_SHORT) } ?: Snackbar.make(view, message, Snackbar.LENGTH_SHORT)
 
     return snackBar
         .setBackgroundTint(backgroundColor)

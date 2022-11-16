@@ -11,7 +11,6 @@ import com.b4kancs.rxredditdemo.database.SubredditDatabase
 import com.b4kancs.rxredditdemo.model.DefaultSubredditObject
 import com.b4kancs.rxredditdemo.model.Subreddit
 import com.b4kancs.rxredditdemo.model.Subreddit.Status
-import com.b4kancs.rxredditdemo.pagination.RedditJsonPagingSource
 import com.b4kancs.rxredditdemo.ui.main.MainViewModel
 import com.b4kancs.rxredditdemo.ui.uiutils.dpToPixel
 import com.b4kancs.rxredditdemo.ui.uiutils.makeSnackBar
@@ -132,7 +131,7 @@ class DrawerListAdapter(
 
         subredditTextView.clicks()
             .subscribe {
-                viewModel.selectedSubredditChangedSubject.onNext(sub)
+                viewModel.selectedSubredditPublishSubject.onNext(sub)
             }
             .addTo(disposables)
 

@@ -21,7 +21,7 @@ class FavoritesViewModel : ViewModel(), PostPagingDataObservableProvider {
     val cachedPagingObservable: Observable<PagingData<Post>>
 
     init {
-        logcat { "init"}
+        logcat { "init" }
         val pager = Pager(
             PagingConfig(
                 pageSize = FavoritesDbPagingSource.PAGE_SIZE,

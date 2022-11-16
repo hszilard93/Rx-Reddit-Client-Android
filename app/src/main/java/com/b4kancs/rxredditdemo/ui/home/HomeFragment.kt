@@ -7,7 +7,6 @@ import android.view.ViewGroup
 import androidx.core.view.children
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
-import androidx.lifecycle.observe
 import androidx.navigation.fragment.FragmentNavigatorExtras
 import androidx.navigation.fragment.findNavController
 import androidx.paging.LoadState
@@ -15,6 +14,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.databinding.FragmentHomeBinding
 import com.b4kancs.rxredditdemo.ui.main.MainActivity
+import com.b4kancs.rxredditdemo.ui.main.MainViewModel
 import com.b4kancs.rxredditdemo.ui.postviewer.PostViewerFragment
 import com.b4kancs.rxredditdemo.ui.shared.PostVerticalRvAdapter
 import com.b4kancs.rxredditdemo.ui.uiutils.CustomLinearLayoutManager
@@ -24,10 +24,14 @@ import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.kotlin.addTo
 import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.take
 import logcat.LogPriority
 import logcat.logcat
 import org.koin.androidx.viewmodel.ext.android.sharedViewModel
+import org.koin.core.parameter.parametersOf
 import java.util.concurrent.TimeUnit
 
 class HomeFragment : Fragment() {
@@ -35,7 +39,8 @@ class HomeFragment : Fragment() {
         const val FLICKERING_DELAY = 200L
     }
 
-    private val homeViewModel: HomeViewModel by sharedViewModel()
+    private val mainViewModel: MainViewModel by sharedViewModel()
+    private val homeViewModel: HomeViewModel by sharedViewModel { parametersOf(mainViewModel) }
     private var _binding: FragmentHomeBinding? = null
     private val binding get() = _binding!!
     private val disposables = CompositeDisposable()
@@ -108,7 +113,7 @@ class HomeFragment : Fragment() {
                 rvHomePosts.adapter = PostVerticalRvAdapter(
                     mainActivity,
                     shouldDisableTransformations,
-                    getFavorites = { homeViewModel.getFavoritePosts() }
+                    homeViewModel
                 )
             }
             val postsHomeAdapter = rvHomePosts.adapter as PostVerticalRvAdapter
@@ -159,17 +164,12 @@ class HomeFragment : Fragment() {
                 progressBarHomeLarge.isVisible = combinedLoadStates.refresh is LoadState.Loading
             }
 
-            homeViewModel.subredditNameLiveData.observe(mainActivity) { subredditName ->
-                mainActivity.supportActionBar?.title = subredditName
-            }
-
-            mainActivity.viewModel.selectedSubredditChangedSubject
+            mainViewModel.selectedSubredditPublishSubject
                 .debounce(1, TimeUnit.SECONDS)
                 .observeOn(AndroidSchedulers.mainThread())
                 .doOnNext { logcat(LogPriority.INFO) { "selectedSubredditChangedSubject.doOnNext: ${it.name}" } }
                 .subscribe { sub ->
                     rvHomePosts.isVisible = false
-                    homeViewModel.changeSubreddit(sub)
                     justChangedSubreddits = true
                     postsHomeAdapter.refresh()
                 }
@@ -236,25 +236,23 @@ class HomeFragment : Fragment() {
     }
 
     private fun setUpOptionsMenu() {
-        val menu = (activity as MainActivity).menu
-        if (menu != null) {
-            val menuItems = menu.children
-            for (item in menuItems) {
-                when (item.groupId) {
-                    R.id.menu_group_toolbar_subreddit_actions -> item.isVisible = true
-                    R.id.menu_group_toolbar_app_actions -> item.isVisible = true
-                    else -> item.isVisible = false
+        logcat { "setUpOptionsMenu" }
+        Observable.interval(0, 200, TimeUnit.MILLISECONDS)
+            .takeUntil { (activity as MainActivity).menu != null }
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe {
+                val menu = (activity as MainActivity).menu
+                if (menu != null) {
+                    val menuItems = menu.children
+                    for (item in menuItems) {
+                        when (item.groupId) {
+                            R.id.menu_group_toolbar_subreddit_actions -> item.isVisible = true
+                            R.id.menu_group_toolbar_app_actions -> item.isVisible = true
+                            else -> item.isVisible = false
+                        }
+                    }
                 }
-            }
-        }
-        else {
-            // It takes some time for the menu to become inflated, so we try again a bit later.
-            Observable.timer(200, TimeUnit.MILLISECONDS)
-                .doOnSubscribe { logcat { "Waiting for the options menu to become available." } }
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe { setUpOptionsMenu() }
-                .addTo(disposables)
-        }
+            }.addTo(disposables)
     }
 
     private fun createNewPostViewerFragment(position: Int, sharedView: View) {

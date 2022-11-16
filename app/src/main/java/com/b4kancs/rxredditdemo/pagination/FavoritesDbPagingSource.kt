@@ -10,8 +10,6 @@ import io.reactivex.rxjava3.schedulers.Schedulers
 import logcat.LogPriority
 import logcat.logcat
 import org.koin.java.KoinJavaComponent.inject
-import retrofit2.HttpException
-import java.io.IOException
 import kotlin.streams.toList
 
 class FavoritesDbPagingSource : RxPagingSource<Int, Post>() {
@@ -55,8 +53,7 @@ class FavoritesDbPagingSource : RxPagingSource<Int, Post>() {
                         nextKey = if (posts.isNotEmpty()) offset + posts.size else null
                     )
                 }
-        }
-        catch (e: Exception) {
+        } catch (e: Exception) {
             Single.just(LoadResult.Error(e))
         }
     }

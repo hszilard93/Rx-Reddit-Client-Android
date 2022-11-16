@@ -41,7 +41,7 @@ class MainActivity : AppCompatActivity() {
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        logcat { "onCreate" }
+        logcat { "onCreate viewModel = $viewModel" }
         super.onCreate(savedInstanceState)
 
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -63,14 +63,19 @@ class MainActivity : AppCompatActivity() {
             bottomNavViewMain.setupWithNavController(navController)
             if (!viewModel.isActionBarShowing) supportActionBar?.hide()
             if (!viewModel.isNavBarShowing) bottomNavViewMain.isVisible = false
+            viewModel.selectedSubredditReplayObservable
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe { supportActionBar?.title = it.name }
+                .addTo(disposables)
 
             setUpSubredditDrawer()
             setupSearchViewDrawerAndList()
 
-            viewModel.selectedSubredditChangedSubject
+            viewModel.selectedSubredditPublishSubject
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe {
-                    // I think this small delay before the closing animation gives a better "feel" to the UI.
+                    // I think this small delay before triggering the closing animation of the drawer
+                    // gives a better "feel" that something is happening.
                     Observable.timer(300, TimeUnit.MILLISECONDS)
                         .subscribe {
                             drawerMain.closeDrawer(GravityCompat.START)

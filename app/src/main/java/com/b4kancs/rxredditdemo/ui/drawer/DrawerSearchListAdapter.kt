@@ -53,7 +53,7 @@ class DrawerSearchListAdapter(
         subredditNameTextView.text = sub.address
         subredditNameTextView.clicks()
             .doOnNext { "subredditNameTextView.clicks.onNext" }
-            .subscribe { viewModel.selectedSubredditChangedSubject.onNext(sub) }
+            .subscribe { viewModel.selectedSubredditPublishSubject.onNext(sub) }
             .addTo(disposables)
 
         if (sub.status == Subreddit.Status.FAVORITED)

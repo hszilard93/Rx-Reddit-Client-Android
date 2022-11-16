@@ -14,12 +14,13 @@ import androidx.paging.LoadState
 import androidx.paging.PagingDataAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.b4kancs.rxredditdemo.R
-import com.b4kancs.rxredditdemo.database.PostFavoritesDbEntry
-import com.b4kancs.rxredditdemo.databinding.*
+import com.b4kancs.rxredditdemo.databinding.AdapterCommonLoadingListItemBinding
+import com.b4kancs.rxredditdemo.databinding.RvItemCommonRedditPostLandscapeBinding
+import com.b4kancs.rxredditdemo.databinding.RvItemCommonRedditPostPortraitBinding
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.ui.PostComparator
+import com.b4kancs.rxredditdemo.ui.home.HomeViewModel
 import com.b4kancs.rxredditdemo.ui.uiutils.*
-import com.b4kancs.rxredditdemo.utils.*
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.DataSource
 import com.bumptech.glide.load.engine.GlideException
@@ -32,7 +33,6 @@ import com.google.android.material.imageview.ShapeableImageView
 import com.google.android.material.textview.MaterialTextView
 import com.jakewharton.rxbinding4.view.clicks
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
-import io.reactivex.rxjava3.core.Single
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.kotlin.addTo
@@ -44,7 +44,7 @@ import logcat.logcat
 class PostVerticalRvAdapter(
     private val context: Context,
     var disableTransformations: Boolean,
-    val getFavorites: (() -> Single<List<PostFavoritesDbEntry>>)?
+    val homeViewModel: HomeViewModel?
 ) :
     PagingDataAdapter<Post, RecyclerView.ViewHolder>(PostComparator) {
 
@@ -132,16 +132,16 @@ class PostVerticalRvAdapter(
                 dateAuthorTextView.text = calculateDateAuthorSubredditText(post)
                 scoreTextView.text = "${post.score}"
 
-                getFavorites?.apply {   // This is a nullable because it doesn't make sense to have it in the FavoritesFragment
-                    invoke()
-                        .observeOn(AndroidSchedulers.mainThread())
-                        .doOnSubscribe { logcat { "getFavorites.onSubscribe" } }
-                        .subscribe { favorites ->
-                            if (post.name in favorites.map { it.name }) {
-                                animateShowViewAlpha(favoriteIndicatorImageView)
-                            }
-                        }.addTo(disposables)
-                }
+                homeViewModel?.getFavoritePosts()
+                    ?.apply {   // This is a nullable because it doesn't make sense to have it in the FavoritesFragment
+                        observeOn(AndroidSchedulers.mainThread())
+                            .doOnSubscribe { logcat { "getFavorites.onSubscribe" } }
+                            .subscribe { favorites ->
+                                if (post.name in favorites.map { it.name }) {
+                                    animateShowViewAlpha(favoriteIndicatorImageView)
+                                }
+                            }.addTo(disposables)
+                    }
 
                 if (post.crossPostFrom != null) {
                     crossPostTextView.visibility = View.VISIBLE
