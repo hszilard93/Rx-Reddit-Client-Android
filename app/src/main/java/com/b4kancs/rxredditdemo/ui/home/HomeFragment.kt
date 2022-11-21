@@ -2,6 +2,7 @@ package com.b4kancs.rxredditdemo.ui.home
 
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.view.children
@@ -13,16 +14,24 @@ import androidx.paging.LoadState
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.databinding.FragmentHomeBinding
+import com.b4kancs.rxredditdemo.model.DefaultSubredditObject
+import com.b4kancs.rxredditdemo.model.Subreddit.Status
 import com.b4kancs.rxredditdemo.ui.main.MainActivity
 import com.b4kancs.rxredditdemo.ui.main.MainViewModel
 import com.b4kancs.rxredditdemo.ui.postviewer.PostViewerFragment
 import com.b4kancs.rxredditdemo.ui.shared.PostVerticalRvAdapter
 import com.b4kancs.rxredditdemo.ui.uiutils.CustomLinearLayoutManager
+import com.b4kancs.rxredditdemo.ui.uiutils.SnackType
+import com.b4kancs.rxredditdemo.ui.uiutils.makeSnackBar
+import com.jakewharton.rxbinding4.view.clicks
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Observable
+import io.reactivex.rxjava3.core.Single
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.kotlin.addTo
+import io.reactivex.rxjava3.kotlin.subscribeBy
+import io.reactivex.rxjava3.schedulers.Schedulers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.launchIn
@@ -92,6 +101,13 @@ class HomeFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         logcat { "onViewCreated" }
+
+        // Every time the Fragment is recreated, we need to change the support action bar title.
+        mainViewModel.selectedSubredditReplayObservable
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe { (activity as MainActivity).supportActionBar?.title = it.name }
+            .addTo(disposables)
+
         setUpRecyclerView()
         setUpOptionsMenu()
     }
@@ -237,21 +253,257 @@ class HomeFragment : Fragment() {
 
     private fun setUpOptionsMenu() {
         logcat { "setUpOptionsMenu" }
-        Observable.interval(0, 200, TimeUnit.MILLISECONDS)
-            .takeUntil { (activity as MainActivity).menu != null }
-            .observeOn(AndroidSchedulers.mainThread())
-            .subscribe {
-                val menu = (activity as MainActivity).menu
-                if (menu != null) {
-                    val menuItems = menu.children
-                    for (item in menuItems) {
-                        when (item.groupId) {
-                            R.id.menu_group_toolbar_subreddit_actions -> item.isVisible = true
-                            R.id.menu_group_toolbar_app_actions -> item.isVisible = true
-                            else -> item.isVisible = false
+
+        val mergedCurrentSubUpdateObservable = Observable.merge(    // We want to refresh the visibility of the menu item not only when the
+            mainViewModel.subredditsChangedSubject,         // subreddit is changed, but also when there is a modification of the subreddits
+            mainViewModel.selectedSubredditReplayObservable // (e.g. a sub is set as default, so the option should no longer be visible)
+        )
+            .subscribeOn(Schedulers.io())
+            .map { mainViewModel.selectedSubredditReplayObservable.blockingLatest().first() }
+            .share()
+
+        fun setUpSetAsDefaultMenuItem(menuItems: Sequence<MenuItem>) {
+            mergedCurrentSubUpdateObservable
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe { currentSub ->
+                    val setAsDefaultMenuItem = menuItems
+                        .find { it.itemId == R.id.menu_item_toolbar_subreddit_set_default }
+                    setAsDefaultMenuItem?.isVisible = currentSub.name != DefaultSubredditObject.defaultSubreddit.name
+                    setAsDefaultMenuItem?.clicks()
+                        ?.doOnNext { logcat(LogPriority.INFO) { "setAsDefaultMenuItem.clicks.onNext" } }
+                        ?.subscribe {
+                            mainViewModel.setAsDefaultSub(currentSub)
+                                .observeOn(AndroidSchedulers.mainThread())
+                                .subscribeBy(
+                                    onComplete = {
+                                        makeSnackBar(
+                                            binding.root,
+                                            null,
+                                            "${currentSub.address} is set as the default subreddit!"
+                                        ).show()
+                                    },
+                                    onError = {
+                                        makeSnackBar(
+                                            binding.root,
+                                            null,
+                                            "Error: ${currentSub.address} could not be set as the default subreddit :(",
+                                            SnackType.ERROR
+                                        ).show()
+                                    }
+                                ).addTo(disposables)
+                        }?.addTo(disposables)
+                }.addTo(disposables)
+        }
+
+        fun setUpRemoveFromYourSubsMenuItem(menuItems: Sequence<MenuItem>) {
+            mergedCurrentSubUpdateObservable
+                .subscribe { currentSub ->
+                    // The sub from the selectedSubredditReplayObservable may not reflect changes in Status, only the DB is always up to date.
+                    mainViewModel.getSubredditFromDbByAddress(currentSub.address)
+                        .onErrorResumeWith { Single.just(currentSub) }
+                        .observeOn(AndroidSchedulers.mainThread())
+                        .subscribe { updatedSub ->
+                            val removeFromYourMenuItem = menuItems
+                                .find { it.itemId == R.id.menu_item_toolbar_subreddit_remove }
+
+                            removeFromYourMenuItem?.isVisible = updatedSub.status in listOf(Status.IN_USER_LIST, Status.FAVORITED)
+                                    && updatedSub.name != DefaultSubredditObject.defaultSubreddit.name
+                            removeFromYourMenuItem?.clicks()
+                                ?.doOnNext { logcat(LogPriority.INFO) { "removeFromYourMenuItem.clicks.onNext" } }
+                                ?.subscribe {
+                                    mainViewModel.changeSubredditStatusTo(updatedSub, Status.IN_DEFAULTS_LIST)
+                                        .observeOn(AndroidSchedulers.mainThread())
+                                        .subscribeBy(
+                                            onSuccess = {
+                                                makeSnackBar(binding.root, null, "Done!").show()
+                                            },
+                                            onError = {
+                                                makeSnackBar(
+                                                    binding.root,
+                                                    null,
+                                                    "Could not perform action :(",
+                                                    SnackType.ERROR
+                                                ).show()
+                                            }
+                                        ).addTo(disposables)
+                                }
+                                ?.addTo(disposables)
+                        }.addTo(disposables)
+                }.addTo(disposables)
+        }
+
+        fun setUpDeleteFromSubsMenuItem(menuItems: Sequence<MenuItem>) {
+            mergedCurrentSubUpdateObservable
+                .subscribe { currentSub ->
+                    // The sub from the selectedSubredditReplayObservable may not reflect changes in Status, only the DB is always up to date.
+                    mainViewModel.getSubredditFromDbByAddress(currentSub.address)
+                        .onErrorResumeWith { Single.just(currentSub) }
+                        .observeOn(AndroidSchedulers.mainThread())
+                        .subscribe { updatedSub ->
+                            val deleteSubMenuItem = menuItems
+                                .find { it.itemId == R.id.menu_item_toolbar_subreddit_delete }
+
+                            deleteSubMenuItem?.isVisible = updatedSub.status != Status.NOT_IN_DB
+                                    && updatedSub != DefaultSubredditObject.defaultSubreddit
+                            deleteSubMenuItem?.clicks()
+                                ?.doOnNext { logcat(LogPriority.INFO) { "deleteSubMenuItem.clicks.onNext" } }
+                                ?.subscribe {
+                                    mainViewModel.deleteSubredditFromDb(updatedSub)
+                                        .observeOn(AndroidSchedulers.mainThread())
+                                        .subscribeBy(
+                                            onComplete = {
+                                                makeSnackBar(binding.root, null, "${updatedSub.address} has been deleted!")
+                                                    .show()
+                                            },
+                                            onError = {
+                                                makeSnackBar(
+                                                    binding.root,
+                                                    null,
+                                                    "Could not delete ${updatedSub.address} :(",
+                                                    SnackType.ERROR
+                                                ).show()
+                                            }
+                                        )
+                                        .addTo(disposables)
+                                }
+                                ?.addTo(disposables)
                         }
+                }.addTo(disposables)
+        }
+
+        fun setUpAddToYourSubsMenuItem(menuItems: Sequence<MenuItem>) {
+            mergedCurrentSubUpdateObservable
+                .subscribe { currentSub ->
+                    // The sub from the selectedSubredditReplayObservable may not reflect changes in Status, only the DB is always up to date.
+                    mainViewModel.getSubredditFromDbByAddress(currentSub.address)
+                        .onErrorResumeWith { Single.just(currentSub) }
+                        .observeOn(AndroidSchedulers.mainThread())
+                        .subscribe { updatedSub ->
+                            val addToYourSubsMenuItem = menuItems
+                                .find { it.itemId == R.id.menu_item_toolbar_subreddit_add_to_your }
+
+                            addToYourSubsMenuItem?.isVisible = updatedSub.status in listOf(Status.NOT_IN_DB, Status.IN_DEFAULTS_LIST)
+                            addToYourSubsMenuItem?.clicks()
+                                ?.doOnNext { logcat(LogPriority.INFO) { "addToYourSubreddits.clicks.onNext" } }
+                                ?.subscribe {
+                                    mainViewModel.changeSubredditStatusTo(updatedSub, Status.IN_USER_LIST)
+                                        .observeOn(AndroidSchedulers.mainThread())
+                                        .subscribeBy(
+                                            onSuccess = {
+                                                makeSnackBar(binding.root, null, "Done!").show()
+                                            },
+                                            onError = {
+                                                makeSnackBar(
+                                                    binding.root,
+                                                    null,
+                                                    "Could not perform action :(",
+                                                    SnackType.ERROR
+                                                ).show()
+                                            }
+                                        )
+                                        .addTo(disposables)
+                                }
+                                ?.addTo(disposables)
+                        }
+                }.addTo(disposables)
+        }
+
+        fun setUpAddToFavorites(menuItems: Sequence<MenuItem>) {
+            mergedCurrentSubUpdateObservable
+                .subscribe { currentSub ->
+                    // The sub from the selectedSubredditReplayObservable may not reflect changes in Status, only the DB is always up to date.
+                    mainViewModel.getSubredditFromDbByAddress(currentSub.address)
+                        .onErrorResumeWith { Single.just(currentSub) }
+                        .observeOn(AndroidSchedulers.mainThread())
+                        .subscribe { updatedSub ->
+                            val addToFavoritesMenuItem = menuItems
+                                .find { it.itemId == R.id.menu_item_toolbar_subreddit_add_to_favorites }
+
+                            addToFavoritesMenuItem?.isVisible = updatedSub.status != Status.FAVORITED
+                            addToFavoritesMenuItem?.clicks()
+                                ?.doOnNext { logcat(LogPriority.INFO) { "addToFavoriteSubreddits.clicks.onNext" } }
+                                ?.subscribe {
+                                    mainViewModel.changeSubredditStatusTo(updatedSub, Status.FAVORITED)
+                                        .observeOn(AndroidSchedulers.mainThread())
+                                        .subscribeBy(
+                                            onSuccess = {
+                                                makeSnackBar(binding.root, null, "Done!").show()
+                                            },
+                                            onError = {
+                                                makeSnackBar(
+                                                    binding.root,
+                                                    null,
+                                                    "Could not perform action :(",
+                                                    SnackType.ERROR
+                                                ).show()
+                                            }
+                                        )
+                                        .addTo(disposables)
+                                }
+                                ?.addTo(disposables)
+                        }
+                }.addTo(disposables)
+        }
+
+        fun setUpRemoveFromFavorites(menuItems: Sequence<MenuItem>) {
+            mergedCurrentSubUpdateObservable
+                .subscribe { currentSub ->
+                    // The sub from the selectedSubredditReplayObservable may not reflect changes in Status, only the DB is always up to date.
+                    mainViewModel.getSubredditFromDbByAddress(currentSub.address)
+                        .onErrorResumeWith { Single.just(currentSub) }
+                        .observeOn(AndroidSchedulers.mainThread())
+                        .subscribe { updatedSub ->
+                            val removeFromFavoritesMenuItem = menuItems
+                                .find { it.itemId == R.id.menu_item_toolbar_subreddit_remove_from_favorites }
+
+                            removeFromFavoritesMenuItem?.isVisible = updatedSub.status == Status.FAVORITED
+                                    && updatedSub.name != DefaultSubredditObject.defaultSubreddit.name
+                            removeFromFavoritesMenuItem?.clicks()
+                                ?.doOnNext { logcat(LogPriority.INFO) { "removeFromFavoriteSubreddits.clicks.onNext" } }
+                                ?.subscribe {
+                                    mainViewModel.changeSubredditStatusTo(updatedSub, Status.IN_USER_LIST)
+                                        .observeOn(AndroidSchedulers.mainThread())
+                                        .subscribeBy(
+                                            onSuccess = {
+                                                makeSnackBar(binding.root, null, "Done!").show()
+                                            },
+                                            onError = {
+                                                makeSnackBar(
+                                                    binding.root,
+                                                    null,
+                                                    "Could not perform action :(",
+                                                    SnackType.ERROR
+                                                ).show()
+                                            }
+                                        )
+                                        .addTo(disposables)
+                                }
+                                ?.addTo(disposables)
+                        }
+                }.addTo(disposables)
+        }
+
+        Observable.interval(0, 200, TimeUnit.MILLISECONDS)
+            .filter { (activity as MainActivity).menu != null }
+            .take(1)    // Wait until the menu is ready.
+            .observeOn(AndroidSchedulers.mainThread())
+            .doOnNext { logcat { "menu is ready .onNext" } }
+            .subscribe {
+                val menu = (activity as MainActivity).menu!!
+                val menuItems = menu.children
+                for (item in menuItems) {
+                    when (item.groupId) {
+                        R.id.menu_group_toolbar_subreddit_actions -> item.isVisible = true
+                        R.id.menu_group_toolbar_app_actions -> item.isVisible = true
+                        else -> item.isVisible = false
                     }
                 }
+                setUpSetAsDefaultMenuItem(menuItems)
+                setUpRemoveFromYourSubsMenuItem(menuItems)
+                setUpDeleteFromSubsMenuItem(menuItems)
+                setUpAddToYourSubsMenuItem(menuItems)
+                setUpAddToFavorites(menuItems)
+                setUpRemoveFromFavorites(menuItems)
             }.addTo(disposables)
     }
 

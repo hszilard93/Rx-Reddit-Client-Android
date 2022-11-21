@@ -54,19 +54,13 @@ class MainActivity : AppCompatActivity() {
             val navController = findNavController(R.id.fragment_main_nav_host)
             // Passing each menu ID as a set of Ids because each  menu should be considered as top level destinations.
             val appBarConfiguration = AppBarConfiguration(
-                setOf(
-                    R.id.navigation_subreddit, R.id.navigation_favorites, R.id.navigation_subscriptions
-                ),
+                setOf(R.id.navigation_subreddit, R.id.navigation_favorites, R.id.navigation_subscriptions),
                 drawerMain
             )
             setupActionBarWithNavController(navController, appBarConfiguration)
             bottomNavViewMain.setupWithNavController(navController)
             if (!viewModel.isActionBarShowing) supportActionBar?.hide()
             if (!viewModel.isNavBarShowing) bottomNavViewMain.isVisible = false
-            viewModel.selectedSubredditReplayObservable
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe { supportActionBar?.title = it.name }
-                .addTo(disposables)
 
             setUpSubredditDrawer()
             setupSearchViewDrawerAndList()

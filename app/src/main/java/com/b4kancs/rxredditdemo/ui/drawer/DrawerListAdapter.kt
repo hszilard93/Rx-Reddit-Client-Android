@@ -7,33 +7,34 @@ import android.widget.ImageView
 import android.widget.PopupWindow
 import androidx.core.view.isVisible
 import com.b4kancs.rxredditdemo.R
-import com.b4kancs.rxredditdemo.database.SubredditDatabase
 import com.b4kancs.rxredditdemo.model.DefaultSubredditObject
+import com.b4kancs.rxredditdemo.model.DefaultSubredditObject.defaultSubreddit
 import com.b4kancs.rxredditdemo.model.Subreddit
 import com.b4kancs.rxredditdemo.model.Subreddit.Status
 import com.b4kancs.rxredditdemo.ui.main.MainViewModel
+import com.b4kancs.rxredditdemo.ui.uiutils.SnackType
 import com.b4kancs.rxredditdemo.ui.uiutils.dpToPixel
 import com.b4kancs.rxredditdemo.ui.uiutils.makeSnackBar
-import com.f2prateek.rx.preferences2.RxSharedPreferences
 import com.google.android.material.textview.MaterialTextView
 import com.jakewharton.rxbinding4.view.clicks
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
+import io.reactivex.rxjava3.core.Completable
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.addTo
-import io.reactivex.rxjava3.schedulers.Schedulers
-import org.koin.java.KoinJavaComponent.inject
+import io.reactivex.rxjava3.kotlin.subscribeBy
+import logcat.LogPriority
+import logcat.logcat
 
 class DrawerListAdapter(
     private val c: Context,
     private val viewModel: MainViewModel
 ) : ArrayAdapter<Subreddit>(c, R.layout.list_item_drawer_subreddit) {
 
-    private val database: SubredditDatabase by inject(SubredditDatabase::class.java)
-    private val rxSharedPreferences: RxSharedPreferences by inject(RxSharedPreferences::class.java)
     private val disposables = CompositeDisposable()
-    private lateinit var subreddits: List<Subreddit>
-    private lateinit var defaultSubreddit: Subreddit
+    private var subreddits: List<Subreddit> = emptyList()
 
     private val subredditComparator = Comparator<Subreddit> { a, b ->
+        val defaultSubreddit = DefaultSubredditObject.defaultSubreddit
         if (a == defaultSubreddit) return@Comparator -1
         if (b == defaultSubreddit) return@Comparator 1
         if (a.status == b.status) return@Comparator a.name.compareTo(b.name)
@@ -45,38 +46,50 @@ class DrawerListAdapter(
     }
 
     init {
-        setUpInitialState()
-    }
-
-    private fun setUpInitialState() {
-        val homeSubredditAddress = rxSharedPreferences.getString(
-            DefaultSubredditObject.DEFAULT_SUBREDDIT_PREFERENCE_KEY,
-            DefaultSubredditObject.DEFAULT_SUBREDDIT_PREFERENCE_VALUE
-        ).get()
-        defaultSubreddit = database.subredditDao().getSubredditByAddress(homeSubredditAddress)
-            .subscribeOn(Schedulers.io())
-            .onErrorResumeWith { DefaultSubredditObject.defaultSubreddit }
-            .blockingGet()
-
-        subreddits = database.subredditDao().getSubreddits()
-            .subscribeOn(Schedulers.io())
-            .blockingGet()
-            .sortedWith(subredditComparator)
+        logcat { "init" }
+        viewModel.subredditsChangedSubject
+            .observeOn(AndroidSchedulers.mainThread())
+            .startWithItem(Unit)
+            .subscribe {
+                notifyDataSetChanged()
+            }
+            .addTo(disposables)
     }
 
     override fun notifyDataSetChanged() {
-        setUpInitialState()
-        super.notifyDataSetChanged()
+        logcat { "notifyDataSetChanged" }
+        populateSubreddits()
+            .subscribe {
+                super.notifyDataSetChanged()
+            }
+            .addTo(disposables)
+    }
+
+    private fun populateSubreddits(): Completable {
+        logcat { "populateSubreddits" }
+        return Completable.create { emitter ->
+            viewModel.getAllSubredditsFromDb()
+                .observeOn(AndroidSchedulers.mainThread())
+                .map { subs -> subs.sortedWith(subredditComparator) }
+                .subscribe { subs ->
+                    subreddits = subs
+                    emitter.onComplete()
+                }
+                .addTo(disposables)
+        }
     }
 
     // We have two headers for user added and default subreddits that we need to take into account
     override fun getCount(): Int {
+        logcat { "getCount" }
         val shouldShowYourSubsHeader = true
         val shouldShowDefaultSubsHeader = subreddits.firstOrNull { it.status == Status.IN_DEFAULTS_LIST } != null
         return subreddits.size + if (shouldShowYourSubsHeader) 1 else 0 + if (shouldShowDefaultSubsHeader) 1 else 0
     }
 
     override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+        logcat(LogPriority.VERBOSE) { "getView position = $position" }
+
         val inflater = LayoutInflater.from(c)
         // Let's figure out if the view needs to be a header
         if (position == 0) {
@@ -137,15 +150,12 @@ class DrawerListAdapter(
 
         actionImageView.clicks()
             .subscribe {
-                val newStatus = when (sub.status) {
-                    Subreddit.Status.NOT_IN_DB -> Subreddit.Status.IN_USER_LIST
-                    Subreddit.Status.IN_DEFAULTS_LIST -> Subreddit.Status.IN_USER_LIST
-                    Subreddit.Status.IN_USER_LIST -> Subreddit.Status.FAVORITED
-                    Subreddit.Status.FAVORITED -> Subreddit.Status.IN_USER_LIST
-                }
-                val newSub = Subreddit(sub.name, sub.address, newStatus, sub.nsfw)
-                viewModel.saveSubredditToDb(newSub)
-                notifyDataSetChanged()
+                viewModel.changeSubredditStatusByActionLogic(sub)
+                    .doOnError {
+                        makeSnackBar(parent, null, "Uh oh, something went wrong :(", SnackType.ERROR).show()
+                    }
+                    .subscribe()
+                    .addTo(disposables)
             }
             .addTo(disposables)
 
@@ -167,10 +177,17 @@ class DrawerListAdapter(
                         }
 
                         clicks().subscribe {
-                            val newSub = Subreddit(sub.name, sub.address, Status.IN_DEFAULTS_LIST)
-                            viewModel.saveSubredditToDb(newSub)
-                            notifyDataSetChanged()
-                            popupWindow.dismiss()
+                            viewModel
+                                .changeSubredditStatusTo(sub, Status.IN_DEFAULTS_LIST)
+                                .observeOn(AndroidSchedulers.mainThread())
+                                .subscribeBy(
+                                    onSuccess = {
+                                        popupWindow.dismiss()
+                                    },
+                                    onError = {
+                                        makeSnackBar(parent, null, "Uh oh, something went wrong :(", SnackType.ERROR).show()
+                                    }
+                                ).addTo(disposables)
                         }.addTo(disposables)
                     }
 
@@ -182,9 +199,23 @@ class DrawerListAdapter(
                         }
 
                         clicks().subscribe {
-                            viewModel.removeSubredditFromDb(sub)
-                            notifyDataSetChanged()
-                            popupWindow.dismiss()
+                            viewModel.deleteSubredditFromDb(sub)
+                                .observeOn(AndroidSchedulers.mainThread())
+                                .subscribeBy(
+                                    onComplete = {
+                                        makeSnackBar(parent, null, "${sub.address} has been deleted!").show()
+                                        popupWindow.dismiss()
+                                    },
+                                    onError = {
+                                        makeSnackBar(
+                                            parent,
+                                            null,
+                                            "Error: ${sub.address} could not be deleted :(",
+                                            SnackType.ERROR
+                                        ).show()
+                                    }
+                                )
+                                .addTo(disposables)
                         }.addTo(disposables)
                     }
 
@@ -195,13 +226,23 @@ class DrawerListAdapter(
                             return@apply
                         }
                         clicks().subscribe {
-                            defaultSubreddit = Subreddit(sub.name, sub.address, Status.FAVORITED)
-                            viewModel.makeThisTheDefaultSub(defaultSubreddit)
-                            viewModel.saveSubredditToDb(defaultSubreddit)
-
-                            makeSnackBar(parent, null, "${sub.address} is set as the default subreddit!").show()
-                            notifyDataSetChanged()
-                            popupWindow.dismiss()
+                            viewModel.setAsDefaultSub(sub)
+                                .observeOn(AndroidSchedulers.mainThread())
+                                .subscribeBy(
+                                    onComplete = {
+                                        makeSnackBar(parent, null, "${sub.address} is set as the default subreddit!").show()
+                                        notifyDataSetChanged()
+                                        popupWindow.dismiss()
+                                    },
+                                    onError = {
+                                        makeSnackBar(
+                                            parent,
+                                            null,
+                                            "Error: ${sub.address} could not be set as the default subreddit :(",
+                                            SnackType.ERROR
+                                        ).show()
+                                    }
+                                ).addTo(disposables)
                         }.addTo(disposables)
                     }
 

@@ -7,21 +7,25 @@
             android:id="@+id/menu_item_toolbar_subreddit_set_default"
             android:title="@string/string_common_action_set_as_default_sub" />
 
-        <!--    <item-->
-        <!--        android:id="@+id/menu_item_toolbar_subreddit_remove"-->
-        <!--        android:title="@string/string_common_action_remove_from_your" />-->
-
-        <!--    <item-->
-        <!--        android:id="@+id/menu_item_toolbar_subreddit_delete"-->
-        <!--        android:title="@string/string_common_action_delete_subreddit" />-->
+        <item
+            android:id="@+id/menu_item_toolbar_subreddit_remove"
+            android:title="@string/string_common_action_remove_from_your" />
 
         <item
             android:id="@+id/menu_item_toolbar_subreddit_add_to_your"
             android:title="@string/string_common_action_subreddit_add_to_your" />
 
-        <!--    <item-->
-        <!--        android:id="@+id/menu_item_toolbar_subreddit_add_to_favorites"-->
-        <!--        android:title="@string/string_common_action_subreddit_add_to_favorites" />-->
+        <item
+            android:id="@+id/menu_item_toolbar_subreddit_add_to_favorites"
+            android:title="@string/string_common_action_subreddit_add_to_favorites" />
+
+        <item
+            android:id="@+id/menu_item_toolbar_subreddit_remove_from_favorites"
+            android:title="@string/string_common_action_subreddit_remove_from_favorites" />
+
+        <item
+            android:id="@+id/menu_item_toolbar_subreddit_delete"
+            android:title="@string/string_common_action_delete_subreddit" />
     </group>
 
     <group android:id="@+id/menu_group_toolbar_favorites_actions">

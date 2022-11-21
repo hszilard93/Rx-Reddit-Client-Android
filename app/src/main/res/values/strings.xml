@@ -16,11 +16,12 @@
     <string name="post_viewer_slideshow_on">Slideshow started.</string>
     <string name="post_viewer_slideshow_off">Slideshow stopped.</string>
     <string name="favorites_no_media">There are no favorited posts to show yet!</string>
-    <string name="string_common_action_set_as_default_sub">Set as the default subreddit</string>
-    <string name="string_common_action_delete_subreddit">Delete from Subreddits</string>
+    <string name="string_common_action_set_as_default_sub">Set as your Default subreddit</string>
+    <string name="string_common_action_delete_subreddit">Delete Subreddit</string>
     <string name="string_common_action_remove_from_your">Remove from Your subreddits</string>
-    <string name="string_common_action_subreddit_add_to_your">Add this subreddit to Your subreddits</string>
-    <string name="string_common_action_subreddit_add_to_favorites">Add subreddit to Favorite subreddits</string>
+    <string name="string_common_action_subreddit_add_to_your">Add to Your subreddits</string>
+    <string name="string_common_action_subreddit_add_to_favorites">Add to Favorite subreddits</string>
     <string name="string_toolbar_menu_action_settings">Settings</string>
-    <string name="string_toolbar_menu_favorites_action_delete_all">Delete all posts from Favorites</string>
+    <string name="string_toolbar_menu_favorites_action_delete_all">Clear all posts from Favorites</string>
+    <string name="string_common_action_subreddit_remove_from_favorites">Remove from Favorite subreddits</string>
 </resources>

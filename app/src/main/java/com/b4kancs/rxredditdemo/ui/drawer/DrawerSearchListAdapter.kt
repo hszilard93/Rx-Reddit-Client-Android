@@ -10,11 +10,14 @@ import android.widget.ImageView
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.model.Subreddit
 import com.b4kancs.rxredditdemo.ui.main.MainViewModel
+import com.b4kancs.rxredditdemo.ui.uiutils.SnackType
+import com.b4kancs.rxredditdemo.ui.uiutils.makeSnackBar
 import com.google.android.material.textview.MaterialTextView
 import com.jakewharton.rxbinding4.view.clicks
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.addTo
+import io.reactivex.rxjava3.kotlin.subscribeBy
 import logcat.LogPriority
 import logcat.logcat
 
@@ -24,6 +27,7 @@ class DrawerSearchListAdapter(
 ) : ArrayAdapter<Subreddit>(c, R.layout.list_item_drawer_search) {
 
     val disposables = CompositeDisposable()
+    // A local copy of the search results. It's used because the user can interact w/ the results and modify them (add to, etc).
     private var subreddits = ArrayList<Subreddit>()
 
     init {
@@ -31,8 +35,8 @@ class DrawerSearchListAdapter(
         viewModel.searchResultsChangedSubject
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe { searchResults ->
-                logcat(LogPriority.INFO) { "New searchresults: size = ${searchResults.size}; items = ${searchResults.map { it.name }}" }
-                subreddits = ArrayList()
+                logcat(LogPriority.INFO) { "New searchResults: size = ${searchResults.size}; items = ${searchResults.map { it.name }}" }
+                subreddits.clear()
                 subreddits.addAll(searchResults)
                 notifyDataSetChanged()
             }.addTo(disposables)
@@ -50,9 +54,9 @@ class DrawerSearchListAdapter(
         val actionImageView: ImageView = container.findViewById(R.id.image_view_drawer_list_item_action_search)
 
         val sub: Subreddit = subreddits[position]
-        subredditNameTextView.text = sub.address
+        subredditNameTextView.text = sub.name
         subredditNameTextView.clicks()
-            .doOnNext { "subredditNameTextView.clicks.onNext" }
+            .doOnNext { logcat { "subredditNameTextView.clicks.onNext" } }
             .subscribe { viewModel.selectedSubredditPublishSubject.onNext(sub) }
             .addTo(disposables)
 
@@ -62,11 +66,20 @@ class DrawerSearchListAdapter(
             actionImageView.setImageResource(R.drawable.ic_baseline_star_border_24)
 
         actionImageView.clicks()
-            .doOnNext { "actionImageView.clicks.onNext" }
+            .doOnNext { logcat { "actionImageView.clicks.onNext" } }
             .subscribe {
-                val newSub = viewModel.changeSubredditStatus(sub)
-                subreddits[subreddits.indexOf(sub)] = newSub
-                notifyDataSetChanged()
+                viewModel.changeSubredditStatusByActionLogic(sub)
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribeBy(
+                        onSuccess = { newSub ->
+                            subreddits[position] = newSub
+                            notifyDataSetChanged()
+                        },
+                        onError = {
+                            makeSnackBar(parent, null, "Action error! :(", SnackType.ERROR).show()
+                        }
+                    )
+                    .addTo(disposables)
             }
             .addTo(disposables)
 
