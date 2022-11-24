@@ -3,13 +3,17 @@ package com.b4kancs.rxredditdemo.ui.uiutils
 import android.animation.Animator
 import android.animation.AnimatorSet
 import android.animation.ValueAnimator
+import android.app.Activity
 import android.content.Context
+import android.content.DialogInterface
 import android.content.res.Configuration
 import android.util.TypedValue
 import android.view.View
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.view.inputmethod.InputMethodManager
+import androidx.appcompat.app.AlertDialog
 import androidx.core.view.isVisible
+import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.model.Post
 import com.google.android.material.snackbar.Snackbar
 import java.util.*
@@ -131,6 +135,26 @@ fun makeSnackBar(view: View, stringId: Int?, message: String = "", type: SnackTy
     return snackBar
         .setBackgroundTint(backgroundColor)
         .setTextColor(textColor)
+}
+
+fun makeConfirmationDialog(
+    title: String,
+    message: String,
+    activity: Activity,
+    positiveAction: () -> Unit
+): AlertDialog {
+    val builder = AlertDialog.Builder(activity)
+    return builder
+        .setTitle(title)
+        .setMessage(message)
+        .setNegativeButton(R.string.string_common_cancel) { dialog, _ ->
+            dialog.dismiss()
+        }
+        .setPositiveButton(R.string.string_common_yes) { dialog, _ ->
+            positiveAction()
+            dialog.dismiss()
+        }
+        .create()
 }
 
 fun View.resetOnTouchListener(context: Context) {

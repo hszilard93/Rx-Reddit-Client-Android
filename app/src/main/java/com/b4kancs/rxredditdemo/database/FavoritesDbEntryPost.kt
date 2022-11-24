@@ -9,7 +9,7 @@ import org.koin.java.KoinJavaComponent.inject
 import java.util.*
 
 @Entity(tableName = "favoritePosts")
-data class PostFavoritesDbEntry(
+data class FavoritesDbEntryPost(
     @PrimaryKey val name: String,
     val url: String,
     val subreddit: String,
@@ -17,9 +17,9 @@ data class PostFavoritesDbEntry(
 ) {
     companion object {
 
-        fun fromPost(post: Post) = PostFavoritesDbEntry(post.name, post.url, post.subreddit, Date())
+        fun fromPost(post: Post) = FavoritesDbEntryPost(post.name, post.url, post.subreddit, Date())
 
-        fun toPost(dbEntry: PostFavoritesDbEntry): Post? {
+        fun toPost(dbEntry: FavoritesDbEntryPost): Post? {
             val service: RedditJsonService by inject(RedditJsonService::class.java)
             val jsonModel =
                 service.getPostJson(
@@ -36,3 +36,5 @@ data class PostFavoritesDbEntry(
         }
     }
 }
+
+fun FavoritesDbEntryPost.toPost(): Post? = FavoritesDbEntryPost.toPost(this)

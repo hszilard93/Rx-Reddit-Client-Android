@@ -17,7 +17,7 @@ import androidx.core.view.isVisible
 import androidx.paging.PagingDataAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.b4kancs.rxredditdemo.R
-import com.b4kancs.rxredditdemo.database.PostFavoritesDbEntry
+import com.b4kancs.rxredditdemo.database.FavoritesDbEntryPost
 import com.b4kancs.rxredditdemo.databinding.PagerItemPostViewerBinding
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.ui.PostComparator
@@ -55,7 +55,7 @@ class PostViewerAdapter(
     private val onPositionChangedCallback: (Int) -> Unit,
     private val onFavoritesActionCallback: (Boolean, Post) -> Completable,
     isSlideShowOnGoing: Boolean = false,
-    private val getFavoritePosts: () -> Single<List<PostFavoritesDbEntry>>
+    private val getFavoritePosts: () -> Single<List<FavoritesDbEntryPost>>
 ) : PagingDataAdapter<Post, PostViewerAdapter.PostViewerViewHolder>(PostComparator) {
     companion object {
         private const val SLIDESHOW_INTERVAL_KEY = "slideshowInterval"
@@ -623,7 +623,7 @@ class PostViewerAdapter(
             getFavoritePosts()
                 .observeOn(AndroidSchedulers.mainThread())
                 .doOnSubscribe { logcat { "getFavoritePosts.onSubscribe" } }
-                .subscribe { favorites: List<PostFavoritesDbEntry> ->
+                .subscribe { favorites: List<FavoritesDbEntryPost> ->
                     isFavorite = post.name in favorites.map { it.name }
                     logcat { "Post ${post.name} isFavorite = $isFavorite" }
 

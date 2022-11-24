@@ -19,7 +19,7 @@ import com.b4kancs.rxredditdemo.model.Subreddit.Status
 import com.b4kancs.rxredditdemo.ui.main.MainActivity
 import com.b4kancs.rxredditdemo.ui.main.MainViewModel
 import com.b4kancs.rxredditdemo.ui.postviewer.PostViewerFragment
-import com.b4kancs.rxredditdemo.ui.shared.PostVerticalRvAdapter
+import com.b4kancs.rxredditdemo.ui.shared.PostsVerticalRvAdapter
 import com.b4kancs.rxredditdemo.ui.uiutils.CustomLinearLayoutManager
 import com.b4kancs.rxredditdemo.ui.uiutils.SnackType
 import com.b4kancs.rxredditdemo.ui.uiutils.makeSnackBar
@@ -109,6 +109,10 @@ class HomeFragment : Fragment() {
             .addTo(disposables)
 
         setUpRecyclerView()
+    }
+
+    override fun onResume() {
+        super.onResume()
         setUpOptionsMenu()
     }
 
@@ -126,13 +130,13 @@ class HomeFragment : Fragment() {
                     logcat { "Disabling glide transformations" }
                     true
                 } else false
-                rvHomePosts.adapter = PostVerticalRvAdapter(
+                rvHomePosts.adapter = PostsVerticalRvAdapter(
                     mainActivity,
                     shouldDisableTransformations,
                     homeViewModel
                 )
             }
-            val postsHomeAdapter = rvHomePosts.adapter as PostVerticalRvAdapter
+            val postsHomeAdapter = rvHomePosts.adapter as PostsVerticalRvAdapter
 
             homeViewModel.cachedPagingObservable
                 .subscribe { pagingData ->
@@ -234,7 +238,7 @@ class HomeFragment : Fragment() {
                             rvHomePosts.findViewHolderForLayoutPosition(positionToGoTo ?: 0)
                                 ?.let { viewHolderAtPosition ->
                                     val transitionName =
-                                        (viewHolderAtPosition as PostVerticalRvAdapter.PostViewHolder)
+                                        (viewHolderAtPosition as PostsVerticalRvAdapter.PostViewHolder)
                                             .binding
                                             .postImageView
                                             .transitionName
@@ -483,7 +487,7 @@ class HomeFragment : Fragment() {
                 }.addTo(disposables)
         }
 
-        Observable.interval(0, 200, TimeUnit.MILLISECONDS)
+        Observable.interval(250, TimeUnit.MILLISECONDS)
             .filter { (activity as MainActivity).menu != null }
             .take(1)    // Wait until the menu is ready.
             .observeOn(AndroidSchedulers.mainThread())

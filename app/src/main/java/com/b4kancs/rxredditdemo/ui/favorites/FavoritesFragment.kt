@@ -2,29 +2,37 @@ package com.b4kancs.rxredditdemo.ui.favorites
 
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.view.children
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.FragmentNavigatorExtras
 import androidx.navigation.fragment.findNavController
 import androidx.paging.LoadState
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.databinding.FragmentFavoritesBinding
 import com.b4kancs.rxredditdemo.ui.main.MainActivity
 import com.b4kancs.rxredditdemo.ui.postviewer.PostViewerFragment
-import com.b4kancs.rxredditdemo.ui.shared.PostVerticalRvAdapter
+import com.b4kancs.rxredditdemo.ui.shared.PostsVerticalRvAdapter
 import com.b4kancs.rxredditdemo.ui.uiutils.CustomLinearLayoutManager
+import com.b4kancs.rxredditdemo.ui.uiutils.SnackType
+import com.b4kancs.rxredditdemo.ui.uiutils.makeConfirmationDialog
+import com.b4kancs.rxredditdemo.ui.uiutils.makeSnackBar
+import com.jakewharton.rxbinding4.view.clicks
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.kotlin.addTo
+import io.reactivex.rxjava3.kotlin.subscribeBy
 import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.flow.take
 import logcat.LogPriority
 import logcat.logcat
 import org.koin.androidx.viewmodel.ext.android.sharedViewModel
@@ -81,9 +89,41 @@ class FavoritesFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         logcat { "onViewCreated" }
+
+        setUpRecyclerView()
+
+        favoritesViewModel.isFavoritePostsNotEmptyBehaviorSubject
+            .observeOn(AndroidSchedulers.mainThread())
+            .doOnNext { logcat { "favoritesViewModel.favoritePostsBehaviorSubject.onNext" } }
+            .subscribe {
+                (binding.rvFavoritesPosts.adapter as PostsVerticalRvAdapter).refresh()
+            }
+            .addTo(disposables)
+
+    }
+
+    override fun onResume() {
+        logcat { "onResume" }
+        super.onResume()
+        (activity as MainActivity).apply {
+            lockDrawerClosed()
+        }
+        if (positionToGoTo == null) (binding.rvFavoritesPosts.adapter as PostsVerticalRvAdapter).refresh()
+        setUpOptionsMenu()
+    }
+
+    private fun goToNewPostViewerFragment(position: Int, sharedView: View) {
+        logcat { "createNewPostViewerFragment" }
+        val sharedElementExtras = FragmentNavigatorExtras(sharedView to sharedView.transitionName)
+        val action = FavoritesFragmentDirections.actionFavoritesToPostViewer(position, favoritesViewModel::class.simpleName!!)
+        findNavController().navigate(action, sharedElementExtras)
+    }
+
+    private fun setUpRecyclerView() {
+        logcat { "setUpPostsRecyclerView" }
         val mainActivity = activity as MainActivity
 
-        binding.apply {
+        with(binding) {
             rvFavoritesPosts.layoutManager = CustomLinearLayoutManager(requireContext(), LinearLayoutManager.VERTICAL)
                 .apply { canScrollHorizontally = false }
 
@@ -94,13 +134,13 @@ class FavoritesFragment : Fragment() {
                     logcat { "Disabling glide transformations" }
                     true
                 } else false
-                rvFavoritesPosts.adapter = PostVerticalRvAdapter(
+                rvFavoritesPosts.adapter = PostsVerticalRvAdapter(
                     mainActivity,
                     shouldDisableTransformations,
                     null
                 )
             }
-            val postsFavoritesAdapter = rvFavoritesPosts.adapter as PostVerticalRvAdapter
+            val postsFavoritesAdapter = rvFavoritesPosts.adapter as PostsVerticalRvAdapter
 
             favoritesViewModel.cachedPagingObservable
                 .subscribe { pagingData ->
@@ -114,7 +154,10 @@ class FavoritesFragment : Fragment() {
 
             postsFavoritesAdapter.loadStateFlow
                 .filter { loadStates -> loadStates.refresh is LoadState.NotLoading }
-                .take(1)
+                .distinctUntilChanged()
+                .onEach {
+                    logcat(LogPriority.VERBOSE) { "postsFavoritesAdapter.loadStateFlow.onEach loadStates.refresh == LoadState.NotLoading" }
+                }
                 .onEach {
                     // If the subreddit feed contains no displayable posts (images etc.), display a textview
                     if (postsFavoritesAdapter.itemCount == 1) {   // The 1 is because of the always-present bottom loading indicator
@@ -159,7 +202,7 @@ class FavoritesFragment : Fragment() {
                             rvFavoritesPosts.findViewHolderForLayoutPosition(it)
                                 ?.let { viewHolderAtPosition ->
                                     val transitionName =
-                                        (viewHolderAtPosition as PostVerticalRvAdapter.PostViewHolder)
+                                        (viewHolderAtPosition as PostsVerticalRvAdapter.PostViewHolder)
                                             .binding
                                             .postImageView
                                             .transitionName
@@ -187,7 +230,7 @@ class FavoritesFragment : Fragment() {
                 .observeOn(AndroidSchedulers.mainThread())
                 .doOnNext { logcat(LogPriority.INFO) { "postClickedSubject.onNext: post = ${it.first}" } }
                 .subscribe { (position, view) ->
-                    createNewPostViewerFragment(position, view)
+                    goToNewPostViewerFragment(position, view)
                     (rvFavoritesPosts.layoutManager as CustomLinearLayoutManager).canScrollVertically = false
                     postsFavoritesAdapter.disposables.dispose()
                 }.addTo(disposables)
@@ -196,22 +239,73 @@ class FavoritesFragment : Fragment() {
                 progressBarFavoritesLarge.isVisible = combinedLoadStates.refresh is LoadState.Loading
             }
 
-            srlFavorites.setOnRefreshListener {
-                postsFavoritesAdapter.refresh()
-                srlFavorites.isRefreshing = false
-            }
-
-            postsFavoritesAdapter.refresh()
+            srlFavorites.isEnabled = false
         }
     }
 
-    override fun onResume() {
-        logcat { "onResume" }
-        super.onResume()
-        (activity as MainActivity).apply {
-            lockDrawerClosed()
+    private fun setUpOptionsMenu() {
+        logcat { "setUpOptionsMenu" }
+
+        fun setUpClearAllFavoritesMenuItem(menuItems: Sequence<MenuItem>) {
+            logcat(LogPriority.VERBOSE) { "setUpOptionsMenu:setUpClearAllFavoritesMenuItem" }
+            val clearAllFavoritesMenuItem = menuItems
+                .find { it.itemId == R.id.menu_item_toolbar_favorites_delete_all }
+
+            favoritesViewModel.isFavoritePostsNotEmptyBehaviorSubject
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe { isNotEmpty ->
+                    clearAllFavoritesMenuItem?.isVisible = isNotEmpty
+                    clearAllFavoritesMenuItem?.clicks()
+                        ?.doOnNext { logcat(LogPriority.INFO) { "clearAllFavoritesMenuItem.clicks.onNext" } }
+                        ?.subscribe {
+                            makeConfirmationDialog(
+                                "Are you sure?",
+                                "This will delete all your favorited posts.",
+                                requireActivity()
+                            ) {
+                                favoritesViewModel.deleteAllFavoritePosts()
+                                    .observeOn(AndroidSchedulers.mainThread())
+                                    .subscribeBy(
+                                        onComplete = {
+                                            makeSnackBar(
+                                                binding.root,
+                                                null,
+                                                "Favorites deleted!"
+                                            ).show()
+                                        },
+                                        onError = {
+                                            makeSnackBar(
+                                                binding.root,
+                                                null,
+                                                "Could not perform action :(",
+                                                SnackType.ERROR
+                                            ).show()
+                                        }
+                                    ).addTo(disposables)
+                            }
+                                .show()
+                        }?.addTo(disposables)
+                }.addTo(disposables)
         }
-        if (positionToGoTo == null) (binding.rvFavoritesPosts.adapter as PostVerticalRvAdapter).refresh()
+
+        // If we don't wait an adequate amount, we might get a wrong reference to the options menu, or no reference at all.
+        Observable.interval(250, TimeUnit.MILLISECONDS)
+            .filter { (activity as MainActivity).menu != null }     // Wait until the menu is ready.
+            .take(1)
+            .observeOn(AndroidSchedulers.mainThread())
+            .doOnNext { logcat { "menu is ready .onNext" } }
+            .subscribe {
+                val menu = (activity as MainActivity).menu!!
+                val menuItems = menu.children
+                for (item in menuItems) {
+                    when (item.groupId) {
+                        R.id.menu_group_toolbar_favorites_actions -> item.isVisible = true
+                        R.id.menu_group_toolbar_app_actions -> item.isVisible = true
+                        else -> item.isVisible = false
+                    }
+                }
+                setUpClearAllFavoritesMenuItem(menuItems)
+            }
     }
 
     override fun onDestroy() {
@@ -225,12 +319,5 @@ class FavoritesFragment : Fragment() {
         logcat { "onDestroyView" }
         super.onDestroyView()
         _binding = null
-    }
-
-    private fun createNewPostViewerFragment(position: Int, sharedView: View) {
-        logcat { "createNewPostViewerFragment" }
-        val sharedElementExtras = FragmentNavigatorExtras(sharedView to sharedView.transitionName)
-        val action = FavoritesFragmentDirections.actionFavoritesToPostViewer(position, favoritesViewModel::class.simpleName!!)
-        findNavController().navigate(action, sharedElementExtras)
     }
 }

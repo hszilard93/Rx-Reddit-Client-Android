@@ -19,7 +19,6 @@ import com.b4kancs.rxredditdemo.databinding.RvItemCommonRedditPostLandscapeBindi
 import com.b4kancs.rxredditdemo.databinding.RvItemCommonRedditPostPortraitBinding
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.ui.PostComparator
-import com.b4kancs.rxredditdemo.ui.home.HomeViewModel
 import com.b4kancs.rxredditdemo.ui.uiutils.*
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.DataSource
@@ -41,10 +40,10 @@ import jp.wasabeef.glide.transformations.BlurTransformation
 import logcat.LogPriority
 import logcat.logcat
 
-class PostVerticalRvAdapter(
+class PostsVerticalRvAdapter(
     private val context: Context,
     var disableTransformations: Boolean,
-    val homeViewModel: HomeViewModel?
+    val favoritesProvider: FavoritesProvider?
 ) :
     PagingDataAdapter<Post, RecyclerView.ViewHolder>(PostComparator) {
 
@@ -132,7 +131,7 @@ class PostVerticalRvAdapter(
                 dateAuthorTextView.text = calculateDateAuthorSubredditText(post)
                 scoreTextView.text = "${post.score}"
 
-                homeViewModel?.getFavoritePosts()
+                favoritesProvider?.getFavoritePosts()
                     ?.apply {   // This is a nullable because it doesn't make sense to have it in the FavoritesFragment
                         observeOn(AndroidSchedulers.mainThread())
                             .doOnSubscribe { logcat { "getFavorites.onSubscribe" } }
@@ -321,7 +320,7 @@ class PostVerticalRvAdapter(
             logcat { "SmallBottomLoadingIndicatorViewHolder.bind" }
             AdapterCommonLoadingListItemBinding.bind(view)
 
-            this@PostVerticalRvAdapter.addLoadStateListener { combinedLoadStates ->
+            this@PostsVerticalRvAdapter.addLoadStateListener { combinedLoadStates ->
                 logcat(LogPriority.INFO) { "combinedLoadState = ${combinedLoadStates.refresh}, layoutPosition = $layoutPosition" }
                 view.isVisible = combinedLoadStates.source.append is LoadState.Loading && layoutPosition >= 1
                 view.layoutParams.height = if (view.isVisible) WindowManager.LayoutParams.WRAP_CONTENT else 0

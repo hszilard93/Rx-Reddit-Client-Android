@@ -8,11 +8,12 @@ import androidx.paging.PagingData
 import androidx.paging.rxjava3.cachedIn
 import androidx.paging.rxjava3.observable
 import com.b4kancs.rxredditdemo.database.FavoritesDatabase
-import com.b4kancs.rxredditdemo.database.PostFavoritesDbEntry
+import com.b4kancs.rxredditdemo.database.FavoritesDbEntryPost
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.pagination.RedditJsonPagingSource
 import com.b4kancs.rxredditdemo.ui.PostPagingDataObservableProvider
 import com.b4kancs.rxredditdemo.ui.main.MainViewModel
+import com.b4kancs.rxredditdemo.ui.shared.FavoritesProvider
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.core.Single
 import io.reactivex.rxjava3.disposables.CompositeDisposable
@@ -23,12 +24,7 @@ import logcat.logcat
 import org.koin.java.KoinJavaComponent.inject
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class HomeViewModel(val mainViewModel: MainViewModel) : ViewModel(), PostPagingDataObservableProvider {
-
-//    private val _text = MutableLiveData<String>().apply {
-//        value = "This is home Fragment"
-//    }
-//    val text: LiveData<String> = _text
+class HomeViewModel(val mainViewModel: MainViewModel) : ViewModel(), PostPagingDataObservableProvider, FavoritesProvider {
 
     val cachedPagingObservable: Observable<PagingData<Post>>
     var isAppJustStarted = true
@@ -55,7 +51,7 @@ class HomeViewModel(val mainViewModel: MainViewModel) : ViewModel(), PostPagingD
             .cachedIn(viewModelScope)
     }
 
-    fun getFavoritePosts(): Single<List<PostFavoritesDbEntry>> {
+    override fun getFavoritePosts(): Single<List<FavoritesDbEntryPost>> {
         logcat { "getFavoritePosts" }
         return favoritesDatabase.favoritesDao().getFavorites()
             .subscribeOn(Schedulers.io())
