@@ -1,4 +1,4 @@
-package com.b4kancs.rxredditdemo.database
+package com.b4kancs.rxredditdemo.data.database
 
 import androidx.room.*
 import io.reactivex.rxjava3.core.Completable

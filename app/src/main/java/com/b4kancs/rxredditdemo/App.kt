@@ -3,10 +3,13 @@ package com.b4kancs.rxredditdemo
 import android.app.Application
 import android.os.StrictMode
 import androidx.preference.PreferenceManager
-import com.b4kancs.rxredditdemo.database.FavoritesRoomDatabase
-import com.b4kancs.rxredditdemo.database.SubredditRoomDatabase
-import com.b4kancs.rxredditdemo.networking.RedditJsonService
-import com.b4kancs.rxredditdemo.pagination.RedditJsonPagingSource
+import com.b4kancs.rxredditdemo.data.database.FavoritesRoomDatabase
+import com.b4kancs.rxredditdemo.data.database.SubredditRoomDatabase
+import com.b4kancs.rxredditdemo.data.networking.RedditJsonClient
+import com.b4kancs.rxredditdemo.data.networking.RedditJsonService
+import com.b4kancs.rxredditdemo.domain.pagination.RedditJsonPagingSource
+import com.b4kancs.rxredditdemo.repository.FavoritePostsRepository
+import com.b4kancs.rxredditdemo.repository.SubredditRepository
 import com.b4kancs.rxredditdemo.ui.favorites.FavoritesViewModel
 import com.b4kancs.rxredditdemo.ui.home.HomeViewModel
 import com.b4kancs.rxredditdemo.ui.main.MainViewModel
@@ -46,6 +49,18 @@ class App : Application() {
         single {
             logcat { "Koin providing Single RxSharedPreferences instant." }
             RxSharedPreferences.create(PreferenceManager.getDefaultSharedPreferences(this@App))
+        }
+        single {
+            logcat { "Koin providing Single SubredditRepository instant." }
+            SubredditRepository()
+        }
+        single {
+            logcat { "Koin providing Single FavoritePostsRepository instant." }
+            FavoritePostsRepository()
+        }
+        single {
+            logcat { "Koin providing Single RedditJsonClient object." }
+            return@single RedditJsonClient
         }
         viewModel {
             logcat { "Koin providing ViewModel MainViewModel instant." }

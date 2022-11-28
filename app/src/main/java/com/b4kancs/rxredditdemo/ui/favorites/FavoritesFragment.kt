@@ -92,7 +92,7 @@ class FavoritesFragment : Fragment() {
 
         setUpRecyclerView()
 
-        favoritesViewModel.isFavoritePostsNotEmptyBehaviorSubject
+        favoritesViewModel.getIsFavoritePostsNotEmptyBehaviorSubject()
             .observeOn(AndroidSchedulers.mainThread())
             .doOnNext { logcat { "favoritesViewModel.favoritePostsBehaviorSubject.onNext" } }
             .subscribe {
@@ -157,13 +157,7 @@ class FavoritesFragment : Fragment() {
                 .distinctUntilChanged()
                 .onEach {
                     logcat(LogPriority.VERBOSE) { "postsFavoritesAdapter.loadStateFlow.onEach loadStates.refresh == LoadState.NotLoading" }
-                }
-                .onEach {
-                    // If the subreddit feed contains no displayable posts (images etc.), display a textview
-                    if (postsFavoritesAdapter.itemCount == 1) {   // The 1 is because of the always-present bottom loading indicator
-                        binding.textViewFavoritesNoMedia.isVisible = true
-                    } else {
-                        binding.textViewFavoritesNoMedia.isVisible = false
+                    if (postsFavoritesAdapter.itemCount != 1) {
                         positionToGoTo?.let { pos ->
                             logcat(LogPriority.INFO) { "Scrolling to position: $pos" }
                             rvFavoritesPosts.scrollToPosition(pos)
@@ -239,6 +233,12 @@ class FavoritesFragment : Fragment() {
                 progressBarFavoritesLarge.isVisible = combinedLoadStates.refresh is LoadState.Loading
             }
 
+            // If the subreddit feed contains no displayable posts (images etc.), display a textview
+            favoritesViewModel.getIsFavoritePostsNotEmptyBehaviorSubject()
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe { textViewFavoritesNoMedia.isVisible = !it }
+                .addTo(disposables)
+
             srlFavorites.isEnabled = false
         }
     }
@@ -251,7 +251,7 @@ class FavoritesFragment : Fragment() {
             val clearAllFavoritesMenuItem = menuItems
                 .find { it.itemId == R.id.menu_item_toolbar_favorites_delete_all }
 
-            favoritesViewModel.isFavoritePostsNotEmptyBehaviorSubject
+            favoritesViewModel.getIsFavoritePostsNotEmptyBehaviorSubject()
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe { isNotEmpty ->
                     clearAllFavoritesMenuItem?.isVisible = isNotEmpty

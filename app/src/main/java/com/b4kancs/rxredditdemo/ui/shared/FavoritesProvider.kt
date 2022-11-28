@@ -1,6 +1,6 @@
 package com.b4kancs.rxredditdemo.ui.shared
 
-import com.b4kancs.rxredditdemo.database.FavoritesDbEntryPost
+import com.b4kancs.rxredditdemo.data.database.FavoritesDbEntryPost
 import io.reactivex.rxjava3.core.Single
 
 interface FavoritesProvider {

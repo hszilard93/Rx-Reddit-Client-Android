@@ -115,7 +115,7 @@ class MainActivity : AppCompatActivity() {
         val adapter = DrawerListAdapter(this, viewModel)
         binding.listViewDrawerSubreddits.adapter = adapter
 
-        viewModel.subredditsChangedSubject
+        viewModel.getSubredditsChangedSubject()
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe { adapter.notifyDataSetChanged() }
             .addTo(disposables)

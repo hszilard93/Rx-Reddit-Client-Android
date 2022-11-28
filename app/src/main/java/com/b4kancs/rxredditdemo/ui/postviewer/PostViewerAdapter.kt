@@ -17,7 +17,7 @@ import androidx.core.view.isVisible
 import androidx.paging.PagingDataAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.b4kancs.rxredditdemo.R
-import com.b4kancs.rxredditdemo.database.FavoritesDbEntryPost
+import com.b4kancs.rxredditdemo.data.database.FavoritesDbEntryPost
 import com.b4kancs.rxredditdemo.databinding.PagerItemPostViewerBinding
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.ui.PostComparator

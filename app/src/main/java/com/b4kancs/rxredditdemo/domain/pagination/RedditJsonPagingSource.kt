@@ -1,9 +1,10 @@
-package com.b4kancs.rxredditdemo.pagination
+package com.b4kancs.rxredditdemo.domain.pagination
 
 import androidx.paging.PagingState
 import androidx.paging.rxjava3.RxPagingSource
 import com.b4kancs.rxredditdemo.model.Post
-import com.b4kancs.rxredditdemo.networking.RedditJsonService
+import com.b4kancs.rxredditdemo.data.networking.RedditJsonService
+import com.b4kancs.rxredditdemo.data.utils.JsonDataModelToPostTransformer.fromJsonPostDataModel
 import io.reactivex.rxjava3.core.Single
 import logcat.logcat
 import org.koin.java.KoinJavaComponent.inject
@@ -32,7 +33,7 @@ class RedditJsonPagingSource(val subredditAddress: String) : RxPagingSource<Stri
             .map { response -> response.body()!!.data.children }
             .map { posts ->
                 posts
-                    .map { Post.from(it.data) }
+                    .map { fromJsonPostDataModel(it.data) }
                     .filter { it.links != null }        // The 'links' of all posts that are not picture or gallery posts is null
             }
             .map { posts ->

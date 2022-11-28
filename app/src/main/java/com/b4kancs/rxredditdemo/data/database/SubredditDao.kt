@@ -1,4 +1,4 @@
-package com.b4kancs.rxredditdemo.database
+package com.b4kancs.rxredditdemo.data.database
 
 import androidx.room.*
 import com.b4kancs.rxredditdemo.model.Subreddit
@@ -10,7 +10,7 @@ import io.reactivex.rxjava3.core.Single
 interface SubredditDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    fun insertSubreddit(subreddit: Subreddit): Single<Long>
+    fun insertSubreddit(subreddit: Subreddit): Completable
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun insertSubreddits(subreddits: List<Subreddit>): Completable

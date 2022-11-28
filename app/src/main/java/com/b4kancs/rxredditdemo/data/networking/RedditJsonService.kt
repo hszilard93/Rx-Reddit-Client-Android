@@ -1,4 +1,4 @@
-package com.b4kancs.rxredditdemo.networking
+package com.b4kancs.rxredditdemo.data.networking
 
 import io.reactivex.rxjava3.core.Single
 import retrofit2.Response

@@ -1,10 +1,9 @@
-package com.b4kancs.rxredditdemo.pagination
+package com.b4kancs.rxredditdemo.domain.pagination
 
 import androidx.paging.PagingState
 import androidx.paging.rxjava3.RxPagingSource
-import com.b4kancs.rxredditdemo.database.FavoritesDatabase
-import com.b4kancs.rxredditdemo.database.FavoritesDbEntryPost
-import com.b4kancs.rxredditdemo.database.toPost
+import com.b4kancs.rxredditdemo.data.database.FavoritesDatabase
+import com.b4kancs.rxredditdemo.data.database.toPost
 import com.b4kancs.rxredditdemo.model.Post
 import io.reactivex.rxjava3.core.Single
 import io.reactivex.rxjava3.schedulers.Schedulers

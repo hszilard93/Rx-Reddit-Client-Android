@@ -1,9 +1,10 @@
-package com.b4kancs.rxredditdemo.database
+package com.b4kancs.rxredditdemo.data.database
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.b4kancs.rxredditdemo.model.Post
-import com.b4kancs.rxredditdemo.networking.RedditJsonService
+import com.b4kancs.rxredditdemo.data.networking.RedditJsonService
+import com.b4kancs.rxredditdemo.data.utils.JsonDataModelToPostTransformer
 import io.reactivex.rxjava3.schedulers.Schedulers
 import org.koin.java.KoinJavaComponent.inject
 import java.util.*
@@ -32,7 +33,7 @@ data class FavoritesDbEntryPost(
                         else null
                     } ?: return null
             // TODO: Better error handling
-            return Post.from(jsonModel.first().data.children.first().data)
+            return JsonDataModelToPostTransformer.fromJsonPostDataModel(jsonModel.first().data.children.first().data)
         }
     }
 }

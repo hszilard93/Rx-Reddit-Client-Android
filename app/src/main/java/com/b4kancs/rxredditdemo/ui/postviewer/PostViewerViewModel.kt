@@ -1,8 +1,8 @@
 package com.b4kancs.rxredditdemo.ui.postviewer
 
 import androidx.lifecycle.ViewModel
-import com.b4kancs.rxredditdemo.database.FavoritesDatabase
-import com.b4kancs.rxredditdemo.database.FavoritesDbEntryPost
+import com.b4kancs.rxredditdemo.data.database.FavoritesDatabase
+import com.b4kancs.rxredditdemo.data.database.FavoritesDbEntryPost
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.ui.PostPagingDataObservableProvider
 import io.reactivex.rxjava3.core.Completable

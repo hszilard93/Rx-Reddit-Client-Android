@@ -1,4 +1,4 @@
-package com.b4kancs.rxredditdemo.networking
+package com.b4kancs.rxredditdemo.data.networking
 
 import com.b4kancs.rxredditdemo.model.Subreddit
 import io.reactivex.rxjava3.core.Maybe

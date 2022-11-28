@@ -3,7 +3,7 @@ package com.b4kancs.rxredditdemo.model
 import android.content.res.AssetManager
 import androidx.room.Entity
 import androidx.room.PrimaryKey
-import com.b4kancs.rxredditdemo.networking.RedditSubredditsListingModel
+import com.b4kancs.rxredditdemo.data.networking.RedditSubredditsListingModel
 import org.koin.java.KoinJavaComponent.inject
 import org.w3c.dom.Element
 import java.io.InputStream
