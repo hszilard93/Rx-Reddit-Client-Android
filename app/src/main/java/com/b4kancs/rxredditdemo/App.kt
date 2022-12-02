@@ -91,9 +91,6 @@ class App : Application() {
 
         logcat(LogPriority.DEBUG) { "onCreate" }
 
-        if (BuildConfig.DEBUG)
-            StrictMode.enableDefaults()
-
         startKoin {
             androidLogger()
             androidContext(this@App)

@@ -29,10 +29,10 @@ import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.kotlin.addTo
 import io.reactivex.rxjava3.kotlin.subscribeBy
 import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.take
 import logcat.LogPriority
 import logcat.logcat
 import org.koin.androidx.viewmodel.ext.android.sharedViewModel
@@ -60,7 +60,7 @@ class FavoritesFragment : Fragment() {
         with(findNavController().currentBackStackEntry) {
             positionToGoTo = this?.savedStateHandle?.get<Int>(PostViewerFragment.SAVED_STATE_POSITION_KEY)
             this?.savedStateHandle?.remove<Int>(PostViewerFragment.SAVED_STATE_POSITION_KEY)
-            logcat(LogPriority.INFO) { "Recovered position from PostViewerFragment. positionToGoTo = $positionToGoTo" }
+            positionToGoTo?.let { logcat(LogPriority.INFO) { "Recovered position from PostViewerFragment. positionToGoTo = $it" } }
         }
 
         isBeingReconstructed = savedInstanceState != null
@@ -74,7 +74,7 @@ class FavoritesFragment : Fragment() {
         logcat(LogPriority.INFO) { "postponeEnterTransition()" }
         postponeEnterTransition()
 
-        // If, for some reason, the transition doesn't get triggered in time (the image is slow in loading, etc), we force it after a delay.
+        // If, for some reason, the transition doesn't get triggered in time (the image is slow to load, etc), we force it after a delay.
         delayedTransitionTriggerDisposable = Observable.timer(500, TimeUnit.MILLISECONDS)
             .observeOn(AndroidSchedulers.mainThread())
             .doOnSubscribe { logcat(LogPriority.INFO) { "Starting delayed enter transition timer." } }
@@ -95,11 +95,15 @@ class FavoritesFragment : Fragment() {
         favoritesViewModel.getIsFavoritePostsNotEmptyBehaviorSubject()
             .observeOn(AndroidSchedulers.mainThread())
             .doOnNext { logcat { "favoritesViewModel.favoritePostsBehaviorSubject.onNext" } }
-            .subscribe {
-                (binding.rvFavoritesPosts.adapter as PostsVerticalRvAdapter).refresh()
+            .filter { _binding != null }
+            .subscribe { isNotEmpty ->
+                binding.textViewFavoritesNoMedia.isVisible = !isNotEmpty
+                (binding.rvFavoritesPosts.adapter as PostsVerticalRvAdapter).let { adapter ->
+                    if (adapter.itemCount > 1 && !isNotEmpty) adapter.refresh()
+                    if (adapter.itemCount <= 1 && isNotEmpty) adapter.refresh()
+                }
             }
             .addTo(disposables)
-
     }
 
     override fun onResume() {
@@ -108,19 +112,19 @@ class FavoritesFragment : Fragment() {
         (activity as MainActivity).apply {
             lockDrawerClosed()
         }
-        if (positionToGoTo == null) (binding.rvFavoritesPosts.adapter as PostsVerticalRvAdapter).refresh()
+
         setUpOptionsMenu()
     }
 
     private fun goToNewPostViewerFragment(position: Int, sharedView: View) {
-        logcat { "createNewPostViewerFragment" }
+        logcat { "goToNewPostViewerFragment" }
         val sharedElementExtras = FragmentNavigatorExtras(sharedView to sharedView.transitionName)
         val action = FavoritesFragmentDirections.actionFavoritesToPostViewer(position, favoritesViewModel::class.simpleName!!)
         findNavController().navigate(action, sharedElementExtras)
     }
 
     private fun setUpRecyclerView() {
-        logcat { "setUpPostsRecyclerView" }
+        logcat { "setUpRecyclerView" }
         val mainActivity = activity as MainActivity
 
         with(binding) {
@@ -128,7 +132,7 @@ class FavoritesFragment : Fragment() {
                 .apply { canScrollHorizontally = false }
 
             if (rvFavoritesPosts.adapter == null) {
-                // If positionToNavigateTo is not null, we need to disable glide transformations and some other stuff for the
+                // If positionToGoTo is not null, we need to disable glide transformations and some other stuff for the
                 // shared element transition to work properly
                 val shouldDisableTransformations = if (positionToGoTo != null) {
                     logcat { "Disabling glide transformations" }
@@ -150,11 +154,12 @@ class FavoritesFragment : Fragment() {
                         // There might be a weird NullPointerException happening sometimes that doesn't really seem to affect anything
                         logcat(LogPriority.ERROR) { e.stackTrace.toString() }
                     }
-                }.addTo(disposables)
+                }
+                .addTo(disposables)
 
             postsFavoritesAdapter.loadStateFlow
                 .filter { loadStates -> loadStates.refresh is LoadState.NotLoading }
-                .distinctUntilChanged()
+                .take(1)
                 .onEach {
                     logcat(LogPriority.VERBOSE) { "postsFavoritesAdapter.loadStateFlow.onEach loadStates.refresh == LoadState.NotLoading" }
                     if (postsFavoritesAdapter.itemCount != 1) {
@@ -176,24 +181,18 @@ class FavoritesFragment : Fragment() {
                 .doOnNext { logcat(LogPriority.INFO) { "readyToBeDrawnSubject.onNext: pos = $it" } }
                 .subscribe {
                     // Fine scroll to better position the imageview
-                    positionToGoTo?.let {
+                    positionToGoTo?.let { position ->
                         val toScrollY = binding.rvFavoritesPosts
-                            .findViewHolderForLayoutPosition(it)
+                            .findViewHolderForLayoutPosition(position)
                             ?.itemView
                             ?.y
                             ?.minus(20f)
                             ?: 0f
                         logcat { "Scrolling by y = $toScrollY" }
                         binding.rvFavoritesPosts.scrollBy(0, toScrollY.toInt())
-                    }
 
-                    // We put these reveals here so that they will be synced with the SharedElementTransition.
-                    mainActivity.animateShowActionBar()
-                    mainActivity.animateShowBottomNavBar()
-
-                    positionToGoTo?.let {
-                        try {   // It turns out, findViewHolderForLayoutPosition doesn't always return the correct ViewHolder, and the cast fails...
-                            rvFavoritesPosts.findViewHolderForLayoutPosition(it)
+                        try {   // FindViewHolderForLayoutPosition doesn't always return the correct ViewHolder, and the cast fails...
+                            rvFavoritesPosts.findViewHolderForLayoutPosition(position)
                                 ?.let { viewHolderAtPosition ->
                                     val transitionName =
                                         (viewHolderAtPosition as PostsVerticalRvAdapter.PostViewHolder)
@@ -201,24 +200,29 @@ class FavoritesFragment : Fragment() {
                                             .postImageView
                                             .transitionName
                                     logcat(LogPriority.INFO) { "Transition name = $transitionName" }
-                                    logcat { "startPostponedEnterTransition()" }
                                 }
                         } catch (e: Exception) {
                             logcat(LogPriority.WARN) { e.message.toString() }
                         }
-
-                        // Getting these timings right is important for the UI to not glitch.
-                        Observable.timer(50, TimeUnit.MILLISECONDS)
-                            .observeOn(AndroidSchedulers.mainThread())
-                            .subscribe {
-                                startPostponedEnterTransition()
-                                logcat { "Disposing of delayedTransitionTriggerDisposable" }
-                                delayedTransitionTriggerDisposable.dispose()
-                            }.addTo(disposables)
-
-                        postsFavoritesAdapter.disableTransformations = false
                     }
-                }.addTo(disposables)
+
+                    // We put these reveals here so that they will be synced with the SharedElementTransition.
+                    mainActivity.animateShowActionBar()
+                    mainActivity.animateShowBottomNavBar()
+
+                    // Getting these timings right is important for the UI to not glitch.
+                    Observable.timer(50, TimeUnit.MILLISECONDS)
+                        .observeOn(AndroidSchedulers.mainThread())
+                        .subscribe {
+                            logcat { "startPostponedEnterTransition()" }
+                            startPostponedEnterTransition()
+                            logcat { "Disposing of delayedTransitionTriggerDisposable" }
+                            delayedTransitionTriggerDisposable.dispose()
+                        }.addTo(disposables)
+
+                    postsFavoritesAdapter.disableTransformations = false
+                }
+                .addTo(disposables)
 
             postsFavoritesAdapter.postClickedSubject
                 .observeOn(AndroidSchedulers.mainThread())
@@ -232,12 +236,6 @@ class FavoritesFragment : Fragment() {
             postsFavoritesAdapter.addLoadStateListener { combinedLoadStates ->
                 progressBarFavoritesLarge.isVisible = combinedLoadStates.refresh is LoadState.Loading
             }
-
-            // If the subreddit feed contains no displayable posts (images etc.), display a textview
-            favoritesViewModel.getIsFavoritePostsNotEmptyBehaviorSubject()
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe { textViewFavoritesNoMedia.isVisible = !it }
-                .addTo(disposables)
 
             srlFavorites.isEnabled = false
         }
@@ -312,6 +310,7 @@ class FavoritesFragment : Fragment() {
         logcat { "onDestroy" }
         super.onDestroy()
         (activity as MainActivity).unlockDrawer()
+        logcat { "Disposing of disposables." }
         disposables.dispose()
     }
 

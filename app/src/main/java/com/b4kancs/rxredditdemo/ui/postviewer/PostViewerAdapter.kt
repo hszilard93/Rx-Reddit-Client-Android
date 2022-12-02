@@ -82,7 +82,7 @@ class PostViewerAdapter(
         positionSubject
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe { (currentPosition, nextPosition) ->
-                logcat(LogPriority.INFO) { "onPositionChangedCallback($nextPosition)" }
+                logcat { "onPositionChangedCallback($nextPosition)" }
                 onPositionChangedCallback(nextPosition)
                 getViewHolderForPosition(currentPosition)?.noLongerShownSubject?.onNext(Unit)
                 getViewHolderForPosition(nextPosition)?.shownSubject?.onNext(Unit)
@@ -170,7 +170,7 @@ class PostViewerAdapter(
         logcat { "onBindViewHolder" }
         val post = getItem(position)
         post?.let(viewHolder::bind) ?: return
-        logcat(LogPriority.INFO) { "ViewHolder bound to Post. position = $position; post.name = ${post.name}" }
+        logcat { "ViewHolder bound to Post. position = $position; post.name = ${post.name}" }
 
         viewHolderMap[viewHolder] = position
         if (isRecentlyDisplayed) {

@@ -42,7 +42,7 @@ class FavoritesViewModel : ViewModel(), PostPagingDataObservableProvider {
         favoritePostsRepository.deleteAllFavoritePostsFromDb()
 
     fun getIsFavoritePostsNotEmptyBehaviorSubject(): BehaviorSubject<Boolean> =
-        favoritePostsRepository.isFavoritePostsNotEmptyBehaviorSubject
+        favoritePostsRepository.doesFavoritePostsHaveItemsBehaviorSubject
 
     override fun cachedPagingObservable(): Observable<PagingData<Post>> = cachedPagingObservable
 }

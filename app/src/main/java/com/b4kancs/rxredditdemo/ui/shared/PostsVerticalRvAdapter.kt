@@ -37,6 +37,8 @@ import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.kotlin.addTo
 import io.reactivex.rxjava3.subjects.PublishSubject
 import jp.wasabeef.glide.transformations.BlurTransformation
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.onEach
 import logcat.LogPriority
 import logcat.logcat
 
@@ -322,7 +324,7 @@ class PostsVerticalRvAdapter(
             AdapterCommonLoadingListItemBinding.bind(view)
 
             this@PostsVerticalRvAdapter.addLoadStateListener { combinedLoadStates ->
-                logcat(LogPriority.INFO) { "combinedLoadState = ${combinedLoadStates.refresh}, layoutPosition = $layoutPosition" }
+                logcat { "combinedLoadState = ${combinedLoadStates.refresh}, layoutPosition = $layoutPosition" }
                 view.isVisible = combinedLoadStates.source.append is LoadState.Loading && layoutPosition >= 1
                 view.layoutParams.height = if (view.isVisible) WindowManager.LayoutParams.WRAP_CONTENT else 0
             }

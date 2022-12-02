@@ -123,7 +123,7 @@ class HomeFragment : Fragment() {
                 .apply { canScrollHorizontally = false }
 
             if (rvHomePosts.adapter == null) {
-                // If positionToNavigateTo is not null, we need to disable glide transformations and some other stuff for the
+                // If positionToGoTo is not null, we need to disable glide transformations and some other stuff for the
                 // shared element transition to work properly
                 val shouldDisableTransformations = if (positionToGoTo != null) {
                     logcat { "Disabling glide transformations" }
