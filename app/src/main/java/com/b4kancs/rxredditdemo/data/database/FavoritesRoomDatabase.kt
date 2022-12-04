@@ -2,6 +2,7 @@ package com.b4kancs.rxredditdemo.data.database
 
 import android.content.Context
 import androidx.room.Room
+import io.reactivex.rxjava3.schedulers.Schedulers
 import logcat.LogPriority
 import logcat.logcat
 
@@ -17,7 +18,7 @@ object FavoritesRoomDatabase {
         } else {
             val localDatabase = Room.databaseBuilder(context.applicationContext, FavoritesDatabase::class.java, "favorites_db")
                 .build()
-            localDatabase.favoritesDao().getFavorites()
+            localDatabase.favoritesDao().getFavorites().subscribeOn(Schedulers.io()).blockingSubscribe()
             database = localDatabase
             logcat(LogPriority.INFO) { "Returning new database instance." }
             localDatabase

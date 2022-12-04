@@ -13,6 +13,7 @@ import com.b4kancs.rxredditdemo.ui.main.MainViewModel
 import com.b4kancs.rxredditdemo.ui.uiutils.SnackType
 import com.b4kancs.rxredditdemo.ui.uiutils.dpToPixel
 import com.b4kancs.rxredditdemo.ui.uiutils.makeSnackBar
+import com.b4kancs.rxredditdemo.utils.toIntValue
 import com.google.android.material.textview.MaterialTextView
 import com.jakewharton.rxbinding4.view.clicks
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
@@ -30,11 +31,15 @@ class DrawerListAdapter(
 
     private val disposables = CompositeDisposable()
     private var subreddits: List<Subreddit> = emptyList()
+    private var shouldShowYourSubsHeader = true
+    private var shouldShowRecommendedSubsHeader = true
+    private var yourSubredditsHeaderPosition: Int? = null
+    private var recommendedSubredditsHeaderPosition: Int? = null
 
     private val subredditComparator = Comparator<Subreddit> { a, b ->
         val defaultSubreddit = viewModel.getDefaultSubreddit()
-        if (a == defaultSubreddit) return@Comparator -1
-        if (b == defaultSubreddit) return@Comparator 1
+        if (a.name == defaultSubreddit.name) return@Comparator -1
+        if (b.name == defaultSubreddit.name) return@Comparator 1
         if (a.status == b.status) return@Comparator a.name.compareTo(b.name)
         if (a.status == Status.FAVORITED && b.status != Status.FAVORITED) return@Comparator -1
         if (b.status == Status.FAVORITED) return@Comparator 1
@@ -57,20 +62,32 @@ class DrawerListAdapter(
     override fun notifyDataSetChanged() {
         logcat { "notifyDataSetChanged" }
         populateSubreddits()
-            .subscribe {
+            .blockingSubscribe {
                 super.notifyDataSetChanged()
             }
-            .addTo(disposables)
     }
 
     private fun populateSubreddits(): Completable {
         logcat { "populateSubreddits" }
         return Completable.create { emitter ->
             viewModel.getAllSubreddits()
-                .observeOn(AndroidSchedulers.mainThread())
                 .map { subs -> subs.sortedWith(subredditComparator) }
                 .subscribe { subs ->
                     subreddits = subs
+                    shouldShowRecommendedSubsHeader = subreddits.firstOrNull { it.status == Status.IN_DEFAULTS_LIST } != null
+                    shouldShowYourSubsHeader =
+                        subreddits.firstOrNull { it.status == Status.IN_USER_LIST || it.status == Status.FAVORITED } != null
+
+                    yourSubredditsHeaderPosition = if (shouldShowYourSubsHeader) 0 else null
+                    recommendedSubredditsHeaderPosition =
+                        if (shouldShowRecommendedSubsHeader) {
+                            subreddits.count {
+                                it.status == Status.IN_USER_LIST || it.status == Status.FAVORITED
+                            } + shouldShowYourSubsHeader.toIntValue()
+                        } else {
+                            null
+                        }
+
                     emitter.onComplete()
                 }
                 .addTo(disposables)
@@ -80,25 +97,23 @@ class DrawerListAdapter(
     // We have two headers for user added and default subreddits that we need to take into account
     override fun getCount(): Int {
         logcat { "getCount" }
-        val shouldShowYourSubsHeader = true
-        val shouldShowDefaultSubsHeader = subreddits.firstOrNull { it.status == Status.IN_DEFAULTS_LIST } != null
-        return subreddits.size + if (shouldShowYourSubsHeader) 1 else 0 + if (shouldShowDefaultSubsHeader) 1 else 0
+        return subreddits.size + if (shouldShowYourSubsHeader) 1 else 0 + if (shouldShowRecommendedSubsHeader) 1 else 0
     }
 
     override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
         logcat(LogPriority.VERBOSE) { "getView position = $position" }
 
         val inflater = LayoutInflater.from(c)
-        // Let's figure out if the view needs to be a header
-        if (position == 0) {
+
+        // Let's figure out if the view needs to be a header or a regular list item.
+        if (position == yourSubredditsHeaderPosition) {    // It needs to be the 'Your subreddits' header.
             val headerViewItem = inflater.inflate(R.layout.list_item_drawer_header, parent, false)
             val headerTextView = headerViewItem.findViewById<MaterialTextView>(R.id.text_view_drawer_header_title)
             headerTextView.text = context.getString(R.string.drawer_header_your_subreddits)
             return headerViewItem
         }
-        if (subreddits
-                .count { it.status != Status.IN_DEFAULTS_LIST || it.status == Status.FAVORITED || it == viewModel.getDefaultSubreddit() } + 1 == position
-        ) {
+
+        if (position == recommendedSubredditsHeaderPosition) { // It needs to be the 'Recommended' header.
             val headerViewItem = inflater.inflate(R.layout.list_item_drawer_header, parent, false)
             val headerTextView = headerViewItem.findViewById<MaterialTextView>(R.id.text_view_drawer_header_title)
             headerTextView.text = context.getString(R.string.drawer_header_recommended_subreddits)
@@ -107,20 +122,28 @@ class DrawerListAdapter(
 
         // The view needs to be a subreddit list item
         val pos =
-            if (position in 1..subreddits
-                    .count { it.status != Status.IN_DEFAULTS_LIST || it.status == Status.FAVORITED || it == viewModel.getDefaultSubreddit() }
-            )
-                position - 1
-            else
-                position - 2
+            if (position in 0..subreddits.count {
+                    it.status == Status.IN_USER_LIST || it.status == Status.FAVORITED
+                }) {
+                position - shouldShowYourSubsHeader.toIntValue()
+            } else {
+                position - shouldShowYourSubsHeader.toIntValue() - shouldShowRecommendedSubsHeader.toIntValue()
+            }
 
-        val sub = subreddits[pos]
+        val pos1 =
+            if (position in 0..(recommendedSubredditsHeaderPosition ?: 0) - shouldShowYourSubsHeader.toIntValue()) {
+                position - shouldShowYourSubsHeader.toIntValue()
+            } else {
+                position - shouldShowYourSubsHeader.toIntValue() - shouldShowRecommendedSubsHeader.toIntValue()
+            }
+
+        val sub = subreddits[pos1]
 
         val listViewItem = inflater.inflate(R.layout.list_item_drawer_subreddit, parent, false)
         val actionImageView = listViewItem.findViewById<ImageView?>(R.id.image_view_drawer_subreddit_action)!!
             .also {
                 when {
-                    sub == viewModel.getDefaultSubreddit() -> {
+                    sub.name == viewModel.getDefaultSubreddit().name -> {
                         it.setImageResource(R.drawable.ic_baseline_star_filled_gold_24)
                         it.isEnabled = false
                     }
@@ -157,6 +180,8 @@ class DrawerListAdapter(
             }
             .addTo(disposables)
 
+        optionsImageView.isVisible = sub.name != viewModel.getDefaultSubreddit().name
+
         optionsImageView.clicks()
             .subscribe {
                 val popupView = inflater.inflate(R.layout.popup_drawer_list_options, parent, false)
@@ -169,7 +194,7 @@ class DrawerListAdapter(
 
                 val removeFromYourSubsTextView = popupView.findViewById<MaterialTextView>(R.id.text_view_drawer_popup_option_remove)
                     .apply {
-                        if (sub.status == Status.IN_DEFAULTS_LIST || sub === viewModel.getDefaultSubreddit()) {
+                        if (sub.status == Status.IN_DEFAULTS_LIST || sub.name == viewModel.getDefaultSubreddit().name) {
                             isVisible = false
                             return@apply
                         }
@@ -191,7 +216,7 @@ class DrawerListAdapter(
 
                 val deleteFromSubredditsTextView = popupView.findViewById<MaterialTextView>(R.id.text_view_drawer_popup_option_delete)
                     .apply {
-                        if (sub === viewModel.getDefaultSubreddit()) {
+                        if (sub == viewModel.getDefaultSubreddit()) {
                             isVisible = false
                             return@apply
                         }
@@ -219,7 +244,7 @@ class DrawerListAdapter(
 
                 val setAsDefaultSubTextView = popupView.findViewById<MaterialTextView>(R.id.text_view_drawer_option_set_default)
                     .apply {
-                        if (sub === viewModel.getDefaultSubreddit()) {
+                        if (sub.name == viewModel.getDefaultSubreddit().name) {
                             isVisible = false
                             return@apply
                         }
@@ -229,7 +254,6 @@ class DrawerListAdapter(
                                 .subscribeBy(
                                     onComplete = {
                                         makeSnackBar(parent, null, "${sub.address} is set as the default subreddit!").show()
-                                        notifyDataSetChanged()
                                         popupWindow.dismiss()
                                     },
                                     onError = {

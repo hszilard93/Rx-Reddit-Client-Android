@@ -16,27 +16,39 @@ object SubredditRoomDatabase {
         logcat { "fetchDatabase" }
 
         val localDatabaseCopy = database
-        return if (localDatabaseCopy != null) {
+        localDatabaseCopy?.let {
             logcat { "Returning existing database instance." }
-            localDatabaseCopy
-        } else {
-            val localDatabase = Room.databaseBuilder(context.applicationContext, SubredditDatabase::class.java, "subreddit_db")
-                .addCallback(object : RoomDatabase.Callback() {
-
-                    override fun onCreate(db: SupportSQLiteDatabase) {
-                        val defaultSubreddits = Subreddit.parseDefaultSubredditsFromXml()
-                        val subredditDatabase = database ?: return
-                        subredditDatabase.subredditDao().insertSubreddits(defaultSubreddits)
-                            .subscribeOn(Schedulers.io())
-                            .subscribe()
-                    }
-                })
-                .build()
-            // This is here because the db doesn't get initialized until the first transaction happens
-            localDatabase.subredditDao().getSubreddits()
-            database = localDatabase
-            logcat(LogPriority.INFO) { "Returning new database instance." }
-            localDatabase
+            return it
         }
+
+        var hasJustBeenCreated = false
+        // A new db instance needs to be created.
+        val localDatabase = Room
+            .databaseBuilder(context.applicationContext, SubredditDatabase::class.java, "subreddit_db")
+            .addCallback(object : RoomDatabase.Callback() {
+                override fun onCreate(db: SupportSQLiteDatabase) {
+                    logcat(LogPriority.INFO) { "onCreate. New SubredditDatabase has been created." }
+                    hasJustBeenCreated = true
+                    super.onCreate(db)
+                }
+            })
+            .build()
+
+        // Prompts the builder to build the db already... ..
+        localDatabase.subredditDao().getSubreddits()
+            .subscribeOn(Schedulers.io())
+            .blockingSubscribe()
+
+        // Only now can we assume that onCreate has run and the flag has been set, if necessary.
+        if (hasJustBeenCreated) {
+            val defaultSubreddits = Subreddit.parseDefaultSubredditsFromXml()
+            localDatabase.subredditDao().insertSubreddits(defaultSubreddits)
+                .subscribeOn(Schedulers.io())
+                .blockingSubscribe()
+        }
+
+        database = localDatabase
+        logcat(LogPriority.INFO) { "Returning new database instance." }
+        return localDatabase
     }
 }

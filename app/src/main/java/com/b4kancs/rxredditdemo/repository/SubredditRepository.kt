@@ -6,6 +6,7 @@ import com.b4kancs.rxredditdemo.model.Subreddit
 import com.f2prateek.rx.preferences2.RxSharedPreferences
 import io.reactivex.rxjava3.core.Completable
 import io.reactivex.rxjava3.core.Maybe
+import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.core.Single
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.addTo
@@ -15,6 +16,7 @@ import io.reactivex.rxjava3.subjects.PublishSubject
 import logcat.LogPriority
 import logcat.logcat
 import org.koin.java.KoinJavaComponent.inject
+import java.util.concurrent.TimeUnit
 
 class SubredditRepository {
 
@@ -151,8 +153,10 @@ class SubredditRepository {
                 }
             }
             ?: run {
-                logcat(LogPriority.INFO) { "No default subreddit preference detected." }
-                return Completable.complete()
+                logcat(LogPriority.INFO) {
+                    "No default subreddit preference detected. Creating one with ${defaultSubreddit.name} as the default sub."
+                }
+                return setAsDefaultSubreddit(defaultSubreddit)
             }
     }
 }
