@@ -146,18 +146,10 @@ class PostViewerFragment : Fragment() {
             binding.viewPagerPostViewer.customSetCurrentItem(nextPosition, ANIMATION_DURATION_SHORT)
         }
 
-        val onFavoritesActionCallback = { toFavorite: Boolean, post: Post ->
-            if (toFavorite) {
-                viewModel.addPostToFavorites(post)
-            } else {
-                viewModel.removePostFromFavorites(post)
-            }
-        }
-
         val postViewerAdapter = PostViewerAdapter(
             requireContext(),
+            viewModel,
             onPositionChangedCallback,
-            onFavoritesActionCallback,
             isSlideShowOngoing,
             { viewModel.getFavoritePosts() }
         )

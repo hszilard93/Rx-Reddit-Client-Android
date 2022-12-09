@@ -25,8 +25,8 @@ import logcat.LogPriority
 import logcat.logcat
 
 class DrawerListAdapter(
-    private val c: Context,
-    private val viewModel: MainViewModel
+        private val c: Context,
+        private val viewModel: MainViewModel
 ) : ArrayAdapter<Subreddit>(c, R.layout.list_item_drawer_subreddit) {
 
     private val disposables = CompositeDisposable()

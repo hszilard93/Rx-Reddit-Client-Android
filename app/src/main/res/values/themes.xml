@@ -29,7 +29,7 @@
         <item name="colorOnSurfaceInverse">@color/md_theme_light_inverseOnSurface</item>
         <item name="colorSurfaceInverse">@color/md_theme_light_inverseSurface</item>
         <item name="colorPrimaryInverse">@color/md_theme_light_inversePrimary</item>
-        <item name="colorImageBackground">@color/md_theme_light_surfaceVariant</item>
+        <item name="colorImageBackground">@color/md_theme_light_onPrimary</item>
         <item name="colorDrawerBackground">@color/md_theme_light_surface</item>
         <item name="colorHomeBackground">@color/md_theme_light_surface</item>
 <!--        <item name="colorHudGradientStart">#55BDE9FF</item>-->

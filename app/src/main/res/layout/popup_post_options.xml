@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:background="?attr/colorSurfaceVariant"
+    android:orientation="vertical">
+
+    <com.google.android.material.textview.MaterialTextView
+        android:id="@+id/text_view_post_popup_option_open_link"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:fontFamily="sans-serif-light"
+        android:gravity="center"
+        android:padding="8dp"
+        android:text="@string/string_post_popup_action_open_link"
+        android:textColor="?attr/colorTertiary"
+        android:textSize="16sp"/>
+
+    <com.google.android.material.textview.MaterialTextView
+        android:id="@+id/text_view_post_popup_option_download"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:fontFamily="sans-serif-light"
+        android:gravity="center"
+        android:padding="8dp"
+        android:text="@string/string_post_popup_action_download"
+        android:textColor="?attr/colorTertiary"
+        android:textSize="16sp"/>
+
+    <com.google.android.material.textview.MaterialTextView
+        android:id="@+id/text_view_post_popup_option_set_as_background"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:fontFamily="sans-serif-light"
+        android:gravity="center"
+        android:padding="8dp"
+        android:text="@string/string_post_popup_action_set_as_background"
+        android:textColor="?attr/colorTertiary"
+        android:textSize="16sp"/>
+
+    <com.google.android.material.textview.MaterialTextView
+        android:id="@+id/text_view_post_popup_option_go_to_user"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:ellipsize="middle"
+        android:fontFamily="sans-serif-light"
+        android:gravity="center"
+        android:padding="8dp"
+        android:singleLine="true"
+        android:text="@string/string_post_popup_action_go_to_user"
+        android:textColor="?attr/colorTertiary"
+        android:textSize="16sp"/>
+</LinearLayout>

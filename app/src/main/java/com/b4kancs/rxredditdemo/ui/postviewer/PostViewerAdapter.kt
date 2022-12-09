@@ -12,6 +12,7 @@ import android.view.WindowManager
 import android.view.inputmethod.EditorInfo
 import android.widget.EditText
 import android.widget.ImageView
+import android.widget.PopupWindow
 import androidx.core.view.doOnLayout
 import androidx.core.view.isVisible
 import androidx.paging.PagingDataAdapter
@@ -31,6 +32,7 @@ import com.bumptech.glide.request.RequestOptions
 import com.bumptech.glide.request.target.Target
 import com.bumptech.glide.request.transition.DrawableCrossFadeFactory
 import com.f2prateek.rx.preferences2.RxSharedPreferences
+import com.google.android.material.textview.MaterialTextView
 import com.jakewharton.rxbinding4.view.clicks
 import com.jakewharton.rxbinding4.view.focusChanges
 import com.jakewharton.rxbinding4.widget.editorActionEvents
@@ -41,6 +43,7 @@ import io.reactivex.rxjava3.core.Single
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.kotlin.addTo
+import io.reactivex.rxjava3.kotlin.subscribeBy
 import io.reactivex.rxjava3.subjects.BehaviorSubject
 import io.reactivex.rxjava3.subjects.PublishSubject
 import jp.wasabeef.glide.transformations.BlurTransformation
@@ -50,12 +53,12 @@ import org.koin.java.KoinJavaComponent.inject
 import java.util.concurrent.TimeUnit
 
 class PostViewerAdapter(
-    private val context: Context,
+        private val context: Context,
+        private val viewModel: PostViewerViewModel,
     // This is how the ViewPager scrolls to the next/previous ViewHolder.
-    private val onPositionChangedCallback: (Int) -> Unit,
-    private val onFavoritesActionCallback: (Boolean, Post) -> Completable,
-    isSlideShowOnGoing: Boolean = false,
-    private val getFavoritePosts: () -> Single<List<FavoritesDbEntryPost>>
+        private val onPositionChangedCallback: (Int) -> Unit,
+        isSlideShowOnGoing: Boolean = false,
+        private val getFavoritePosts: () -> Single<List<FavoritesDbEntryPost>>
 ) : PagingDataAdapter<Post, PostViewerAdapter.PostViewerViewHolder>(PostComparator) {
     companion object {
         private const val SLIDESHOW_INTERVAL_KEY = "slideshowInterval"
@@ -215,7 +218,6 @@ class PostViewerAdapter(
         var isGallery = false
         var currentGalleryPosition = 0
         private var hasAppliedBlur = false
-        private var isFavorited = false
 
         init {
             logcat { "PostViewerViewHolder.init" }
@@ -246,6 +248,7 @@ class PostViewerAdapter(
                 setUpSlideshowAction()
                 setUpSlideshowControls()
                 setUpFavoritesAction()
+                setUpOptionsAction()
                 // Always start with the ScrollView scrolled to the top.
                 scrollViewPostOuter.doOnLayout {
                     scrollViewPostOuter.fling(-20000)
@@ -494,21 +497,21 @@ class PostViewerAdapter(
                 }
                 .addListener(object : RequestListener<Drawable> {
                     override fun onLoadFailed(
-                        e: GlideException?,
-                        model: Any?,
-                        target: Target<Drawable>?,
-                        isFirstResource: Boolean
+                            e: GlideException?,
+                            model: Any?,
+                            target: Target<Drawable>?,
+                            isFirstResource: Boolean
                     ): Boolean {
                         logcat { "Glide.onLoadFailed" }
                         return false
                     }
 
                     override fun onResourceReady(
-                        resource: Drawable?,
-                        model: Any?,
-                        target: Target<Drawable>?,
-                        dataSource: DataSource?,
-                        isFirstResource: Boolean
+                            resource: Drawable?,
+                            model: Any?,
+                            target: Target<Drawable>?,
+                            dataSource: DataSource?,
+                            isFirstResource: Boolean
                     ): Boolean {
                         logcat { "Glide.onResourceReady" }
                         readyToBeDrawnSubject.onNext(layoutPosition)
@@ -575,7 +578,7 @@ class PostViewerAdapter(
             // Setup
             val favoriteAction: () -> Unit = {
                 favView.setImageResource(R.drawable.ic_baseline_favorite_filled_60)
-                onFavoritesActionCallback(true, post)
+                viewModel.addPostToFavorites(post)
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe(
                         {
@@ -596,7 +599,7 @@ class PostViewerAdapter(
 
             val unfavoriteAction: () -> Unit = {
                 favView.setImageResource(R.drawable.ic_baseline_favorite_border_60)
-                onFavoritesActionCallback(false, post)
+                viewModel.removePostFromFavorites(post)
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe(
                         {
@@ -641,6 +644,88 @@ class PostViewerAdapter(
                         favoriteAction()
                     }
                 }.addTo(disposables)
+        }
+
+        private fun setUpOptionsAction() {
+            logcat { "setUpOptions" }
+
+            val optionsImageView = binding.imageViewPostMainHudRightOptions
+
+            optionsImageView.clicks()
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe {
+                    val popupView = LayoutInflater.from(context)
+                        .inflate(R.layout.popup_post_options, binding.root, false)
+                    val popupWindow = PopupWindow(
+                        popupView,
+                        WindowManager.LayoutParams.WRAP_CONTENT,
+                        WindowManager.LayoutParams.WRAP_CONTENT,
+                        true)
+
+                    val openLinkTextView = popupView.findViewById<MaterialTextView>(R.id.text_view_post_popup_option_open_link)
+                        .apply {
+                            clicks()
+                                .observeOn(AndroidSchedulers.mainThread())
+                                .subscribe {
+                                    viewModel.openRedditLinkOfPost(post, context)
+                                        .observeOn(AndroidSchedulers.mainThread())
+                                        .subscribeBy(
+                                            onComplete = {
+                                                popupWindow.dismiss()
+                                            },
+                                            onError = {
+                                                makeSnackBar(
+                                                    view = optionsImageView,
+                                                    stringId = R.string.string_common_error_something_went_wrong,
+                                                    type = SnackType.ERROR
+                                                ).show()
+                                            }
+                                        )
+                                        .addTo(disposables)
+                                }
+                                .addTo(disposables)
+                        }
+
+                    val downloadImageTextView = popupView.findViewById<MaterialTextView>(R.id.text_view_post_popup_option_download)
+                        .apply {
+                            clicks()
+                                .observeOn(AndroidSchedulers.mainThread())
+                                .subscribe {
+                                    popupWindow.dismiss()
+                                    // TODO
+                                }
+                                .addTo(disposables)
+                        }
+
+                    val setAsBackgroundTextView = popupView.findViewById<MaterialTextView>(R.id.text_view_post_popup_option_set_as_background)
+                        .apply {
+                            clicks()
+                                .observeOn(AndroidSchedulers.mainThread())
+                                .subscribe {
+                                    popupWindow.dismiss()
+                                    // TODO
+                                }
+                                .addTo(disposables)
+                        }
+
+                    val goToUserSubmissionTextView = popupView.findViewById<MaterialTextView>(R.id.text_view_post_popup_option_go_to_user)
+                        .apply {
+                            text = context.getString(R.string.string_post_popup_action_go_to_user, post.author)
+                            clicks()
+                                .observeOn(AndroidSchedulers.mainThread())
+                                .subscribe {
+                                    popupWindow.dismiss()
+                                    // TODO
+                                }
+                                .addTo(disposables)
+                        }
+
+                    // The window y offset calculation is done because the popup window would get off the screen when the list item is on the bottom
+                    val popupViewHeightPlusPadding = dpToPixel(48 * 4 + 24, context)
+                    popupWindow.showAsDropDown(optionsImageView, 0, popupViewHeightPlusPadding * -1)
+
+                }.addTo(disposables)
+
         }
     }
 }
