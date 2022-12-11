@@ -15,6 +15,7 @@ import android.widget.ImageView
 import android.widget.PopupWindow
 import androidx.core.view.doOnLayout
 import androidx.core.view.isVisible
+import androidx.fragment.app.FragmentActivity
 import androidx.paging.PagingDataAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.b4kancs.rxredditdemo.R
@@ -37,9 +38,7 @@ import com.jakewharton.rxbinding4.view.clicks
 import com.jakewharton.rxbinding4.view.focusChanges
 import com.jakewharton.rxbinding4.widget.editorActionEvents
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
-import io.reactivex.rxjava3.core.Completable
 import io.reactivex.rxjava3.core.Observable
-import io.reactivex.rxjava3.core.Single
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.kotlin.addTo
@@ -57,8 +56,7 @@ class PostViewerAdapter(
         private val viewModel: PostViewerViewModel,
     // This is how the ViewPager scrolls to the next/previous ViewHolder.
         private val onPositionChangedCallback: (Int) -> Unit,
-        isSlideShowOnGoing: Boolean = false,
-        private val getFavoritePosts: () -> Single<List<FavoritesDbEntryPost>>
+        isSlideShowOnGoing: Boolean = false
 ) : PagingDataAdapter<Post, PostViewerAdapter.PostViewerViewHolder>(PostComparator) {
     companion object {
         private const val SLIDESHOW_INTERVAL_KEY = "slideshowInterval"
@@ -109,7 +107,8 @@ class PostViewerAdapter(
                         getViewHolderForPosition(currentLayoutPosition!!)!!.itemView,
                         R.string.post_viewer_slideshow_on
                     ).show()
-                } else {
+                }
+                else {
                     logcat(LogPriority.INFO) { "Stopping slideshow." }
                     slideshowStartViewHolder.binding.imageViewPostMainHudLeftSlideshow.setImageResource(R.drawable.ic_baseline_slideshow_60)
                     slideshowStartViewHolder.hideSlideShowControls()
@@ -128,7 +127,7 @@ class PostViewerAdapter(
             }.addTo(disposables)
 
         // For to debug ye olde code
-        val favoritePosts = getFavoritePosts().blockingGet()
+        val favoritePosts = viewModel.getFavoritePosts().blockingGet()
         logcat { "Favorite database size = ${favoritePosts.size}, entries: ${favoritePosts.map { it.name }}" }
 
         super.onAttachedToRecyclerView(recyclerView)
@@ -211,8 +210,9 @@ class PostViewerAdapter(
 
     inner class PostViewerViewHolder(val binding: PagerItemPostViewerBinding) : RecyclerView.ViewHolder(binding.root) {
 
-        val shownSubject = PublishSubject.create<Unit>()
-        val noLongerShownSubject = PublishSubject.create<Unit>()
+        val shownSubject: PublishSubject<Unit> = PublishSubject.create()
+        val noLongerShownSubject: PublishSubject<Unit> = PublishSubject.create()
+        private var wasAbleToLoadSubject: BehaviorSubject<Boolean> = BehaviorSubject.createDefault(false)
         val hudElements = ArrayList<View>()
         lateinit var post: Post
         var isGallery = false
@@ -300,7 +300,8 @@ class PostViewerAdapter(
             return if (currentGalleryPosition in 0 until post.links!!.size - 1) {
                 changeGalleryPosition(currentGalleryPosition + 1)
                 true
-            } else false
+            }
+            else false
         }
 
         fun showPreviousInGallery(): Boolean {
@@ -308,7 +309,8 @@ class PostViewerAdapter(
             return if (currentGalleryPosition in 1 until post.links!!.size) {
                 changeGalleryPosition(currentGalleryPosition - 1)
                 true
-            } else false
+            }
+            else false
         }
 
         private fun changeGalleryPosition(position: Int) {
@@ -395,7 +397,8 @@ class PostViewerAdapter(
 
                 if (layoutPosition == 0) {
                     imageViewPostMainHudLeftPrevious.setColorFilter(colorGreyTypedValue.data)
-                } else {
+                }
+                else {
                     imageViewPostMainHudLeftPrevious.setColorFilter(colorNormalTypedValue.data)
                     constraintPostMainHudLeft.clicks()
                         .subscribe {
@@ -406,7 +409,8 @@ class PostViewerAdapter(
 
                 if (layoutPosition == this@PostViewerAdapter.itemCount - 1) {
                     imageViewPostMainHudRightNext.setColorFilter(colorGreyTypedValue.data)
-                } else {
+                }
+                else {
                     imageViewPostMainHudRightNext.setColorFilter(colorNormalTypedValue.data)
                     constraintPostMainHudRight.clicks()
                         .subscribe {
@@ -427,12 +431,14 @@ class PostViewerAdapter(
                             hasAppliedBlur = false
                             textViewRvNsfwTag.isVisible = false
                             loadImageWithGlide(zoomableImageView, post.links[0], true, post.toBlur)
-                        } else {
+                        }
+                        else {
                             logcat { "isHudVisible = $isHudVisible" }
                             if (!isHudVisible) {
                                 logcat(LogPriority.INFO) { "Showing HUD." }
                                 showHud()
-                            } else {
+                            }
+                            else {
                                 logcat(LogPriority.INFO) { "Hiding HUD." }
                                 hideHud()
                             }
@@ -486,7 +492,8 @@ class PostViewerAdapter(
                                 DrawableCrossFadeFactory.Builder().setCrossFadeEnabled(false).build()
                             )
                         )
-                    } else {
+                    }
+                    else {
                         placeholder(R.drawable.ic_download)
                         dontTransform()
                     }
@@ -514,6 +521,7 @@ class PostViewerAdapter(
                             isFirstResource: Boolean
                     ): Boolean {
                         logcat { "Glide.onResourceReady" }
+                        wasAbleToLoadSubject.onNext(true)
                         readyToBeDrawnSubject.onNext(layoutPosition)
                         return false
                     }
@@ -623,7 +631,7 @@ class PostViewerAdapter(
             }
 
             // Initialization
-            getFavoritePosts()
+            viewModel.getFavoritePosts()
                 .observeOn(AndroidSchedulers.mainThread())
                 .doOnSubscribe { logcat { "getFavoritePosts.onSubscribe" } }
                 .subscribe { favorites: List<FavoritesDbEntryPost> ->
@@ -640,7 +648,8 @@ class PostViewerAdapter(
                 .subscribe {
                     if (isFavorite) {
                         unfavoriteAction()
-                    } else {
+                    }
+                    else {
                         favoriteAction()
                     }
                 }.addTo(disposables)
@@ -650,7 +659,6 @@ class PostViewerAdapter(
             logcat { "setUpOptions" }
 
             val optionsImageView = binding.imageViewPostMainHudRightOptions
-
             optionsImageView.clicks()
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe {
@@ -688,11 +696,34 @@ class PostViewerAdapter(
 
                     val downloadImageTextView = popupView.findViewById<MaterialTextView>(R.id.text_view_post_popup_option_download)
                         .apply {
+                            wasAbleToLoadSubject
+                                .observeOn(AndroidSchedulers.mainThread())
+                                .subscribe { isVisible = it }
+                                .addTo(disposables)
+
                             clicks()
                                 .observeOn(AndroidSchedulers.mainThread())
                                 .subscribe {
                                     popupWindow.dismiss()
-                                    // TODO
+                                    viewModel.downloadImage(post.links!![currentGalleryPosition], (context as FragmentActivity))
+                                        .subscribeBy(
+                                            onComplete = {
+                                                popupWindow.dismiss()
+                                                makeSnackBar(
+                                                    view = optionsImageView,
+                                                    stringId = null,
+                                                    message = "Saved to Pictures!",
+                                                ).show()
+                                            },
+                                            onError = {
+                                                makeSnackBar(
+                                                    view = optionsImageView,
+                                                    stringId = R.string.string_common_error_something_went_wrong,
+                                                    type = SnackType.ERROR
+                                                ).show()
+                                            }
+                                        )
+                                        .addTo(disposables)
                                 }
                                 .addTo(disposables)
                         }

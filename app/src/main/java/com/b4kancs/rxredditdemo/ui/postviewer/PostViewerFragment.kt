@@ -150,8 +150,7 @@ class PostViewerFragment : Fragment() {
             requireContext(),
             viewModel,
             onPositionChangedCallback,
-            isSlideShowOngoing,
-            { viewModel.getFavoritePosts() }
+            isSlideShowOngoing
         )
         with(binding) {
             viewPagerPostViewer.isVisible = false
