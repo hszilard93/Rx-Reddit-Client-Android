@@ -28,7 +28,8 @@
     <string name="string_common_yes">Yes</string>
     <string name="string_post_popup_action_open_link">Open Reddit link</string>
     <string name="string_post_popup_action_download">Download image</string>
-    <string name="string_post_popup_action_set_as_background">Set as background</string>
+    <string name="string_post_popup_action_set_as_background">Set image as your wallpaper</string>
     <string name="string_post_popup_action_go_to_user">Go to %1$s\'s submissions</string>
     <string name="string_common_error_something_went_wrong">Uh-oh, something went wrong :(</string>
+    <string name="string_options_wallpaper_error_something_went_wrong">Uh-oh, something went wrong! Please try downloading the image and setting it as a wallpaper from your Gallery!</string>
 </resources>

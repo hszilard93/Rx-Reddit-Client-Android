@@ -1,6 +1,7 @@
 package com.b4kancs.rxredditdemo.ui.postviewer
 
 import android.Manifest
+import android.app.WallpaperManager
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
@@ -42,6 +43,16 @@ class PostViewerViewModel(pagingDataObservableProvider: PostPagingDataObservable
 
     val pagingDataObservable = pagingDataObservableProvider.cachedPagingObservable()
 
+    fun getFavoritePosts(): Single<List<FavoritesDbEntryPost>> =
+        favoritePostsRepository.getAllFavoritePostsFromDb()
+
+    fun addPostToFavorites(post: Post): Completable =
+        favoritePostsRepository.addFavoritePostToDb(post)
+
+    fun removePostFromFavorites(post: Post): Completable =
+        favoritePostsRepository.removeFavoritePostFromDb(post)
+
+
     fun openRedditLinkOfPost(post: Post, context: Context): Completable {
         logcat { "openRedditLinkOfPost: post = ${post.permalink}" }
         return Completable.create { emitter ->
@@ -68,43 +79,52 @@ class PostViewerViewModel(pagingDataObservableProvider: PostPagingDataObservable
                         logcat(LogPriority.WARN) { "Write permission not granted." }
                         emitter.onError(Exception("Write permission not granted."))
                     }
-
-                    downloadImageWithGlide(link, activity)
+                    // We have permission to write to storage.
+                    getBitmapWithGlide(link, activity)
                         .subscribeBy(
-                            onComplete = { emitter.onComplete() },
+                            onSuccess = { bitmap ->
+                                val fileName = link.split('/').last()   // Get the filename from the URL
+                                    .split('.').let {
+                                        it.subList(0,
+                                            it.lastIndex)              // Remove the extension from the filename (we will save it as a .jpg)
+                                    }.reduce(String::plus)
+
+                                saveImageToStorage(bitmap, fileName, activity)
+                                    .subscribeOn(Schedulers.io())
+                                    .observeOn(AndroidSchedulers.mainThread())
+                                    .subscribeBy(
+                                        onComplete = { emitter.onComplete() },
+                                        onError = { emitter.onError(it) }
+                                    )
+                                    .addTo(disposables)
+                            },
                             onError = { emitter.onError(it) }
                         )
                         .addTo(disposables)
-                }
+                }.addTo(disposables)
         }
     }
 
-    private fun downloadImageWithGlide(link: String, context: Context): Completable {
+    private fun getBitmapWithGlide(link: String, context: Context): Single<Bitmap> {
         logcat { "downloadImageWithGlide: link = $link" }
+        return Single.create { emitter ->
+            try {
+                Glide.with(context)
+                    .load(link)
+                    .into(object : CustomTarget<Drawable>() {
+                        override fun onResourceReady(resource: Drawable, transition: Transition<in Drawable>?) {
+                            val bitmap = resource.toBitmap()
+                            emitter.onSuccess(bitmap)
+                        }
 
-        return Completable.create { emitter ->
-            Glide.with(context)
-                .load(link)
-                .into(object : CustomTarget<Drawable>() {
-                    override fun onResourceReady(resource: Drawable, transition: Transition<in Drawable>?) {
-                        val bitmap = resource.toBitmap()
-                        val fileName = link.split('/').last()   // Get the filename from the URL
-                            .split('.').let {
-                                it.subList(0, it.lastIndex)              // Remove the extension from the filename
-                            }.reduce(String::plus)
-                        saveImageToStorage(bitmap, fileName, context)
-                            .subscribeOn(Schedulers.io())
-                            .observeOn(AndroidSchedulers.mainThread())
-                            .subscribeBy(
-                                onComplete = { emitter.onComplete() },
-                                onError = { emitter.onError(it) }
-                            )
-                            .addTo(disposables)
-                    }
+                        override fun onLoadCleared(placeholder: Drawable?) {}
 
-                    override fun onLoadCleared(placeholder: Drawable?) {}
-
-                })
+                    })
+            }
+            catch (e: Exception) {
+                logcat(LogPriority.ERROR) { "Error loading bitmap with Glide! Message = ${e.message}" }
+                emitter.onError(e)
+            }
         }
     }
 
@@ -165,12 +185,91 @@ class PostViewerViewModel(pagingDataObservableProvider: PostPagingDataObservable
         }
     }
 
-    fun getFavoritePosts(): Single<List<FavoritesDbEntryPost>> =
-        favoritePostsRepository.getAllFavoritePostsFromDb()
 
-    fun addPostToFavorites(post: Post): Completable =
-        favoritePostsRepository.addFavoritePostToDb(post)
+    fun setImageAsBackground(link: String, activity: FragmentActivity): Completable {
+        return Completable.create { emitter ->
+            val permissions = RxPermissions(activity)
+            permissions.request(Manifest.permission.SET_WALLPAPER)
+                .subscribe { isPermissionGranted ->
+                    if (!isPermissionGranted) {
+                        logcat(LogPriority.WARN) { "Set wallpaper permission not granted." }
+                        emitter.onError(Exception("Set wallpaper permission not granted."))
+                    }
+                    // We have permission to change the wallpaper.
+                    getBitmapWithGlide(link, activity)
+                        .subscribeBy(
+                            onSuccess = { bitmap ->
+                                createUriFromBitmap(bitmap, activity)
+                                    .subscribeOn(Schedulers.io())
+                                    .observeOn(AndroidSchedulers.mainThread())
+                                    .doOnError { e -> emitter.onError(e) }
+                                    .subscribe { uri ->
+                                        try {
+                                            val wallpaperManager = WallpaperManager.getInstance(activity)
+                                            val wallpaperIntent = wallpaperManager.getCropAndSetWallpaperIntent(uri)
+                                            activity.startActivity(wallpaperIntent)
 
-    fun removePostFromFavorites(post: Post): Completable =
-        favoritePostsRepository.removeFavoritePostFromDb(post)
+                                            wallpaperManager.setBitmap(bitmap)
+                                            emitter.onComplete()
+                                        }
+                                        catch (e: Exception) {
+                                            logcat(LogPriority.ERROR) { "Error attempting to set the wallpaper. Message = ${e.message}" }
+                                            emitter.onError(e)
+                                        }
+                                    }
+                                    .addTo(disposables)
+                            },
+                            onError = { e ->
+                                emitter.onError(e)
+                            }
+                        ).addTo(disposables)
+                }.addTo(disposables)
+        }
+    }
+
+    /* This function is from https://stackoverflow.com/a/73524155/6663476 */
+    private fun createUriFromBitmap(bitmap: Bitmap, context: Context): Single<Uri> {
+        logcat { "createUriFromBitmap" }
+        var uri: Uri? = null
+        try {
+            val fileName = System.nanoTime().toString() + ".png"
+            val values = ContentValues().apply {
+                put(MediaStore.Images.Media.DISPLAY_NAME, fileName)
+                put(MediaStore.Images.Media.MIME_TYPE, "image/png")
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/")
+                    put(MediaStore.MediaColumns.IS_PENDING, 1)
+                }
+                else {
+                    val directory =
+                        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)
+                    val file = File(directory, fileName)
+                    put(MediaStore.MediaColumns.DATA, file.absolutePath)
+                }
+            }
+
+            uri = context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+            uri?.let {
+                context.contentResolver.openOutputStream(it).use { output ->
+                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    values.apply {
+                        clear()
+                        put(MediaStore.Audio.Media.IS_PENDING, 0)
+                    }
+                    context.contentResolver.update(uri, values, null, null)
+                }
+            }
+            return Single.just(uri!!)
+        }
+        catch (e: Exception) {
+            if (uri != null) {
+                logcat(LogPriority.ERROR) { "Error creating URI from Bitmap. Message = ${e.message}" }
+                // Don't leave an orphan entry in the MediaStore
+                context.contentResolver.delete(uri, null, null)
+            }
+            return Single.error(e)
+        }
+    }
 }

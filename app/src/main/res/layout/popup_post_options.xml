@@ -28,7 +28,7 @@
         android:textSize="16sp"/>
 
     <com.google.android.material.textview.MaterialTextView
-        android:id="@+id/text_view_post_popup_option_set_as_background"
+        android:id="@+id/text_view_post_popup_option_set_as_wallpaper"
         android:layout_width="match_parent"
         android:layout_height="40dp"
         android:fontFamily="sans-serif-light"

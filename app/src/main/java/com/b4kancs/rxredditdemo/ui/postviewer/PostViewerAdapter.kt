@@ -33,6 +33,7 @@ import com.bumptech.glide.request.RequestOptions
 import com.bumptech.glide.request.target.Target
 import com.bumptech.glide.request.transition.DrawableCrossFadeFactory
 import com.f2prateek.rx.preferences2.RxSharedPreferences
+import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.textview.MaterialTextView
 import com.jakewharton.rxbinding4.view.clicks
 import com.jakewharton.rxbinding4.view.focusChanges
@@ -675,12 +676,10 @@ class PostViewerAdapter(
                             clicks()
                                 .observeOn(AndroidSchedulers.mainThread())
                                 .subscribe {
+                                    popupWindow.dismiss()
                                     viewModel.openRedditLinkOfPost(post, context)
                                         .observeOn(AndroidSchedulers.mainThread())
                                         .subscribeBy(
-                                            onComplete = {
-                                                popupWindow.dismiss()
-                                            },
                                             onError = {
                                                 makeSnackBar(
                                                     view = optionsImageView,
@@ -708,7 +707,6 @@ class PostViewerAdapter(
                                     viewModel.downloadImage(post.links!![currentGalleryPosition], (context as FragmentActivity))
                                         .subscribeBy(
                                             onComplete = {
-                                                popupWindow.dismiss()
                                                 makeSnackBar(
                                                     view = optionsImageView,
                                                     stringId = null,
@@ -728,15 +726,37 @@ class PostViewerAdapter(
                                 .addTo(disposables)
                         }
 
-                    val setAsBackgroundTextView = popupView.findViewById<MaterialTextView>(R.id.text_view_post_popup_option_set_as_background)
+                    val setAsBackgroundTextView = popupView.findViewById<MaterialTextView>(R.id.text_view_post_popup_option_set_as_wallpaper)
                         .apply {
                             clicks()
                                 .observeOn(AndroidSchedulers.mainThread())
                                 .subscribe {
                                     popupWindow.dismiss()
-                                    // TODO
-                                }
-                                .addTo(disposables)
+                                    val workingOnItSnackbar = makeSnackBar(
+                                        view = optionsImageView,
+                                        stringId = null,
+                                        message = "Working on it...",
+                                        length = Snackbar.LENGTH_INDEFINITE
+                                    )
+                                    workingOnItSnackbar.show()
+                                    viewModel.setImageAsBackground(post.links!![currentGalleryPosition], (context as FragmentActivity))
+                                        .observeOn(AndroidSchedulers.mainThread())
+                                        .subscribeBy(
+                                            onComplete = {
+                                                workingOnItSnackbar.dismiss()
+                                            },
+                                            onError = {
+                                                workingOnItSnackbar.dismiss()
+                                                makeSnackBar(
+                                                    view = optionsImageView,
+                                                    stringId = R.string.string_options_wallpaper_error_something_went_wrong,
+                                                    type = SnackType.ERROR,
+                                                    length = Snackbar.LENGTH_LONG
+                                                ).show()
+                                            }
+                                        )
+                                        .addTo(disposables)
+                                }.addTo(disposables)
                         }
 
                     val goToUserSubmissionTextView = popupView.findViewById<MaterialTextView>(R.id.text_view_post_popup_option_go_to_user)

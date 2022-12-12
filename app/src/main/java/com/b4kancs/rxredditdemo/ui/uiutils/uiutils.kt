@@ -5,7 +5,6 @@ import android.animation.AnimatorSet
 import android.animation.ValueAnimator
 import android.app.Activity
 import android.content.Context
-import android.content.DialogInterface
 import android.content.res.Configuration
 import android.util.TypedValue
 import android.view.View
@@ -55,11 +54,11 @@ fun pixelToDp(px: Int, context: Context): Int = (px / context.resources.displayM
 fun Int.pxToDp(context: Context): Int = pixelToDp(this, context)
 
 fun animateViewHeightChange(
-    view: View,
-    oldHeight: Int,
-    newHeight: Int,
-    duration: Long,
-    endWithThis: () -> Unit = {}
+        view: View,
+        oldHeight: Int,
+        newHeight: Int,
+        duration: Long,
+        endWithThis: () -> Unit = {}
 ) {
     val slideAnimator = ValueAnimator
         .ofInt(oldHeight, newHeight)
@@ -113,35 +112,44 @@ fun hideKeyboard(view: View) {
 
 enum class SnackType { ERROR, SUCCESS }
 
-fun makeSnackBar(view: View, stringId: Int?, message: String = "", type: SnackType = SnackType.SUCCESS): Snackbar {
+fun makeSnackBar(
+        view: View,
+        stringId: Int?,
+        message: String = "",
+        type: SnackType = SnackType.SUCCESS,
+        length: Int = Snackbar.LENGTH_SHORT
+): Snackbar {
     val typedValue = TypedValue()
     val theme = view.context.theme
     if (type == SnackType.SUCCESS) {
         theme.resolveAttribute(com.google.android.material.R.attr.colorSecondaryContainer, typedValue, true)
-    } else {
+    }
+    else {
         theme.resolveAttribute(com.google.android.material.R.attr.colorError, typedValue, true)
     }
     val backgroundColor = typedValue.data
     if (type == SnackType.SUCCESS) {
         theme.resolveAttribute(com.google.android.material.R.attr.colorTertiary, typedValue, true)
-    } else {
+    }
+    else {
         theme.resolveAttribute(com.google.android.material.R.attr.colorOnError, typedValue, true)
     }
     val textColor = typedValue.data
 
     val snackBar =
-        stringId?.let { Snackbar.make(view, stringId, Snackbar.LENGTH_SHORT) } ?: Snackbar.make(view, message, Snackbar.LENGTH_SHORT)
+        stringId?.let { Snackbar.make(view, stringId, length) } ?: Snackbar.make(view, message, length)
 
     return snackBar
         .setBackgroundTint(backgroundColor)
         .setTextColor(textColor)
+        .setTextMaxLines(10)
 }
 
 fun makeConfirmationDialog(
-    title: String,
-    message: String,
-    activity: Activity,
-    positiveAction: () -> Unit
+        title: String,
+        message: String,
+        activity: Activity,
+        positiveAction: () -> Unit
 ): AlertDialog {
     val builder = AlertDialog.Builder(activity)
     return builder
