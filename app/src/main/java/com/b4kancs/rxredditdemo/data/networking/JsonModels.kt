@@ -29,7 +29,7 @@ data class RedditJsonListingModel(
         val permalink: String,
         val domain: String,
         val score: Int,
-        @SerializedName("media_metadata") val mediaMetadata: RedditPostListingModel.RedditPostDataChildDataMediaMetadata,
+        @SerializedName("media_metadata") val mediaMetadata: HashMap<String, RedditPostListingModel.RedditPostDataChildDataMediaMetadataItem>,
         @SerializedName("created") val createdAt: Int,
         @SerializedName("over_18") val nsfw: Boolean,
         @SerializedName("num_comments") val numOfComments: Int,
@@ -59,9 +59,10 @@ data class RedditPostListingModel(
         val data: RedditJsonListingModel.RedditPostDataModel
     )
 
-    data class RedditPostDataChildDataMediaMetadata(
-        val items: List<RedditPostDataChildDataMediaMetadataItem>
-    )
+    // "/0/data/children/0/data"
+//    data class RedditPostDataChildDataMediaMetadata(
+//        val items: HashMap<String, RedditPostDataChildDataMediaMetadataItem>
+//    )
 
     data class RedditPostDataChildDataMediaMetadataItem(
         val id: String,
@@ -78,6 +79,7 @@ data class RedditPostListingModel(
 //        val mediaId: String
 //    )
 }
+
 
 // Represents a list of subreddits (the results of a search).
 data class RedditSubredditsListingModel(

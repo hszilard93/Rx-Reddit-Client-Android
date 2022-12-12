@@ -23,7 +23,8 @@ object JsonDataModelToPostTransformer {
                     val sub =
                         if (crosspostParents == null) {
                             subreddit
-                        } else {
+                        }
+                        else {
                             // It's a crosspost gallery post (°〇°)ﾉ
                             logcat { "Parsing crosspost gallery post  $url" }
 

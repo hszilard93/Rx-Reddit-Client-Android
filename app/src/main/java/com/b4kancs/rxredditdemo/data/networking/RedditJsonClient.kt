@@ -12,6 +12,7 @@ object RedditJsonClient {
     private val service: RedditJsonService by inject(RedditJsonService::class.java)
 
     fun getPictureIdTypePairsFromGalleryPostAtUrl(url: String): Maybe<List<Pair<String, String>>> {
+        logcat { "getPictureIdTypePairsFromGalleryPostAtUrl: url = $url" }
         return service
             .getGalleryJson("$url/.json")
             .subscribeOn(Schedulers.io())
@@ -20,7 +21,7 @@ object RedditJsonClient {
                     logcat(LogPriority.ERROR) { "Error getting gallery items for $url. Error: ${response.code()}" }
                     return@map emptyList<RedditPostListingModel.RedditPostDataChildDataMediaMetadataItem>()
                 }
-                response.body()?.first()?.data?.children?.first()?.data?.mediaMetadata?.items
+                response.body()?.first()?.data?.children?.first()?.data?.mediaMetadata?.map { it.value }
                     ?: emptyList()
             }
             .flatMapMaybe { items ->
@@ -35,6 +36,7 @@ object RedditJsonClient {
     }
 
     fun getSubredditsByKeyword(keyword: String): Single<List<Subreddit>> {
+        logcat { "getSubredditsByKeyword: keyword = $keyword" }
         return service.searchSubredditsByKeyword(keyword)
             .map { response -> response.body()!! }
             .map { subsModel ->
