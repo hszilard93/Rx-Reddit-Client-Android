@@ -6,20 +6,21 @@ import io.reactivex.rxjava3.schedulers.Schedulers
 import logcat.LogPriority
 import logcat.logcat
 
-object FavoritesRoomDatabase {
-    private var database: FavoritesDatabase? = null
+object FollowsRoomDatabase {
+    private var database: FollowsDatabase? = null
 
-    fun fetchDatabase(context: Context): FavoritesDatabase {
+    fun fetchDatabase(context: Context): FollowsDatabase {
         logcat { "fetchDatabase" }
+
         val localDatabaseCopy = database
         return if (localDatabaseCopy != null) {
             logcat { "Returning existing database instance." }
             localDatabaseCopy
         }
         else {
-            val localDatabase = Room.databaseBuilder(context.applicationContext, FavoritesDatabase::class.java, "favorites_db")
+            val localDatabase = Room.databaseBuilder(context.applicationContext, FollowsDatabase::class.java, "follows_db")
                 .build()
-            localDatabase.favoritesDao().getFavorites().subscribeOn(Schedulers.io()).blockingSubscribe()
+            localDatabase.followsDao().getFollowedUsers().subscribeOn(Schedulers.io()).blockingSubscribe()
             database = localDatabase
             logcat(LogPriority.INFO) { "Returning new database instance." }
             localDatabase

@@ -137,7 +137,7 @@ class HomeFragment : Fragment() {
             }
             val postsHomeAdapter = rvHomePosts.adapter as PostsVerticalRvAdapter
 
-            homeViewModel.cachedPagingObservable
+            homeViewModel.subredditPostsCachedPagingObservable
                 .subscribe { pagingData ->
                     try {
                         postsHomeAdapter.submitData(viewLifecycleOwner.lifecycle, pagingData)

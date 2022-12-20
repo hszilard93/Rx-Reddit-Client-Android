@@ -53,11 +53,11 @@ import org.koin.java.KoinJavaComponent.inject
 import java.util.concurrent.TimeUnit
 
 class PostViewerAdapter(
-        private val context: Context,
-        private val viewModel: PostViewerViewModel,
+    private val context: Context,
+    private val viewModel: PostViewerViewModel,
     // This is how the ViewPager scrolls to the next/previous ViewHolder.
-        private val onPositionChangedCallback: (Int) -> Unit,
-        isSlideShowOnGoing: Boolean = false
+    private val onPositionChangedCallback: (Int) -> Unit,
+    isSlideShowOnGoing: Boolean = false
 ) : PagingDataAdapter<Post, PostViewerAdapter.PostViewerViewHolder>(PostComparator) {
     companion object {
         private const val SLIDESHOW_INTERVAL_KEY = "slideshowInterval"
@@ -505,21 +505,21 @@ class PostViewerAdapter(
                 }
                 .addListener(object : RequestListener<Drawable> {
                     override fun onLoadFailed(
-                            e: GlideException?,
-                            model: Any?,
-                            target: Target<Drawable>?,
-                            isFirstResource: Boolean
+                        e: GlideException?,
+                        model: Any?,
+                        target: Target<Drawable>?,
+                        isFirstResource: Boolean
                     ): Boolean {
                         logcat { "Glide.onLoadFailed" }
                         return false
                     }
 
                     override fun onResourceReady(
-                            resource: Drawable?,
-                            model: Any?,
-                            target: Target<Drawable>?,
-                            dataSource: DataSource?,
-                            isFirstResource: Boolean
+                        resource: Drawable?,
+                        model: Any?,
+                        target: Target<Drawable>?,
+                        dataSource: DataSource?,
+                        isFirstResource: Boolean
                     ): Boolean {
                         logcat { "Glide.onResourceReady" }
                         wasAbleToLoadSubject.onNext(true)
@@ -766,9 +766,19 @@ class PostViewerAdapter(
                                 .observeOn(AndroidSchedulers.mainThread())
                                 .subscribe {
                                     popupWindow.dismiss()
-                                    // TODO
-                                }
-                                .addTo(disposables)
+                                    viewModel.goToUsersSubmissions(post)
+                                        .observeOn(AndroidSchedulers.mainThread())
+                                        .subscribeBy(
+                                            onComplete = { },
+                                            onError = {
+                                                makeSnackBar(
+                                                    view = optionsImageView,
+                                                    stringId = R.string.string_common_error_something_went_wrong,
+                                                    type = SnackType.ERROR
+                                                ).show()
+                                            }
+                                        ).addTo(disposables)
+                                }.addTo(disposables)
                         }
 
                     // The window y offset calculation is done because the popup window would get off the screen when the list item is on the bottom

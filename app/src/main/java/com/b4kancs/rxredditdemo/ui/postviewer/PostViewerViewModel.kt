@@ -18,6 +18,7 @@ import com.b4kancs.rxredditdemo.data.database.FavoritesDbEntryPost
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.repository.FavoritePostsRepository
 import com.b4kancs.rxredditdemo.ui.PostPagingDataObservableProvider
+import com.b4kancs.rxredditdemo.utils.fromCompletable
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
@@ -29,6 +30,7 @@ import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.addTo
 import io.reactivex.rxjava3.kotlin.subscribeBy
 import io.reactivex.rxjava3.schedulers.Schedulers
+import io.reactivex.rxjava3.subjects.PublishSubject
 import logcat.LogPriority
 import logcat.logcat
 import org.koin.java.KoinJavaComponent.inject
@@ -42,6 +44,9 @@ class PostViewerViewModel(pagingDataObservableProvider: PostPagingDataObservable
     private val disposables = CompositeDisposable()
 
     val pagingDataObservable = pagingDataObservableProvider.cachedPagingObservable()
+    val navigateToFollowsActionTriggerSubject =
+        // We need username for FollowsFragment as well as a Subject that will pass back a Completable which will signal the success of the navigation.
+        PublishSubject.create<Pair<String, PublishSubject<Completable>>>()
 
     fun getFavoritePosts(): Single<List<FavoritesDbEntryPost>> =
         favoritePostsRepository.getAllFavoritePostsFromDb()
@@ -68,6 +73,21 @@ class PostViewerViewModel(pagingDataObservableProvider: PostPagingDataObservable
             }
         }
     }
+
+    fun goToUsersSubmissions(post: Post): Completable {
+        logcat { "goToUsersSubmissions: post.name = ${post.name}, post.author = ${post.author}" }
+        val userName = post.author
+        val navigationResultSubject = PublishSubject.create<Completable>()
+        navigateToFollowsActionTriggerSubject.onNext(Pair(userName, navigationResultSubject))
+        return Completable.create { emitter ->
+            navigationResultSubject
+                .subscribe { completable ->
+                    emitter.fromCompletable(completable)
+                        .addTo(disposables)
+                }
+        }
+    }
+
 
     fun downloadImage(link: String, activity: FragmentActivity): Completable {
         logcat { "downloadImage: link = $link" }
@@ -101,6 +121,47 @@ class PostViewerViewModel(pagingDataObservableProvider: PostPagingDataObservable
                             onError = { emitter.onError(it) }
                         )
                         .addTo(disposables)
+                }.addTo(disposables)
+        }
+    }
+
+    fun setImageAsBackground(link: String, activity: FragmentActivity): Completable {
+        return Completable.create { emitter ->
+            val permissions = RxPermissions(activity)
+            permissions.request(Manifest.permission.SET_WALLPAPER)
+                .subscribe { isPermissionGranted ->
+                    if (!isPermissionGranted) {
+                        logcat(LogPriority.WARN) { "Set wallpaper permission not granted." }
+                        emitter.onError(Exception("Set wallpaper permission not granted."))
+                    }
+                    // We have permission to change the wallpaper.
+                    getBitmapWithGlide(link, activity)
+                        .subscribeBy(
+                            onSuccess = { bitmap ->
+                                createUriFromBitmap(bitmap, activity)
+                                    .subscribeOn(Schedulers.io())
+                                    .observeOn(AndroidSchedulers.mainThread())
+                                    .doOnError { e -> emitter.onError(e) }
+                                    .subscribe { uri ->
+                                        try {
+                                            val wallpaperManager = WallpaperManager.getInstance(activity)
+                                            val wallpaperIntent = wallpaperManager.getCropAndSetWallpaperIntent(uri)
+                                            activity.startActivity(wallpaperIntent)
+
+                                            wallpaperManager.setBitmap(bitmap)
+                                            emitter.onComplete()
+                                        }
+                                        catch (e: Exception) {
+                                            logcat(LogPriority.ERROR) { "Error attempting to set the wallpaper. Message = ${e.message}" }
+                                            emitter.onError(e)
+                                        }
+                                    }
+                                    .addTo(disposables)
+                            },
+                            onError = { e ->
+                                emitter.onError(e)
+                            }
+                        ).addTo(disposables)
                 }.addTo(disposables)
         }
     }
@@ -185,49 +246,7 @@ class PostViewerViewModel(pagingDataObservableProvider: PostPagingDataObservable
         }
     }
 
-
-    fun setImageAsBackground(link: String, activity: FragmentActivity): Completable {
-        return Completable.create { emitter ->
-            val permissions = RxPermissions(activity)
-            permissions.request(Manifest.permission.SET_WALLPAPER)
-                .subscribe { isPermissionGranted ->
-                    if (!isPermissionGranted) {
-                        logcat(LogPriority.WARN) { "Set wallpaper permission not granted." }
-                        emitter.onError(Exception("Set wallpaper permission not granted."))
-                    }
-                    // We have permission to change the wallpaper.
-                    getBitmapWithGlide(link, activity)
-                        .subscribeBy(
-                            onSuccess = { bitmap ->
-                                createUriFromBitmap(bitmap, activity)
-                                    .subscribeOn(Schedulers.io())
-                                    .observeOn(AndroidSchedulers.mainThread())
-                                    .doOnError { e -> emitter.onError(e) }
-                                    .subscribe { uri ->
-                                        try {
-                                            val wallpaperManager = WallpaperManager.getInstance(activity)
-                                            val wallpaperIntent = wallpaperManager.getCropAndSetWallpaperIntent(uri)
-                                            activity.startActivity(wallpaperIntent)
-
-                                            wallpaperManager.setBitmap(bitmap)
-                                            emitter.onComplete()
-                                        }
-                                        catch (e: Exception) {
-                                            logcat(LogPriority.ERROR) { "Error attempting to set the wallpaper. Message = ${e.message}" }
-                                            emitter.onError(e)
-                                        }
-                                    }
-                                    .addTo(disposables)
-                            },
-                            onError = { e ->
-                                emitter.onError(e)
-                            }
-                        ).addTo(disposables)
-                }.addTo(disposables)
-        }
-    }
-
-    /* This function is from https://stackoverflow.com/a/73524155/6663476 */
+    /* This function is based on https://stackoverflow.com/a/73524155/6663476 */
     private fun createUriFromBitmap(bitmap: Bitmap, context: Context): Single<Uri> {
         logcat { "createUriFromBitmap" }
         var uri: Uri? = null

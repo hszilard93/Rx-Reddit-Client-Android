@@ -54,7 +54,7 @@ class MainActivity : AppCompatActivity() {
             val navController = findNavController(R.id.fragment_main_nav_host)
             // Passing each menu ID as a set of Ids because each  menu should be considered as top level destinations.
             val appBarConfiguration = AppBarConfiguration(
-                setOf(R.id.navigation_subreddit, R.id.navigation_favorites, R.id.navigation_subscriptions),
+                setOf(R.id.navigation_subreddit, R.id.navigation_favorites, R.id.navigation_follows),
                 drawerMain
             )
             setupActionBarWithNavController(navController, appBarConfiguration)
@@ -133,7 +133,8 @@ class MainActivity : AppCompatActivity() {
                 if (it.isSubmitted) {
                     logcat(LogPriority.INFO) { "Subreddit query text submitted: $query" }
                     it.queryText.toString() to true
-                } else {
+                }
+                else {
                     logcat(LogPriority.INFO) { "Querying keyword: $query" }
                     it.queryText.toString() to false
                 }

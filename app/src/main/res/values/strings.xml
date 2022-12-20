@@ -1,8 +1,8 @@
 <resources>
     <string name="app_name">RxRedditDemoApp</string>
     <string name="home_title">Home</string>
+    <string name="bottom_follows_title">Follows</string>
     <string name="bottom_favorites_title">Favorites</string>
-    <string name="bottom_subscriptions_title">Subscriptions</string>
     <string name="common_placeholder_text">Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</string>
     <string name="common_date_author_placeholder_text">submitted … by …</string>
     <string name="common_comments_placeholder_text">0 comments</string>
@@ -32,4 +32,5 @@
     <string name="string_post_popup_action_go_to_user">Go to %1$s\'s submissions</string>
     <string name="string_common_error_something_went_wrong">Uh-oh, something went wrong :(</string>
     <string name="string_options_wallpaper_error_something_went_wrong">Uh-oh, something went wrong! Please try downloading the image and setting it as a wallpaper from your Gallery!</string>
+    <string name="follows_no_media">There are no followed users to show yet.</string>
 </resources>

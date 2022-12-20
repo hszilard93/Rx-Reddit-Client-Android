@@ -8,7 +8,7 @@ import androidx.paging.PagingData
 import androidx.paging.rxjava3.cachedIn
 import androidx.paging.rxjava3.observable
 import com.b4kancs.rxredditdemo.data.database.FavoritesDbEntryPost
-import com.b4kancs.rxredditdemo.domain.pagination.RedditJsonPagingSource
+import com.b4kancs.rxredditdemo.domain.pagination.SubredditJsonPagingSource
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.repository.FavoritePostsRepository
 import com.b4kancs.rxredditdemo.repository.SubredditRepository
@@ -31,7 +31,7 @@ class HomeViewModel(val mainViewModel: MainViewModel) : ViewModel(), PostPagingD
     private lateinit var subredditAddress: String
     val disposables = CompositeDisposable()
 
-    val cachedPagingObservable: Observable<PagingData<Post>>
+    val subredditPostsCachedPagingObservable: Observable<PagingData<Post>>
     var isAppJustStarted = true
 
     init {
@@ -42,14 +42,14 @@ class HomeViewModel(val mainViewModel: MainViewModel) : ViewModel(), PostPagingD
 
         val pager = Pager(
             PagingConfig(
-                pageSize = RedditJsonPagingSource.PAGE_SIZE,
+                pageSize = SubredditJsonPagingSource.PAGE_SIZE,
                 prefetchDistance = 5,
-                initialLoadSize = RedditJsonPagingSource.PAGE_SIZE
+                initialLoadSize = SubredditJsonPagingSource.PAGE_SIZE
             )
         ) {
-            RedditJsonPagingSource(subredditAddress)
+            SubredditJsonPagingSource(subredditAddress)
         }
-        cachedPagingObservable = pager.observable
+        subredditPostsCachedPagingObservable = pager.observable
             .cachedIn(viewModelScope)
     }
 
@@ -58,5 +58,5 @@ class HomeViewModel(val mainViewModel: MainViewModel) : ViewModel(), PostPagingD
 
     fun getDefaultSubreddit() = subredditRepository.defaultSubreddit
 
-    override fun cachedPagingObservable(): Observable<PagingData<Post>> = cachedPagingObservable
+    override fun cachedPagingObservable(): Observable<PagingData<Post>> = subredditPostsCachedPagingObservable
 }

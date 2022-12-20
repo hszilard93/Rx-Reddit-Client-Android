@@ -8,7 +8,7 @@ import androidx.paging.PagingData
 import androidx.paging.rxjava3.cachedIn
 import androidx.paging.rxjava3.observable
 import com.b4kancs.rxredditdemo.domain.pagination.FavoritesDbPagingSource
-import com.b4kancs.rxredditdemo.domain.pagination.RedditJsonPagingSource
+import com.b4kancs.rxredditdemo.domain.pagination.SubredditJsonPagingSource
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.repository.FavoritePostsRepository
 import com.b4kancs.rxredditdemo.ui.PostPagingDataObservableProvider
@@ -23,7 +23,7 @@ import org.koin.java.KoinJavaComponent.inject
 class FavoritesViewModel : ViewModel(), PostPagingDataObservableProvider {
 
     private val favoritePostsRepository: FavoritePostsRepository by inject(FavoritePostsRepository::class.java)
-    val cachedPagingObservable: Observable<PagingData<Post>>
+    val favoritePostsCachedPagingObservable: Observable<PagingData<Post>>
 
     init {
         logcat { "init" }
@@ -31,10 +31,10 @@ class FavoritesViewModel : ViewModel(), PostPagingDataObservableProvider {
             PagingConfig(
                 pageSize = FavoritesDbPagingSource.PAGE_SIZE,
                 prefetchDistance = 5,
-                initialLoadSize = RedditJsonPagingSource.PAGE_SIZE
+                initialLoadSize = SubredditJsonPagingSource.PAGE_SIZE
             )
         ) { FavoritesDbPagingSource() }
-        cachedPagingObservable = pager.observable
+        favoritePostsCachedPagingObservable = pager.observable
             .cachedIn(this.viewModelScope)
     }
 
@@ -44,5 +44,6 @@ class FavoritesViewModel : ViewModel(), PostPagingDataObservableProvider {
     fun getIsFavoritePostsNotEmptyBehaviorSubject(): BehaviorSubject<Boolean> =
         favoritePostsRepository.doesFavoritePostsHaveItemsBehaviorSubject
 
-    override fun cachedPagingObservable(): Observable<PagingData<Post>> = cachedPagingObservable
+    override fun cachedPagingObservable(): Observable<PagingData<Post>> =
+        favoritePostsCachedPagingObservable
 }

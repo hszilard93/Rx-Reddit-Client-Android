@@ -1,19 +1,20 @@
 package com.b4kancs.rxredditdemo
 
 import android.app.Application
-import android.os.StrictMode
 import androidx.preference.PreferenceManager
 import com.b4kancs.rxredditdemo.data.database.FavoritesRoomDatabase
+import com.b4kancs.rxredditdemo.data.database.FollowsRoomDatabase
 import com.b4kancs.rxredditdemo.data.database.SubredditRoomDatabase
 import com.b4kancs.rxredditdemo.data.networking.RedditJsonClient
 import com.b4kancs.rxredditdemo.data.networking.RedditJsonService
-import com.b4kancs.rxredditdemo.domain.pagination.RedditJsonPagingSource
 import com.b4kancs.rxredditdemo.repository.FavoritePostsRepository
+import com.b4kancs.rxredditdemo.repository.FollowsRepository
 import com.b4kancs.rxredditdemo.repository.SubredditRepository
 import com.b4kancs.rxredditdemo.ui.favorites.FavoritesViewModel
 import com.b4kancs.rxredditdemo.ui.home.HomeViewModel
 import com.b4kancs.rxredditdemo.ui.main.MainViewModel
 import com.b4kancs.rxredditdemo.ui.postviewer.PostViewerViewModel
+import com.b4kancs.rxredditdemo.ui.follows.FollowsViewModel
 import com.f2prateek.rx.preferences2.RxSharedPreferences
 import com.google.gson.FieldNamingPolicy
 import com.google.gson.GsonBuilder
@@ -47,6 +48,10 @@ class App : Application() {
             FavoritesRoomDatabase.fetchDatabase(this@App)
         }
         single {
+            logcat { "Koin providing Single FollowsDatabase instant." }
+            FollowsRoomDatabase.fetchDatabase(this@App)
+        }
+        single {
             logcat { "Koin providing Single RxSharedPreferences instant." }
             RxSharedPreferences.create(PreferenceManager.getDefaultSharedPreferences(this@App))
         }
@@ -58,6 +63,11 @@ class App : Application() {
             logcat { "Koin providing Single FavoritePostsRepository instant." }
             FavoritePostsRepository()
         }
+        single {
+            logcat { "Koin providing Single FollowsRepository instant." }
+            FollowsRepository()
+        }
+
         single {
             logcat { "Koin providing Single RedditJsonClient object." }
             return@single RedditJsonClient
@@ -77,6 +87,10 @@ class App : Application() {
         viewModel {
             logcat { "Koin providing ViewModel PostViewerViewModel instant." }
             FavoritesViewModel()
+        }
+        viewModel {
+            logcat { "Koin providing ViewModel SubscriptionsViewModel instant." }
+            FollowsViewModel()
         }
         single {
             logcat { "Koin providing single AssetManager instant." }
@@ -110,7 +124,7 @@ class App : Application() {
             .build()
 
         val retrofit = Retrofit.Builder()
-            .baseUrl(RedditJsonPagingSource.FEED_URL)
+            .baseUrl("https://www.reddit.com")
             .client(client)
             .addCallAdapterFactory(RxJava3CallAdapterFactory.create())
             .addConverterFactory(

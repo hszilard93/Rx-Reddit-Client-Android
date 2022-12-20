@@ -19,14 +19,15 @@ import androidx.transition.Transition
 import androidx.viewpager2.widget.ViewPager2
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.databinding.FragmentPostViewerBinding
-import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.ui.PostPagingDataObservableProvider
 import com.b4kancs.rxredditdemo.ui.favorites.FavoritesViewModel
+import com.b4kancs.rxredditdemo.ui.follows.FollowsViewModel
 import com.b4kancs.rxredditdemo.ui.home.HomeViewModel
 import com.b4kancs.rxredditdemo.ui.main.MainActivity
 import com.b4kancs.rxredditdemo.ui.uiutils.ANIMATION_DURATION_SHORT
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
+import io.reactivex.rxjava3.core.Completable
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.disposables.Disposable
@@ -51,14 +52,15 @@ class PostViewerFragment : Fragment() {
 
     private val args: PostViewerFragmentArgs by navArgs()
     private val disposables = CompositeDisposable()
-    private lateinit var binding: FragmentPostViewerBinding
+    private var _binding: FragmentPostViewerBinding? = null
+    private val binding: FragmentPostViewerBinding get() = _binding!!
     private lateinit var viewModel: PostViewerViewModel
     private lateinit var delayedEnterTransitionTriggerDisposable: Disposable
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         logcat { "onCreateView" }
 
-        binding = FragmentPostViewerBinding.inflate(inflater, container, false)
+        _binding = FragmentPostViewerBinding.inflate(inflater, container, false)
 
         sharedElementEnterTransition = AutoTransition()
         sharedElementReturnTransition = AutoTransition().apply {
@@ -110,12 +112,19 @@ class PostViewerFragment : Fragment() {
         setUpViewModel()
         setUpViewPager(initialPosition, isSlideShowOngoing)
         setUpOnBackPressedCallback()
+        setUpNavigationToFollows()
     }
 
     override fun onResume() {
         logcat { "onResume" }
         super.onResume()
         (activity as MainActivity).lockDrawerClosed()
+    }
+
+    override fun onDestroyView() {
+        logcat { "onDestroyView" }
+        super.onDestroyView()
+        _binding = null
     }
 
     override fun onDestroy() {
@@ -210,6 +219,10 @@ class PostViewerFragment : Fragment() {
                     logcat { "The pagingDataObservableProvider is a FavoritesViewModel class." }
                     sharedViewModel<FavoritesViewModel>()
                 }
+                FollowsViewModel::class.simpleName -> {
+                    logcat { "The pagingDataObservableProvider is a FollowsViewModel class." }
+                    sharedViewModel<FollowsViewModel>()
+                }
                 else -> {
                     logcat(LogPriority.ERROR) { "Provided class $pagingDataObservableProviderName is not a pagingDataObservableProvider." }
                     throw IllegalArgumentException()
@@ -224,7 +237,7 @@ class PostViewerFragment : Fragment() {
         (activity as MainActivity).onBackPressedDispatcher.addCallback(this) {
             logcat(LogPriority.INFO) { "MainActivity back pressed" }
 
-//          Stops the user from clicking on anything while the transition takes place.
+            // Stops the user from clicking on anything while the transition takes place.
             (binding.viewPagerPostViewer.adapter as PostViewerAdapter).disposables.dispose()
 
             val visiblePosition = binding.viewPagerPostViewer.currentItem
@@ -240,6 +253,28 @@ class PostViewerFragment : Fragment() {
             findNavController().previousBackStackEntry?.savedStateHandle?.set("position", visiblePosition)
             findNavController().popBackStack()
         }
+    }
+
+    private fun setUpNavigationToFollows() {
+        logcat { "setUpNavigationToFollows" }
+        viewModel.navigateToFollowsActionTriggerSubject
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe { (userName, resultSubject) ->
+                try {
+                    goToFollowsFragment(userName)
+                    resultSubject.onNext(Completable.complete())
+                }
+                catch (e: Exception) {
+                    logcat(LogPriority.ERROR) { "Navigation to FollowsFragment failed! Message = ${e.message}" }
+                    resultSubject.onNext(Completable.error(e))
+                }
+            }.addTo(disposables)
+    }
+
+    private fun goToFollowsFragment(userName: String) {
+        logcat { "goToFollowsFragment: userName = $userName" }
+        val action = PostViewerFragmentDirections.actionPostViewerToFollows(userName)
+        findNavController().navigate(action)
     }
 
     // Apparently, this is the simplest way to customize the scrolling speed of a ViewPager2...
