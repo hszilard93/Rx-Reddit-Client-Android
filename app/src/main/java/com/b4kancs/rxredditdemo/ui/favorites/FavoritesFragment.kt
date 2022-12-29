@@ -310,17 +310,17 @@ class FavoritesFragment : Fragment() {
             }
     }
 
-    override fun onDestroy() {
-        logcat { "onDestroy" }
-        super.onDestroy()
+    override fun onDestroyView() {
+        logcat { "onDestroyView" }
+        _binding = null
         (activity as MainActivity).unlockDrawer()
         logcat { "Disposing of disposables." }
         disposables.dispose()
+        super.onDestroyView()
     }
 
-    override fun onDestroyView() {
-        logcat { "onDestroyView" }
-        super.onDestroyView()
-        _binding = null
+    override fun onDestroy() {
+        logcat { "onDestroy" }
+        super.onDestroy()
     }
 }

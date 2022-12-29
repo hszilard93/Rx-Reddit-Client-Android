@@ -33,11 +33,12 @@ import kotlinx.coroutines.flow.take
 import logcat.LogPriority
 import logcat.logcat
 import org.koin.android.ext.android.inject
+import org.koin.androidx.viewmodel.ext.android.sharedViewModel
 import java.util.concurrent.TimeUnit
 
 class FollowsFragment : Fragment() {
 
-    private val followsViewModel: FollowsViewModel by inject()
+    private val followsViewModel: FollowsViewModel by sharedViewModel()
     private val args: FollowsFragmentArgs by navArgs()
     private var _binding: FragmentFollowsBinding? = null
     private val binding get() = _binding!!
@@ -84,6 +85,8 @@ class FollowsFragment : Fragment() {
             }
             .addTo(disposables)
 
+        
+
         return binding.root
     }
 
@@ -106,6 +109,7 @@ class FollowsFragment : Fragment() {
 
         followsViewModel.feedChangedBehaviorSubject
             .observeOn(AndroidSchedulers.mainThread())
+            .filter { _binding != null }
             .subscribe {
                 (binding.rvFollowsPosts.adapter as PostsVerticalRvAdapter).refresh()
             }
@@ -131,9 +135,9 @@ class FollowsFragment : Fragment() {
         }
     }
 
-    override fun onResume() {
-        logcat { "onResume" }
-        super.onResume()
+    override fun onStart() {
+        logcat { "onStart" }
+        super.onStart()
         (activity as MainActivity)  // TODO: Implement fragment specific drawer
 
         setUpOptionsMenu()
@@ -275,7 +279,6 @@ class FollowsFragment : Fragment() {
     override fun onDestroy() {
         logcat { "onDestroy" }
         super.onDestroy()
-        (activity as MainActivity).unlockDrawer()
         logcat { "Disposing of disposables." }
         disposables.dispose()
     }

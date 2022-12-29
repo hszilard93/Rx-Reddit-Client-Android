@@ -15,6 +15,8 @@ import com.b4kancs.rxredditdemo.ui.home.HomeViewModel
 import com.b4kancs.rxredditdemo.ui.main.MainViewModel
 import com.b4kancs.rxredditdemo.ui.postviewer.PostViewerViewModel
 import com.b4kancs.rxredditdemo.ui.follows.FollowsViewModel
+import com.b4kancs.rxredditdemo.ui.postviewer.PostViewerViewModelProvider
+import com.b4kancs.rxredditdemo.ui.postviewer.PostViewerViewModelProviderInterface
 import com.f2prateek.rx.preferences2.RxSharedPreferences
 import com.google.gson.FieldNamingPolicy
 import com.google.gson.GsonBuilder
@@ -36,64 +38,67 @@ class App : Application() {
 
     private val appModule = module {
         single {
-            logcat { "Koin providing Single RedditJsonService instant." }
-            createRedditJsonServiceInstant()
+            logcat { "Koin providing Single RedditJsonService instance." }
+            createRedditJsonServiceInstance()
         }
         single {
-            logcat { "Koin providing Single SubredditDatabase instant." }
+            logcat { "Koin providing Single SubredditDatabase instance." }
             SubredditRoomDatabase.fetchDatabase(this@App)
         }
         single {
-            logcat { "Koin providing Single FavoritesDatabase instant." }
+            logcat { "Koin providing Single FavoritesDatabase instance." }
             FavoritesRoomDatabase.fetchDatabase(this@App)
         }
         single {
-            logcat { "Koin providing Single FollowsDatabase instant." }
+            logcat { "Koin providing Single FollowsDatabase instance." }
             FollowsRoomDatabase.fetchDatabase(this@App)
         }
         single {
-            logcat { "Koin providing Single RxSharedPreferences instant." }
+            logcat { "Koin providing Single RxSharedPreferences instance." }
             RxSharedPreferences.create(PreferenceManager.getDefaultSharedPreferences(this@App))
         }
         single {
-            logcat { "Koin providing Single SubredditRepository instant." }
+            logcat { "Koin providing Single SubredditRepository instance." }
             SubredditRepository()
         }
         single {
-            logcat { "Koin providing Single FavoritePostsRepository instant." }
+            logcat { "Koin providing Single FavoritePostsRepository instance." }
             FavoritePostsRepository()
         }
         single {
-            logcat { "Koin providing Single FollowsRepository instant." }
+            logcat { "Koin providing Single FollowsRepository instance." }
             FollowsRepository()
         }
-
         single {
             logcat { "Koin providing Single RedditJsonClient object." }
             return@single RedditJsonClient
         }
+//        single<PostViewerViewModelProviderInterface> {
+//            logcat { "Koin providing Single PostViewerViewModelProvider object." }
+//            return@single PostViewerViewModelProvider
+//        }
         viewModel {
-            logcat { "Koin providing ViewModel MainViewModel instant." }
+            logcat { "Koin providing ViewModel MainViewModel instance." }
             MainViewModel()
         }
         viewModel {
-            logcat { "Koin providing ViewModel HomeViewModel instant." }
+            logcat { "Koin providing ViewModel HomeViewModel instance." }
             HomeViewModel(mainViewModel = it.get())
         }
         viewModel {
-            logcat { "Koin providing ViewModel PostViewerViewModel instant." }
-            PostViewerViewModel(get())
-        }
-        viewModel {
-            logcat { "Koin providing ViewModel PostViewerViewModel instant." }
+            logcat { "Koin providing ViewModel FavoritesViewModel instance." }
             FavoritesViewModel()
         }
         viewModel {
-            logcat { "Koin providing ViewModel SubscriptionsViewModel instant." }
+            logcat { "Koin providing ViewModel FollorwsViewModel instance." }
             FollowsViewModel()
         }
+        viewModel {
+            logcat { "Koin providing ViewModel PostViewerViewModel instance." }
+            PostViewerViewModel(get())
+        }
         single {
-            logcat { "Koin providing single AssetManager instant." }
+            logcat { "Koin providing single AssetManager instance." }
             assets
         }
     }
@@ -112,8 +117,8 @@ class App : Application() {
         }
     }
 
-    private fun createRedditJsonServiceInstant(): RedditJsonService {
-        logcat { "createRedditJsonServiceInstant" }
+    private fun createRedditJsonServiceInstance(): RedditJsonService {
+        logcat { "createRedditJsonServiceInstance" }
 
         val loggingInterceptor = HttpLoggingInterceptor()
         loggingInterceptor.level = HttpLoggingInterceptor.Level.BODY

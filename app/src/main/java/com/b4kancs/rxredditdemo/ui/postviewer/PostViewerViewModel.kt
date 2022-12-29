@@ -48,6 +48,10 @@ class PostViewerViewModel(pagingDataObservableProvider: PostPagingDataObservable
         // We need username for FollowsFragment as well as a Subject that will pass back a Completable which will signal the success of the navigation.
         PublishSubject.create<Pair<String, PublishSubject<Completable>>>()
 
+    init {
+        logcat { "The paging data provider is $pagingDataObservableProvider" }
+    }
+
     fun getFavoritePosts(): Single<List<FavoritesDbEntryPost>> =
         favoritePostsRepository.getAllFavoritePostsFromDb()
 

@@ -6,10 +6,11 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.*
 import androidx.drawerlayout.widget.DrawerLayout
+import androidx.navigation.NavController
 import androidx.navigation.findNavController
+import androidx.navigation.navOptions
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.navigation.ui.setupWithNavController
@@ -45,43 +46,72 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
 
         binding = ActivityMainBinding.inflate(layoutInflater)
-        with(binding) {
-            setContentView(root)
+        setContentView(binding.root)
 
+        val navController = findNavController(R.id.fragment_main_nav_host)
+        setUpActionBar(navController)
+        setUpActionBarAndNavigation(navController)
+        setUpSubredditDrawer()
+        setupSearchViewDrawerAndList()
+    }
+
+    private fun setUpActionBar(navController: NavController) {
+        with(binding) {
             setSupportActionBar(toolbarMain)
             ActionBarDrawerToggle(this@MainActivity, drawerMain, toolbarMain, R.string.app_name, R.string.app_name)
 
-            val navController = findNavController(R.id.fragment_main_nav_host)
-            // Passing each menu ID as a set of Ids because each  menu should be considered as top level destinations.
+            // Passing the subreddits and follows as top level nav destinations because we don't want to deal with the back arrow.
             val appBarConfiguration = AppBarConfiguration(
-                setOf(R.id.navigation_subreddit, R.id.navigation_favorites, R.id.navigation_follows),
+                setOf(R.id.navigation_subreddit, R.id.navigation_follows),
                 drawerMain
             )
             setupActionBarWithNavController(navController, appBarConfiguration)
+        }
+    }
+
+    private fun setUpActionBarAndNavigation(navController: NavController) {
+        with(binding) {
             bottomNavViewMain.setupWithNavController(navController)
             if (!viewModel.isActionBarShowing) supportActionBar?.hide()
             if (!viewModel.isNavBarShowing) bottomNavViewMain.isVisible = false
 
-            setUpSubredditDrawer()
-            setupSearchViewDrawerAndList()
+            // Set up bottom nav bar behaviour.
+            bottomNavViewMain.setOnItemReselectedListener { }   // If a nav item is reselected, do nothing.
 
-            viewModel.selectedSubredditPublishSubject
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe {
-                    // I think this small delay before triggering the closing animation of the drawer
-                    // gives a better "feel" that something is happening.
-                    Observable.timer(300, TimeUnit.MILLISECONDS)
-                        .subscribe {
-                            drawerMain.closeDrawer(GravityCompat.START)
-                        }
-                        .addTo(disposables)
-                }.addTo(disposables)
-
-            drawerMain.addDrawerListener(object : DrawerLayout.SimpleDrawerListener() {
-                override fun onDrawerClosed(drawerView: View) {
-                    searchViewDrawer.setQuery("", true)
+            bottomNavViewMain.setOnItemSelectedListener { menuItem ->
+                val navOptionsWithFadeAnimation = navOptions { // Use the Kotlin DSL for building NavOptions
+                    anim {
+                        enter = android.R.animator.fade_in
+                        exit = android.R.animator.fade_out
+                    }
                 }
-            })
+                when (menuItem.itemId) {
+                    R.id.navigation_subreddit -> {
+                        // If the user clicks on a navigation button not belonging to the current fragment, reset the nav graph.
+                        navController.setGraph(R.navigation.mobile_navigation)
+                        // In this case, because this is the 'home fragment' and present in the graph by default,
+                        // we need to pop it to get the expected behaviour (pressing back will exit the app).
+                        navController.popBackStack()
+                        navController.navigate(R.id.navigation_subreddit, null, navOptionsWithFadeAnimation)
+                        true
+                    }
+                    R.id.navigation_favorites -> {
+                        // If the user clicks on a navigation button not belonging to the current fragment, reset the nav graph.
+                        navController.setGraph(R.navigation.mobile_navigation)
+                        navController.navigate(R.id.navigation_favorites, null, navOptionsWithFadeAnimation)
+                        true
+                    }
+                    R.id.navigation_follows -> {
+                        // If the user clicks on a navigation button not belonging to the current fragment, reset the nav graph.
+                        navController.setGraph(R.navigation.mobile_navigation)
+                        navController.navigate(R.id.navigation_follows, null, navOptionsWithFadeAnimation)
+                        true
+                    }
+                    else -> {
+                        throw IllegalStateException("${menuItem.itemId} is not a valid menu item!")
+                    }
+                }
+            }
         }
     }
 
@@ -95,10 +125,12 @@ class MainActivity : AppCompatActivity() {
 
 
     override fun onBackPressed() {
-        logcat { "onBackPressed" }
+        logcat(LogPriority.INFO) { "onBackPressed" }
 
-        if (binding.drawerMain.isDrawerOpen(GravityCompat.START))
+        if (binding.drawerMain.isDrawerOpen(GravityCompat.START)) {
+            logcat(LogPriority.INFO) { "Closing drawer." }
             binding.drawerMain.closeDrawer(GravityCompat.START)
+        }
         else
             super.onBackPressed()
     }
@@ -119,98 +151,118 @@ class MainActivity : AppCompatActivity() {
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe { adapter.notifyDataSetChanged() }
             .addTo(disposables)
+
+        viewModel.selectedSubredditPublishSubject
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe {
+                // I think this small delay before triggering the closing animation of the drawer
+                // gives a better "feel" that something is happening.
+                Observable.timer(300, TimeUnit.MILLISECONDS)
+                    .subscribe {
+                        binding.drawerMain.closeDrawer(GravityCompat.START)
+                    }
+                    .addTo(disposables)
+            }.addTo(disposables)
     }
 
 
     private fun setupSearchViewDrawerAndList() {
         logcat { "setupSearchViewDrawerAndList" }
 
-        binding.searchViewDrawer.queryTextChangeEvents()
-            .observeOn(AndroidSchedulers.mainThread())
-            .debounce(250, TimeUnit.MILLISECONDS)
-            .map {
-                val query = it.queryText
-                if (it.isSubmitted) {
-                    logcat(LogPriority.INFO) { "Subreddit query text submitted: $query" }
-                    it.queryText.toString() to true
+        with(binding) {
+            searchViewDrawer.queryTextChangeEvents()
+                .observeOn(AndroidSchedulers.mainThread())
+                .throttleFirst(250, TimeUnit.MILLISECONDS)
+                .map {
+                    val query = it.queryText
+                    if (it.isSubmitted) {
+                        logcat(LogPriority.INFO) { "Subreddit query text submitted: $query" }
+                        it.queryText.toString() to true
+                    }
+                    else {
+                        logcat(LogPriority.INFO) { "Querying keyword: $query" }
+                        it.queryText.toString() to false
+                    }
                 }
-                else {
-                    logcat(LogPriority.INFO) { "Querying keyword: $query" }
-                    it.queryText.toString() to false
+                .subscribe { (query, isSubmitted) ->
+                    logcat { "queryTextChangeEvents.subscribe: query $query isSubmitted $isSubmitted" }
+                    // If isSubmitted is true, it means that the Search button was clicked. In this case, we should go straight to the subreddit entered.
+                    if (isSubmitted) {
+                        viewModel.goToSubredditByName(query)
+                    }
+                    // Otherwise, show the query search results in a list.
+                    else {
+                        viewModel.getSearchResultsFromDbAndNw(query)
+                            .subscribe { searchResultSubs ->
+                                viewModel.searchResultsChangedSubject.onNext(searchResultSubs)
+                            }
+                            .addTo(disposables)
+                    }
                 }
-            }
-            .subscribe { (query, isSubmitted) ->
-                logcat { "queryTextChangeEvents.subscribe: query $query isSubmitted $isSubmitted" }
-                // If isSubmitted is true, it means that the Search button was clicked. In this case, we should go straight to the subreddit entered.
-                if (isSubmitted) {
-                    viewModel.goToSubredditByName(query)
+                .addTo(disposables)
+
+            val searchListAdapter = DrawerSearchListAdapter(this@MainActivity, viewModel)
+
+            viewModel.searchResultsChangedSubject
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe { subs ->
+                    // Setting the height of the list of the search results according to the available and the desired height.
+                    fun redrawSearchResultsList() {
+                        logcat { "drawSearchResults" }
+                        val listView = listViewDrawerSearchResults
+                        val oldHeight = abs(listView.measuredHeight)
+                        val desiredHeight = dpToPixel(40, this@MainActivity) * subs.size
+
+                        val listLocationInWindowArray = IntArray(2)
+                        listViewDrawerSearchResults.getLocationInWindow(listLocationInWindowArray)
+                        val drawerLocationInWindowsArray = IntArray(2)
+                        linearMainDrawerOuter.getLocationInWindow(drawerLocationInWindowsArray)
+                        // For example, drawer height is 500, it's Y is 24 (because of the status bar), search list's Y is 150.
+                        // The correct max height for the search results' list will be 500 + 24 - 150.
+                        val maxHeight =
+                            linearMainDrawerOuter.measuredHeight + drawerLocationInWindowsArray[1] - listLocationInWindowArray[1]
+
+                        logcat { "Redrawing search results ListView. desiredHeight = $desiredHeight; maxHeight = $maxHeight" }
+                        val newHeight = min(desiredHeight, maxHeight)
+                        animateViewHeightChange(listView, oldHeight, newHeight, ANIMATION_DURATION_SHORT)
+                    }
+                    redrawSearchResultsList()
+                    // Keyboard layout animation listener
+                    ViewCompat.setWindowInsetsAnimationCallback(listViewDrawerSearchResults,
+                        object : WindowInsetsAnimationCompat.Callback(DISPATCH_MODE_STOP) {
+                            override fun onProgress(
+                                    insets: WindowInsetsCompat, runningAnimations: MutableList<WindowInsetsAnimationCompat>
+                            ): WindowInsetsCompat = insets
+
+                            override fun onEnd(animation: WindowInsetsAnimationCompat) {
+                                super.onEnd(animation)
+                                if (drawerMain.isDrawerVisible(linearMainDrawerOuter)) redrawSearchResultsList()
+                            }
+                        })
                 }
-                // Otherwise, show the query search results in a list.
-                else {
-                    viewModel.getSearchResultsFromDbAndNw(query)
-                        .subscribe { searchResultSubs ->
-                            viewModel.searchResultsChangedSubject.onNext(searchResultSubs)
-                        }
-                        .addTo(disposables)
+                .addTo(disposables)
+
+            listViewDrawerSearchResults.adapter = searchListAdapter
+
+            drawerMain.addDrawerListener(object : DrawerLayout.SimpleDrawerListener() {
+                override fun onDrawerClosed(drawerView: View) {
+                    searchViewDrawer.setQuery("", true)
                 }
-            }
-            .addTo(disposables)
-
-        val searchListAdapter = DrawerSearchListAdapter(this, viewModel)
-
-        viewModel.searchResultsChangedSubject
-            .observeOn(AndroidSchedulers.mainThread())
-            .subscribe { subs ->
-                // Setting the height of the list of the search results according to the available and the desired height.
-                fun redrawSearchResultsList() {
-                    logcat { "drawSearchResults" }
-                    val listView = binding.listViewDrawerSearchResults
-                    val oldHeight = abs(listView.measuredHeight)
-                    val desiredHeight = dpToPixel(40, this) * subs.size
-
-                    val listLocationInWindowArray = IntArray(2)
-                    binding.listViewDrawerSearchResults.getLocationInWindow(listLocationInWindowArray)
-                    val drawerLocationInWindowsArray = IntArray(2)
-                    binding.linearMainDrawerOuter.getLocationInWindow(drawerLocationInWindowsArray)
-                    // For example, drawer height is 500, it's Y is 24 (because of the status bar), search list's Y is 150.
-                    // The correct max height for the search results' list will be 500 + 24 - 150.
-                    val maxHeight =
-                        binding.linearMainDrawerOuter.measuredHeight + drawerLocationInWindowsArray[1] - listLocationInWindowArray[1]
-
-                    logcat { "Redrawing search results ListView. desiredHeight = $desiredHeight; maxHeight = $maxHeight" }
-                    val newHeight = min(desiredHeight, maxHeight)
-                    animateViewHeightChange(listView, oldHeight, newHeight, ANIMATION_DURATION_SHORT)
-                }
-                redrawSearchResultsList()
-                // Keyboard layout animation listener
-                ViewCompat.setWindowInsetsAnimationCallback(binding.listViewDrawerSearchResults,
-                    object : WindowInsetsAnimationCompat.Callback(DISPATCH_MODE_STOP) {
-                        override fun onProgress(
-                            insets: WindowInsetsCompat, runningAnimations: MutableList<WindowInsetsAnimationCompat>
-                        ): WindowInsetsCompat = insets
-
-                        override fun onEnd(animation: WindowInsetsAnimationCompat) {
-                            super.onEnd(animation)
-                            if (binding.drawerMain.isDrawerVisible(binding.linearMainDrawerOuter)) redrawSearchResultsList()
-                        }
-                    })
-            }
-            .addTo(disposables)
-
-        binding.listViewDrawerSearchResults.adapter = searchListAdapter
+            })
+        }
     }
 
 
     fun lockDrawerClosed() {
         logcat { "lockDrawerClosed" }
         binding.drawerMain.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
-        setAlternativeNavigationBehaviour()
+        setNavIconBackPressedBehaviour()
     }
 
     fun unlockDrawer() {
         logcat { "unlockDrawer" }
         binding.drawerMain.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED)
-        resetNavigationBehaviour()
+        setNavIconDrawerBehaviour()
     }
 
 
@@ -309,14 +361,14 @@ class MainActivity : AppCompatActivity() {
     }
 
 
-    private fun setAlternativeNavigationBehaviour() {
-        logcat { "hideNavigationIcon" }
-        binding.toolbarMain.navigationIcon = ResourcesCompat.getDrawable(resources, R.drawable.ic_baseline_arrow_back_24, theme)
+    private fun setNavIconBackPressedBehaviour() {
+        logcat { "setAlternativeNavigationBehaviour" }
+//        binding.toolbarMain.navigationIcon = ResourcesCompat.getDrawable(resources, R.drawable.ic_baseline_arrow_back_24, theme)
         binding.toolbarMain.setNavigationOnClickListener { onBackPressed() }
     }
 
-    private fun resetNavigationBehaviour() {
-        logcat { "hideNavigationIcon" }
+    private fun setNavIconDrawerBehaviour() {
+        logcat { "resetNavigationBehaviour" }
         binding.toolbarMain.setNavigationOnClickListener { binding.drawerMain.open() }
     }
 }

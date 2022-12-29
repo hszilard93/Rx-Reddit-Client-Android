@@ -91,6 +91,7 @@ class PostViewerAdapter(
                 currentLayoutPosition = nextPosition
             }.addTo(disposables)
 
+        // For recovering slideshow behaviour after configuration change
         slideShowOnOffSubject
             .observeOn(AndroidSchedulers.mainThread())
             .skipWhile { currentLayoutPosition == null }
@@ -128,8 +129,7 @@ class PostViewerAdapter(
             }.addTo(disposables)
 
         // For to debug ye olde code
-        val favoritePosts = viewModel.getFavoritePosts().blockingGet()
-        logcat { "Favorite database size = ${favoritePosts.size}, entries: ${favoritePosts.map { it.name }}" }
+        logcat { "The pagingDataObservable is ${viewModel.pagingDataObservable}" }
 
         super.onAttachedToRecyclerView(recyclerView)
     }
@@ -434,15 +434,11 @@ class PostViewerAdapter(
                             loadImageWithGlide(zoomableImageView, post.links[0], true, post.toBlur)
                         }
                         else {
-                            logcat { "isHudVisible = $isHudVisible" }
-                            if (!isHudVisible) {
-                                logcat(LogPriority.INFO) { "Showing HUD." }
+                            logcat (LogPriority.VERBOSE) { "isHudVisible = $isHudVisible" }
+                            if (!isHudVisible)
                                 showHud()
-                            }
-                            else {
-                                logcat(LogPriority.INFO) { "Hiding HUD." }
+                            else
                                 hideHud()
-                            }
                         }
                     }.addTo(disposables)
 

@@ -12,6 +12,7 @@ import androidx.navigation.fragment.FragmentNavigatorExtras
 import androidx.navigation.fragment.findNavController
 import androidx.paging.LoadState
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.transition.TransitionInflater
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.databinding.FragmentHomeBinding
 import com.b4kancs.rxredditdemo.model.Subreddit.Status
@@ -82,19 +83,6 @@ class HomeFragment : Fragment() {
         if (justChangedSubreddits) positionToGoTo = 0
         logcat(LogPriority.INFO) { "positionToGoTo = $positionToGoTo" }
 
-        logcat(LogPriority.INFO) { "postponeEnterTransition()" }
-        postponeEnterTransition()
-
-        // If, for some reason, the transition doesn't get triggered in time (the image is slow in loading, etc), we force it after a delay.
-        delayedTransitionTriggerDisposable = Observable.timer(500, TimeUnit.MILLISECONDS)
-            .observeOn(AndroidSchedulers.mainThread())
-            .doOnSubscribe { logcat(LogPriority.INFO) { "Starting delayed enter transition timer." } }
-            .subscribe {
-                logcat(LogPriority.INFO) { "Triggering delayed enter transition." }
-                startPostponedEnterTransition()
-            }
-            .addTo(disposables)
-
         return binding.root
     }
 
@@ -107,12 +95,32 @@ class HomeFragment : Fragment() {
             .subscribe { (activity as MainActivity).supportActionBar?.title = it.name }
             .addTo(disposables)
 
+        setUpSharedElementTransition()
         setUpRecyclerView()
     }
 
     override fun onResume() {
         super.onResume()
         setUpOptionsMenu()
+    }
+
+    private fun setUpSharedElementTransition() {
+        logcat { "setUpSharedElementTransition" }
+        sharedElementEnterTransition = TransitionInflater
+            .from(requireContext())
+            .inflateTransition(R.transition.shared_element_transition)
+
+        postponeEnterTransition()
+
+        // If, for some reason, the transition doesn't get triggered in time (the image is slow to load etc.), we force the transition.
+        delayedTransitionTriggerDisposable = Observable.timer(500, TimeUnit.MILLISECONDS)
+            .observeOn(AndroidSchedulers.mainThread())
+            .doOnSubscribe { logcat { "Starting delayed enter transition timer." } }
+            .subscribe {
+                logcat(LogPriority.INFO) { "Triggering delayed enter transition." }
+                startPostponedEnterTransition()
+            }
+            .addTo(disposables)
     }
 
     private fun setUpRecyclerView() {
@@ -184,7 +192,7 @@ class HomeFragment : Fragment() {
             }
 
             mainViewModel.selectedSubredditPublishSubject
-                .debounce(1, TimeUnit.SECONDS)
+                .throttleFirst(1, TimeUnit.SECONDS)
                 .observeOn(AndroidSchedulers.mainThread())
                 .doOnNext { logcat(LogPriority.INFO) { "selectedSubredditChangedSubject.doOnNext: ${it.name}" } }
                 .subscribe { sub ->
