@@ -18,6 +18,7 @@ import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.databinding.ActivityMainBinding
 import com.b4kancs.rxredditdemo.ui.drawer.DrawerListAdapter
 import com.b4kancs.rxredditdemo.ui.drawer.DrawerSearchListAdapter
+import com.b4kancs.rxredditdemo.ui.follows.FollowsFragment
 import com.b4kancs.rxredditdemo.ui.uiutils.ANIMATION_DURATION_LONG
 import com.b4kancs.rxredditdemo.ui.uiutils.ANIMATION_DURATION_SHORT
 import com.b4kancs.rxredditdemo.ui.uiutils.animateViewHeightChange
@@ -130,8 +131,15 @@ class MainActivity : AppCompatActivity() {
         if (binding.drawerMain.isDrawerOpen(GravityCompat.START)) {
             logcat(LogPriority.INFO) { "Closing drawer." }
             binding.drawerMain.closeDrawer(GravityCompat.START)
+            return
         }
-        else
+
+//        val navController = findNavController(R.id.fragment_main_nav_host)
+//        val currentFragment = supportFragmentManager.primaryNavigationFragment?.childFragmentManager?.fragments?.first()
+//        if (currentFragment is FollowsFragment) {
+//            navController.navigateUp()
+//        }
+//        else
             super.onBackPressed()
     }
 
@@ -172,7 +180,7 @@ class MainActivity : AppCompatActivity() {
         with(binding) {
             searchViewDrawer.queryTextChangeEvents()
                 .observeOn(AndroidSchedulers.mainThread())
-                .throttleFirst(250, TimeUnit.MILLISECONDS)
+                .debounce(250, TimeUnit.MILLISECONDS)
                 .map {
                     val query = it.queryText
                     if (it.isSubmitted) {

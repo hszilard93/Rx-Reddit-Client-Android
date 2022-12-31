@@ -3,7 +3,6 @@ package com.b4kancs.rxredditdemo.ui.postviewer
 import android.animation.Animator
 import android.animation.TimeInterpolator
 import android.animation.ValueAnimator
-import android.content.res.Configuration
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -12,7 +11,6 @@ import android.view.animation.AccelerateDecelerateInterpolator
 import androidx.activity.addCallback
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
-import androidx.navigation.Navigation
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import androidx.paging.LoadState
@@ -64,15 +62,17 @@ class PostViewerFragment : Fragment() {
         logcat { "init $this" }
     }
 
-    override fun onConfigurationChanged(newConfig: Configuration) {
-        logcat { "onConfigurationChanged" }
-        // TODO
-        super.onConfigurationChanged(newConfig)
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
+        logcat { "onCreate" }
+
         currentPosition = savedInstanceState?.getInt(SAVED_STATE_POSITION_KEY)
             ?: if (args.position != -1) args.position else 0
+        logcat { "currentPosition = $currentPosition" }
+
+        setUpViewModel()
+        setUpOnBackPressedCallback()
+        setUpNavigationToFollows()
+
         super.onCreate(savedInstanceState)
     }
 
@@ -88,30 +88,6 @@ class PostViewerFragment : Fragment() {
         _binding = FragmentPostViewerBinding.inflate(inflater, container, false)
 
         sharedElementEnterTransition = AutoTransition()
-//        sharedElementReturnTransition = AutoTransition().apply {
-//            addListener(object : Transition.TransitionListener {
-//                override fun onTransitionStart(transition: Transition) {
-//                    logcat(LogPriority.INFO) { "onTransitionStart" }
-//                }
-//
-//                override fun onTransitionEnd(transition: Transition) {
-//                    logcat(LogPriority.INFO) { "onTransitionEnd" }
-//                }
-//
-//                override fun onTransitionCancel(transition: Transition) {
-//                    logcat(LogPriority.INFO) { "onTransitionCancel" }
-//                }
-//
-//                override fun onTransitionPause(transition: Transition) {
-//                    logcat(LogPriority.INFO) { "onTransitionPause" }
-//                }
-//
-//                override fun onTransitionResume(transition: Transition) {
-//                    logcat(LogPriority.INFO) { "onTransitionResume" }
-//                }
-//            })
-//        }
-
         logcat { "postponeEnterTransition()." }
         postponeEnterTransition()
 
@@ -133,12 +109,7 @@ class PostViewerFragment : Fragment() {
         logcat { "onViewCreated" }
 
         val isSlideShowOngoing = savedInstanceState?.getBoolean(SAVED_STATE_SLIDESHOW_KEY) ?: false
-        logcat { "Recovered from savedInstanceState: currentPosition = $currentPosition, isSlideShowOngoing = $isSlideShowOngoing" }
-
-        setUpViewModel()
         setUpViewPager(isSlideShowOngoing)
-        setUpOnBackPressedCallback()
-        setUpNavigationToFollows()
     }
 
     override fun onStart() {
@@ -155,29 +126,19 @@ class PostViewerFragment : Fragment() {
             return
         }
 
-        // If the fragment is newly created, the viewModel hasn't been initialized.
-//        val viewModelProvider: PostViewerViewModelProviderInterface by inject()
-//        val fragmentBackStackId = findNavController().currentBackStackEntry!!.id
-//        viewModelProvider.getViewModel(fragmentBackStackId = fragmentBackStackId)?.let {
-        // If we have an instance stored with the key fragmentBackStackId, return that.
-//            viewModel = it
-//            return
-//        }
-
-        // Else, get a new instance with the provided pagingDataObservable, if any.
         val pagingDataObservableProviderName = args.pagingDataObservableProvider
         val pagingDataObservableProvider: Lazy<PostPagingDataObservableProvider> =
             when (pagingDataObservableProviderName) {
                 HomeViewModel::class.simpleName -> {
-                    logcat { "The pagingDataObservableProvider is a HomeViewModel class." }
+                    logcat { "The pagingDataObservableProvider is a HomeViewModel instance." }
                     sharedViewModel<HomeViewModel>()
                 }
                 FavoritesViewModel::class.simpleName -> {
-                    logcat { "The pagingDataObservableProvider is a FavoritesViewModel class." }
+                    logcat { "The pagingDataObservableProvider is a FavoritesViewModel instance." }
                     sharedViewModel<FavoritesViewModel>()
                 }
                 FollowsViewModel::class.simpleName -> {
-                    logcat { "The pagingDataObservableProvider is a FollowsViewModel class." }
+                    logcat { "The pagingDataObservableProvider is a FollowsViewModel instance." }
                     sharedViewModel<FollowsViewModel>()
                 }
                 else -> {
@@ -185,12 +146,13 @@ class PostViewerFragment : Fragment() {
                     throw IllegalArgumentException()
                 }
             }
-//        viewModel = viewModelProvider.getViewModel(pagingDataObservableProvider = pagingDataObservableProvider.value)!!
         viewModel = viewModel<PostViewerViewModel> { parametersOf(pagingDataObservableProvider.value) }.value
+
+        logcat { "viewModel.pagingDataObservable = ${viewModel.pagingDataObservable}" }
     }
 
-    private fun setUpViewPager(isSlideShowOngoing: Boolean) {
-        logcat { "setUpViewPager" }
+    private fun setUpViewPager(isSlideShowOngoing: Boolean = false) {
+        logcat { "setUpViewPager: isSlideShowOnGoing = $isSlideShowOngoing" }
 
         val onPositionChangedCallback = { nextPosition: Int ->
             logcat { "onPositionChangedCallback: nextPosition = $nextPosition" }
@@ -216,8 +178,8 @@ class PostViewerFragment : Fragment() {
                 .filter {
                     // Because the paging data is being provided by a ViewModel belonging to another Fragment,
                     // we check if this fragment is active before reacting to it to avoid exceptions.
-                    this@PostViewerFragment.isVisible
-//                    view != null
+                    this@PostViewerFragment.isAdded
+                    view != null
                 }
                 .doOnNext { logcat { "viewModel.pagingDataObservable.onNext" } }
                 .subscribe { pagingData ->
@@ -297,21 +259,15 @@ class PostViewerFragment : Fragment() {
     private fun goToFollowsFragment(userName: String) {
         logcat { "goToFollowsFragment: userName = $userName" }
 
-        // Save the instance of the PostViewerViewModel so that in case this fragment is popped from the back stack, it can be recovered.
-//        val viewModelProvider: PostViewerViewModelProviderInterface by inject()
-//        val fragmentId = findNavController().currentBackStackEntry!!.id
-//        viewModelProvider.persistViewModelForFragmentOnBackStack(fragmentId, viewModel)
-
-        logcat(LogPriority.ERROR) { "The current destination is ${findNavController().currentDestination?.displayName}" }
-
         val action = PostViewerFragmentDirections.actionPostViewerToFollows(userName)
-//        val navController = Navigation.findNavController(requireActivity().findViewById(R.id.fragment_main_nav_host))
-
         findNavController().navigate(action)
     }
 
     override fun onDestroyView() {
         logcat { "onDestroyView" }
+
+        (binding.viewPagerPostViewer.adapter as PostViewerAdapter).disposables.dispose()
+
         super.onDestroyView()
         (activity as MainActivity).apply {
             supportActionBar?.show()
@@ -323,13 +279,14 @@ class PostViewerFragment : Fragment() {
     override fun onDestroy() {
         logcat(LogPriority.ERROR) { "onDestroy" }
         disposables.dispose()
+
         super.onDestroy()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
         logcat { "onSaveInstanceState" }
         _binding?.let { binding ->
-            outState.putInt(SAVED_STATE_POSITION_KEY, binding.viewPagerPostViewer.currentItem)
+            outState.putInt(SAVED_STATE_POSITION_KEY, currentPosition)
             outState.putBoolean(
                 SAVED_STATE_SLIDESHOW_KEY,
                 (binding.viewPagerPostViewer.adapter as PostViewerAdapter).slideShowOnOffSubject.value ?: return

@@ -15,8 +15,6 @@ import com.b4kancs.rxredditdemo.ui.home.HomeViewModel
 import com.b4kancs.rxredditdemo.ui.main.MainViewModel
 import com.b4kancs.rxredditdemo.ui.postviewer.PostViewerViewModel
 import com.b4kancs.rxredditdemo.ui.follows.FollowsViewModel
-import com.b4kancs.rxredditdemo.ui.postviewer.PostViewerViewModelProvider
-import com.b4kancs.rxredditdemo.ui.postviewer.PostViewerViewModelProviderInterface
 import com.f2prateek.rx.preferences2.RxSharedPreferences
 import com.google.gson.FieldNamingPolicy
 import com.google.gson.GsonBuilder
@@ -73,10 +71,6 @@ class App : Application() {
             logcat { "Koin providing Single RedditJsonClient object." }
             return@single RedditJsonClient
         }
-//        single<PostViewerViewModelProviderInterface> {
-//            logcat { "Koin providing Single PostViewerViewModelProvider object." }
-//            return@single PostViewerViewModelProvider
-//        }
         viewModel {
             logcat { "Koin providing ViewModel MainViewModel instance." }
             MainViewModel()
