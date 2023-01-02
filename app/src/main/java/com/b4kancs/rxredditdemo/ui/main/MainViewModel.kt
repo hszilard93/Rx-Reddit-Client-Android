@@ -2,6 +2,8 @@ package com.b4kancs.rxredditdemo.ui.main
 
 import androidx.lifecycle.ViewModel
 import com.b4kancs.rxredditdemo.model.Subreddit
+import com.b4kancs.rxredditdemo.model.UserFeed
+import com.b4kancs.rxredditdemo.repository.FollowsRepository
 import com.b4kancs.rxredditdemo.repository.SubredditRepository
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Completable
@@ -19,10 +21,14 @@ import org.koin.java.KoinJavaComponent.inject
 
 class MainViewModel : ViewModel() {
     private val subredditRepository: SubredditRepository by inject(SubredditRepository::class.java)
+    private val followsRepository: FollowsRepository by inject(FollowsRepository::class.java)
 
-    val selectedSubredditPublishSubject: PublishSubject<Subreddit> = PublishSubject.create()
-    val selectedSubredditReplayObservable: ConnectableObservable<Subreddit> = selectedSubredditPublishSubject.replay(1)
-    val searchResultsChangedSubject: PublishSubject<List<Subreddit>> = PublishSubject.create()
+    val selectedSubredditChangedPublishSubject: PublishSubject<Subreddit> = PublishSubject.create()
+    val selectedUserFeedChangedPublishSubject: PublishSubject<UserFeed> = PublishSubject.create()
+    val selectedSubredditReplayObservable: ConnectableObservable<Subreddit> = selectedSubredditChangedPublishSubject.replay(1)
+    val selectedUserFeedReplayObservable: ConnectableObservable<UserFeed> = selectedUserFeedChangedPublishSubject.replay(1)
+    val subredditSearchResultsChangedSubject: PublishSubject<List<Subreddit>> = PublishSubject.create()
+    val followsSearchResultsChangedSubject: PublishSubject<List<UserFeed>> = PublishSubject.create()
     var isActionBarShowing: Boolean = true
     var isNavBarShowing: Boolean = true
     private val disposables = CompositeDisposable()
@@ -30,20 +36,32 @@ class MainViewModel : ViewModel() {
     init {
         logcat { "init" }
         selectedSubredditReplayObservable.connect()
-        selectedSubredditPublishSubject.doOnNext { logcat(LogPriority.INFO) { "selectedSubredditChangedSubject.onNext" } }
+        selectedUserFeedReplayObservable.connect()
+        selectedSubredditChangedPublishSubject.doOnNext { logcat(LogPriority.INFO) { "selectedSubredditChangedSubject.onNext" } }
+        selectedUserFeedChangedPublishSubject.doOnNext { logcat(LogPriority.INFO) { "selectedUserFeedChangedSubject.onNext" } }
         subredditRepository.loadDefaultSubreddit()
-            .subscribe { selectedSubredditPublishSubject.onNext(subredditRepository.defaultSubreddit) }
+            .subscribe { selectedSubredditChangedPublishSubject.onNext(subredditRepository.defaultSubreddit) }
             .addTo(disposables)
+        selectedUserFeedChangedPublishSubject.onNext(FollowsRepository.defaultUserFeed)
     }
 
     fun getAllSubreddits(): Single<List<Subreddit>> =
         subredditRepository.getAllSubredditsFromDb()
 
+    fun getAllUserFeeds(): Single<List<UserFeed>> =
+        followsRepository.getAllFollowsFromDb()
+
     fun getSubredditByAddress(address: String): Maybe<Subreddit> =
         subredditRepository.getSubredditFromDbByAddress(address)
 
+    fun getUserFeedByName(name: String): Maybe<UserFeed> =
+        followsRepository.getUserFeedFromDbByName(name)
+
     fun deleteSubreddit(subreddit: Subreddit): Completable =
         subredditRepository.deleteSubredditFromDb(subreddit)
+
+    fun deleteUserFeed(userFeed: UserFeed): Completable =
+        followsRepository.deleteUserFeedFromDb(userFeed)
 
     fun setAsDefaultSub(subreddit: Subreddit): Completable =
         subredditRepository.setAsDefaultSubreddit(subreddit)
@@ -58,6 +76,8 @@ class MainViewModel : ViewModel() {
         }
         return changeSubredditStatusTo(subreddit, newStatus)
     }
+
+    fun saveUserFeedToDb(userFeed: UserFeed): Completable = followsRepository.addUserFeedToDb(userFeed)
 
     fun changeSubredditStatusTo(subreddit: Subreddit, status: Subreddit.Status): Single<Subreddit> {
         logcat { "changeSubredditStatusTo: subreddit = $subreddit, status = $status" }
@@ -77,25 +97,43 @@ class MainViewModel : ViewModel() {
         val newSubNotInDb = Subreddit(name, "r/$name", Subreddit.Status.NOT_IN_DB)
         // We first check if we already know that subreddit.
         getSubredditByAddress(name)
-            .observeOn(AndroidSchedulers.mainThread())
             .subscribeBy(
                 // The sub was in the db. Let's work with that!
                 onSuccess = {
-                    selectedSubredditPublishSubject.onNext(it)
+                    selectedSubredditChangedPublishSubject.onNext(it)
                 },
                 // The sub was not in the db. No problem, let's go to that address anyway.
                 onComplete = {
-                    selectedSubredditPublishSubject.onNext(newSubNotInDb)
+                    selectedSubredditChangedPublishSubject.onNext(newSubNotInDb)
                 },
                 // Oh well, let's try going to that address anyway.
                 onError = { e ->
                     logcat(LogPriority.ERROR) { "Error during DB operation 'getSubredditFromDbByName($name)'! Message: ${e.message}" }
-                    selectedSubredditPublishSubject.onNext(newSubNotInDb)
+                    selectedSubredditChangedPublishSubject.onNext(newSubNotInDb)
                 }
             )
     }
 
-    fun getSearchResultsFromDbAndNw(query: String): Observable<List<Subreddit>> {
+    fun goToUserFeedByName(name: String) {
+        logcat { "goToUserFeedByName: name = $name" }
+
+        val newUserFeedNotInDb = UserFeed(name, UserFeed.Status.NOT_IN_DB)
+        getUserFeedByName(name)
+            .subscribeBy(
+                onSuccess = {
+                    selectedUserFeedChangedPublishSubject.onNext(it)
+                },
+                onComplete = {
+                    selectedUserFeedChangedPublishSubject.onNext(newUserFeedNotInDb)
+                },
+                onError = { e ->
+                    logcat(LogPriority.ERROR) { "Error during DB operation 'getUserFeedFromDbByName($name)'! Message: ${e.message}" }
+                    selectedUserFeedChangedPublishSubject.onNext(newUserFeedNotInDb)
+                }
+            )
+    }
+
+    fun getSubredditsSearchResultsFromDbAndNw(query: String): Observable<List<Subreddit>> {
         logcat { "getSearchResultsFromDbAndNw: query = $query" }
         if (query.isEmpty()) return Observable.just(emptyList())
 
@@ -116,8 +154,21 @@ class MainViewModel : ViewModel() {
             .map { subs -> subs.distinctBy { it.address.lowercase() } }
     }
 
+    fun getUserFeedSearchResultsFromDb(query: String): Observable<List<UserFeed>> {
+        logcat { "getUserFeedSearchResultsFromDb: query = $query" }
+        if (query.isEmpty()) return Observable.just(emptyList())
+
+        return followsRepository.getUserFeedFromDbByNameLike(query)
+            .toObservable()
+    }
+
     fun getSubredditsChangedSubject(): PublishSubject<Unit> =
         subredditRepository.subredditsChangedSubject
 
+    fun getFollowsChangedSubject(): PublishSubject<Unit> =
+        followsRepository.followsChangedSubject
+
     fun getDefaultSubreddit() = subredditRepository.defaultSubreddit
+
+    fun getDefaultUserFeed() = FollowsRepository.defaultUserFeed
 }

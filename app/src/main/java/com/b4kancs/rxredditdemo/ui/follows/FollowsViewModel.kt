@@ -30,7 +30,7 @@ class FollowsViewModel : ViewModel(), PostPagingDataObservableProvider {
     val feedChangedBehaviorSubject: BehaviorSubject<UserFeed> = BehaviorSubject.create()
 
     private val followsRepository: FollowsRepository by inject(FollowsRepository::class.java)
-    private val currentUserFeedFeed: UserFeed get() = feedChangedBehaviorSubject
+    private val currentUserFeed: UserFeed get() = feedChangedBehaviorSubject
         .blockingMostRecent(FollowsRepository.defaultUserFeed).first()
     private val disposables = CompositeDisposable()
 
@@ -43,16 +43,16 @@ class FollowsViewModel : ViewModel(), PostPagingDataObservableProvider {
                 prefetchDistance = 5,
                 initialLoadSize = UserPostsJsonPagingSource.PAGE_SIZE
             )
-        ) { UserPostsJsonPagingSource(currentUserFeedFeed) }
+        ) { UserPostsJsonPagingSource(currentUserFeed) }
         postsCachedPagingObservable = pager.observable
             .cachedIn(this.viewModelScope)
     }
 
     fun addUserToFollowedUsers(userFeed: UserFeed): Completable =
-        followsRepository.addFollowedUserToDb(userFeed)
+        followsRepository.addUserFeedToDb(userFeed)
 
     fun removeUserFromFollowedUsers(userFeed: UserFeed): Completable =
-        followsRepository.removeFollowedUserFromDb(userFeed)
+        followsRepository.deleteUserFeedFromDb(userFeed)
 
     fun getAreThereFollowedUsersBehaviourSubject() =
         followsRepository.areThereFollowedUsersBehaviourSubject
@@ -60,11 +60,15 @@ class FollowsViewModel : ViewModel(), PostPagingDataObservableProvider {
     fun setUserFeedTo(userName: String): Completable {
         logcat { "setUserFeedTo: userName = $userName" }
         return Completable.create { emitter ->
-            followsRepository.getUserFeedByName(userName)
+            followsRepository.getUserFeedFromDbByName(userName)
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribeBy(
                     onSuccess = { userFeed ->
                         feedChangedBehaviorSubject.onNext(userFeed)
+                        emitter.onComplete()
+                    },
+                    onComplete = {
+                        feedChangedBehaviorSubject.onNext(UserFeed(userName, UserFeed.Status.NOT_IN_DB))
                         emitter.onComplete()
                     },
                     onError = { e ->

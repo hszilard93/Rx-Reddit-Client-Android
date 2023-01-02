@@ -16,9 +16,8 @@ import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.navigation.ui.setupWithNavController
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.databinding.ActivityMainBinding
-import com.b4kancs.rxredditdemo.ui.drawer.DrawerListAdapter
-import com.b4kancs.rxredditdemo.ui.drawer.DrawerSearchListAdapter
-import com.b4kancs.rxredditdemo.ui.follows.FollowsFragment
+import com.b4kancs.rxredditdemo.ui.drawer.SubredditsDrawerListAdapter
+import com.b4kancs.rxredditdemo.ui.drawer.SubredditsDrawerSearchListAdapter
 import com.b4kancs.rxredditdemo.ui.uiutils.ANIMATION_DURATION_LONG
 import com.b4kancs.rxredditdemo.ui.uiutils.ANIMATION_DURATION_SHORT
 import com.b4kancs.rxredditdemo.ui.uiutils.animateViewHeightChange
@@ -152,7 +151,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun setUpSubredditDrawer() {
         logcat { "setUpSubredditDrawer" }
-        val adapter = DrawerListAdapter(this, viewModel)
+        val adapter = SubredditsDrawerListAdapter(this, viewModel)
         binding.listViewDrawerSubreddits.adapter = adapter
 
         viewModel.getSubredditsChangedSubject()
@@ -160,7 +159,7 @@ class MainActivity : AppCompatActivity() {
             .subscribe { adapter.notifyDataSetChanged() }
             .addTo(disposables)
 
-        viewModel.selectedSubredditPublishSubject
+        viewModel.selectedSubredditChangedPublishSubject
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe {
                 // I think this small delay before triggering the closing animation of the drawer
@@ -200,18 +199,18 @@ class MainActivity : AppCompatActivity() {
                     }
                     // Otherwise, show the query search results in a list.
                     else {
-                        viewModel.getSearchResultsFromDbAndNw(query)
+                        viewModel.getSubredditsSearchResultsFromDbAndNw(query)
                             .subscribe { searchResultSubs ->
-                                viewModel.searchResultsChangedSubject.onNext(searchResultSubs)
+                                viewModel.subredditSearchResultsChangedSubject.onNext(searchResultSubs)
                             }
                             .addTo(disposables)
                     }
                 }
                 .addTo(disposables)
 
-            val searchListAdapter = DrawerSearchListAdapter(this@MainActivity, viewModel)
+            val searchListAdapter = SubredditsDrawerSearchListAdapter(this@MainActivity, viewModel)
 
-            viewModel.searchResultsChangedSubject
+            viewModel.subredditSearchResultsChangedSubject
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe { subs ->
                     // Setting the height of the list of the search results according to the available and the desired height.

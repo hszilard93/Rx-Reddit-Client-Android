@@ -191,7 +191,7 @@ class HomeFragment : Fragment() {
                 progressBarHomeLarge.isVisible = combinedLoadStates.refresh is LoadState.Loading
             }
 
-            mainViewModel.selectedSubredditPublishSubject
+            mainViewModel.selectedSubredditChangedPublishSubject
                 .throttleFirst(1, TimeUnit.SECONDS)
                 .observeOn(AndroidSchedulers.mainThread())
                 .doOnNext { logcat(LogPriority.INFO) { "selectedSubredditChangedSubject.doOnNext: ${it.name}" } }

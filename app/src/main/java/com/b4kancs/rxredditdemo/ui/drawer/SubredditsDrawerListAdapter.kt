@@ -24,7 +24,7 @@ import io.reactivex.rxjava3.kotlin.subscribeBy
 import logcat.LogPriority
 import logcat.logcat
 
-class DrawerListAdapter(
+class SubredditsDrawerListAdapter(
         private val c: Context,
         private val viewModel: MainViewModel
 ) : ArrayAdapter<Subreddit>(c, R.layout.list_item_drawer_subreddit) {
@@ -165,7 +165,7 @@ class DrawerListAdapter(
 
         subredditTextView.clicks()
             .subscribe {
-                viewModel.selectedSubredditPublishSubject.onNext(sub)
+                viewModel.selectedSubredditChangedPublishSubject.onNext(sub)
             }
             .addTo(disposables)
 

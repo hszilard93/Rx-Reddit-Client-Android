@@ -3,6 +3,7 @@ package com.b4kancs.rxredditdemo.repository
 import com.b4kancs.rxredditdemo.data.database.FollowsDatabase
 import com.b4kancs.rxredditdemo.model.UserFeed
 import io.reactivex.rxjava3.core.Completable
+import io.reactivex.rxjava3.core.Maybe
 import io.reactivex.rxjava3.core.Single
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.addTo
@@ -17,7 +18,7 @@ import org.koin.java.KoinJavaComponent.inject
 class FollowsRepository {
 
     companion object {
-        val defaultUserFeed = UserFeed("AGGREGATE")
+        val defaultUserFeed = UserFeed("All your follows", UserFeed.Status.AGGREGATE)
     }
 
     val followsChangedSubject: PublishSubject<Unit> = PublishSubject.create()
@@ -33,9 +34,7 @@ class FollowsRepository {
             .retry(1)
             .doOnSuccess { follows ->
                 areThereFollowedUsersBehaviourSubject.let {
-                    if (it.value == null) it.onNext(follows.isEmpty())
-                    else if (it.value == false && follows.isNotEmpty()) it.onNext(true)
-                    else if (it.value == true && follows.isEmpty()) it.onNext(false)
+                    if (follows.isNotEmpty() != it.value) it.onNext(follows.isNotEmpty())
                 }
             }
             .doOnError { e ->
@@ -43,23 +42,25 @@ class FollowsRepository {
             }
     }
 
-    fun addFollowedUserToDb(userFeed: UserFeed): Completable {
+    fun addUserFeedToDb(userFeed: UserFeed): Completable {
         logcat(LogPriority.INFO) { "addFollowedUserToDb: post = ${userFeed.name}" }
         return followsDatabase.followsDao().insertFollowedUser(userFeed)
             .subscribeOn(Schedulers.io())
+            .doOnComplete { followsChangedSubject.onNext(Unit) }
             .retry(1)
     }
 
-    fun removeFollowedUserFromDb(userFeed: UserFeed): Completable {
+    fun deleteUserFeedFromDb(userFeed: UserFeed): Completable {
         logcat(LogPriority.INFO) { "removeFollowedUserFromDb: user = ${userFeed.name}" }
         return followsDatabase.followsDao().deleteFollowedUser(userFeed)
             .retry(1)
+            .doOnComplete { followsChangedSubject.onNext(Unit) }
             .subscribeOn(Schedulers.io())
     }
 
-    fun getUserFeedByName(userName: String): Single<UserFeed> {
+    fun getUserFeedFromDbByName(userName: String): Maybe<UserFeed> {
         logcat { "getUserFeedByName: userName = $userName" }
-        return Single.create { emitter ->
+        return Maybe.create { emitter ->
             getAllFollowsFromDb()
                 .subscribeOn(Schedulers.io())
                 .subscribeBy(
@@ -67,29 +68,20 @@ class FollowsRepository {
                         val matchingFeed = feeds.firstOrNull { it.name == userName }
                         matchingFeed
                             ?.let { emitter.onSuccess(matchingFeed) }
-                            ?: emitter.onSuccess(UserFeed(userName))
+                            // If there was no matching UserFeed in the db.
+                            ?: emitter.onComplete()
                     },
                     onError = { e ->
                         logcat(LogPriority.ERROR) { "Could not get follows from database! Message = ${e.message}" }
-                        logcat(LogPriority.WARN) { "Returning new userFeed!" }
-                        emitter.onSuccess(UserFeed(userName))
+                        // If we encounter a db error.
+                        emitter.onError(e)
                     })
                 .addTo(disposables)
         }
+    }
 
-//        return getAllFollowsFromDb()
-//            .subscribeOn(Schedulers.io())
-//            .doOnError { e ->
-//                logcat(LogPriority.ERROR) { "Could not get follows from database! Message = ${e.message}" }
-//                logcat(LogPriority.WARN) { "Returning new userFeed!" }
-//                Single.just(UserFeed(userName))
-//            }
-//            .flatMap { feeds ->
-//                val matchingFeed = feeds.firstOrNull { it.name == userName }
-//                if (matchingFeed != null)
-//                    Single.just(matchingFeed)
-//                else
-//                    Single.just(UserFeed(userName))
-//            }
+    fun getUserFeedFromDbByNameLike(query: String): Single<List<UserFeed>> {
+        logcat { "getUserFeedFromDbByNameLike: query = $query" }
+        return followsDatabase.followsDao().getFollowedUsersByNameLike(query)
     }
 }

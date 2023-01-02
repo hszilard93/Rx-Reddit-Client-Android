@@ -84,7 +84,7 @@ class App : Application() {
             FavoritesViewModel()
         }
         viewModel {
-            logcat { "Koin providing ViewModel FollorwsViewModel instance." }
+            logcat { "Koin providing ViewModel FollowsViewModel instance." }
             FollowsViewModel()
         }
         viewModel {

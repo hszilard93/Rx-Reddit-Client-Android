@@ -21,7 +21,7 @@ import io.reactivex.rxjava3.kotlin.subscribeBy
 import logcat.LogPriority
 import logcat.logcat
 
-class DrawerSearchListAdapter(
+class SubredditsDrawerSearchListAdapter(
     private val c: Context,
     private val viewModel: MainViewModel
 ) : ArrayAdapter<Subreddit>(c, R.layout.list_item_drawer_search) {
@@ -32,7 +32,7 @@ class DrawerSearchListAdapter(
 
     init {
         logcat { "init" }
-        viewModel.searchResultsChangedSubject
+        viewModel.subredditSearchResultsChangedSubject
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe { searchResults ->
                 logcat(LogPriority.INFO) { "New searchResults: size = ${searchResults.size}; items = ${searchResults.map { it.name }}" }
@@ -57,7 +57,7 @@ class DrawerSearchListAdapter(
         subredditNameTextView.text = sub.name
         subredditNameTextView.clicks()
             .doOnNext { logcat { "subredditNameTextView.clicks.onNext" } }
-            .subscribe { viewModel.selectedSubredditPublishSubject.onNext(sub) }
+            .subscribe { viewModel.selectedSubredditChangedPublishSubject.onNext(sub) }
             .addTo(disposables)
 
         if (sub.status == Subreddit.Status.FAVORITED)

@@ -19,6 +19,7 @@ object FollowsRoomDatabase {
         }
         else {
             val localDatabase = Room.databaseBuilder(context.applicationContext, FollowsDatabase::class.java, "follows_db")
+                .fallbackToDestructiveMigration()
                 .build()
             localDatabase.followsDao().getFollowedUsers().subscribeOn(Schedulers.io()).blockingSubscribe()
             database = localDatabase

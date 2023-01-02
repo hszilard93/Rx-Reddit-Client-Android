@@ -6,6 +6,7 @@ import com.b4kancs.rxredditdemo.data.networking.RedditJsonService
 import com.b4kancs.rxredditdemo.data.utils.JsonDataModelToPostTransformer.fromJsonPostDataModel
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.model.UserFeed
+import com.b4kancs.rxredditdemo.repository.FollowsRepository
 import io.reactivex.rxjava3.core.Single
 import logcat.logcat
 import org.koin.java.KoinJavaComponent.inject
@@ -29,6 +30,11 @@ class UserPostsJsonPagingSource(private val userFeed: UserFeed?) : RxPagingSourc
 
         // If we aren't following a user, return an empty result.
         if (userFeed == null) return Single.just(LoadResult.Page(emptyList(), null, null))
+
+        if (userFeed == FollowsRepository.defaultUserFeed) {
+            // TODO
+            return Single.just(LoadResult.Page(emptyList(), null, null))
+        }
 
         return service.getUsersPostsJson(
             userFeed.name,

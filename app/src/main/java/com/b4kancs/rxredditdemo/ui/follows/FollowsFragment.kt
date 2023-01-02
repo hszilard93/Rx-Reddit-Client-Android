@@ -4,10 +4,8 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.activity.OnBackPressedCallback
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
-import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.FragmentNavigatorExtras
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
@@ -34,7 +32,6 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.take
 import logcat.LogPriority
 import logcat.logcat
-import org.koin.android.ext.android.inject
 import org.koin.androidx.viewmodel.ext.android.sharedViewModel
 import java.util.concurrent.TimeUnit
 
@@ -46,17 +43,19 @@ class FollowsFragment : Fragment() {
     private val binding get() = _binding!!
     private val disposables = CompositeDisposable()
     private var positionToGoTo: Int? = null
-    private var isBeingReconstructed = false
+    private var isJustCreated = false
     private lateinit var delayedTransitionTriggerDisposable: Disposable
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
+    override fun onCreate(savedInstanceState: Bundle?) {
         logcat {
-            "onCreateView\n  Current nav backstack: ${
+            "onCreate\n  Current nav backstack: ${
                 findNavController().backQueue
                     .map { it.destination }
                     .joinToString("\n ", "\n ")
             }"
         }
+
+        isJustCreated = true
 
         with(findNavController().currentBackStackEntry) {
             positionToGoTo = this?.savedStateHandle?.get<Int>(PostViewerFragment.SAVED_STATE_POSITION_KEY)
@@ -64,13 +63,15 @@ class FollowsFragment : Fragment() {
             positionToGoTo?.let { logcat(LogPriority.INFO) { "Recovered position from PostViewerFragment. positionToGoTo = $it" } }
         }
 
-        isBeingReconstructed = savedInstanceState != null
-        logcat { "isBeingReconstructed = $isBeingReconstructed" }
-        if (!isBeingReconstructed) {
-            // If not returning from PVF and not recovering from rotation etc. positionToGoTo remains null, else 0.
-            // When positionToGoTo is null, we should let the RecyclerView recover its previous position.
-            if (positionToGoTo == null) positionToGoTo = 0
+        if (savedInstanceState != null) {
+            positionToGoTo = 0
         }
+
+        super.onCreate(savedInstanceState)
+    }
+
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
+        logcat { "onCreateView" }
 
         _binding = FragmentFollowsBinding.inflate(inflater, container, false)
 
@@ -87,36 +88,52 @@ class FollowsFragment : Fragment() {
             }
             .addTo(disposables)
 
+        setUpRecyclerView()
+        if (isJustCreated) {
+            setUpBehaviourDisposables()
+        }
+        isJustCreated = false
+
         return binding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         logcat { "onViewCreated" }
+    }
 
-        setUpRecyclerView()
-
+    private fun setUpBehaviourDisposables() {
         followsViewModel.getAreThereFollowedUsersBehaviourSubject()
             .observeOn(AndroidSchedulers.mainThread())
             .doOnNext { logcat { "followsViewModel.getAreThereFollowedUsersBehaviourSubject.onNext" } }
             .filter { _binding != null }
-            .subscribe { isNotEmpty ->
-                binding.textViewFollowsNoMedia.isVisible = !isNotEmpty
-                (binding.rvFollowsPosts.adapter as PostsVerticalRvAdapter).let { adapter ->
-                    if (adapter.itemCount > 1 && !isNotEmpty) adapter.refresh()
-                    if (adapter.itemCount <= 1 && isNotEmpty) adapter.refresh()
-                }
+//            .distinctUntilChanged()
+            .subscribe { hasFollowedUsers ->
+                binding.textViewFollowsNoMedia.isVisible = !hasFollowedUsers
+//                (binding.rvFollowsPosts.adapter as PostsVerticalRvAdapter).let { adapter ->
+//                    if (adapter.itemCount > 1 && !hasFollowedUsers) adapter.refresh()
+//                    if (adapter.itemCount <= 1 && hasFollowedUsers) adapter.refresh()
+//                }
             }.addTo(disposables)
 
         followsViewModel.feedChangedBehaviorSubject
             .observeOn(AndroidSchedulers.mainThread())
-            .filter { _binding != null }
-            .subscribe {
+            .filter { _binding != null && !isJustCreated}
+//            .filter {
+//                if (isJustCreated)
+//                    (binding.rvFollowsPosts.adapter as PostsVerticalRvAdapter).itemCount < 1
+//                else
+//                    true
+//            }
+//            .distinctUntilChanged()
+            .doOnNext { logcat { "followsViewModel.feedChangedBehaviorSubject.onNext" } }
+            .subscribe { userFeed ->
                 (binding.rvFollowsPosts.adapter as PostsVerticalRvAdapter).refresh()
+                (activity as MainActivity).supportActionBar?.title = "/u/${userFeed.name}"
             }
             .addTo(disposables)
 
         // If we got here from another fragment, we need to recover the navigation argument and go to the specified user's feed.
-        if (!isBeingReconstructed) {
+        if ((binding.rvFollowsPosts.adapter as PostsVerticalRvAdapter).itemCount <= 1) {
             val userNameFromNavigation = args.userName
             userNameFromNavigation?.let { userName ->
                 followsViewModel.setUserFeedTo(userName)
@@ -153,6 +170,9 @@ class FollowsFragment : Fragment() {
     private fun setUpRecyclerView() {
         logcat { "setUpRecyclerView" }
         val mainActivity = activity as MainActivity
+
+        mainActivity.animateShowActionBar()
+        mainActivity.animateShowBottomNavBar()
 
         with(binding) {
             rvFollowsPosts.layoutManager = CustomLinearLayoutManager(requireContext(), LinearLayoutManager.VERTICAL)
@@ -236,10 +256,6 @@ class FollowsFragment : Fragment() {
                         }
                     }
 
-                    // We put these reveals here so that they will be synced with the SharedElementTransition.
-                    mainActivity.animateShowActionBar()
-                    mainActivity.animateShowBottomNavBar()
-
                     // Getting these timings right is important for the UI to not glitch.
                     Observable.timer(50, TimeUnit.MILLISECONDS)
                         .observeOn(AndroidSchedulers.mainThread())
@@ -286,6 +302,6 @@ class FollowsFragment : Fragment() {
     override fun onDestroyView() {
         logcat { "onDestroyView" }
         super.onDestroyView()
-        _binding = null
+//        _binding = null
     }
 }
