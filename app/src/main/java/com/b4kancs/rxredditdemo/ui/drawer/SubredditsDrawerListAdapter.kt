@@ -122,25 +122,16 @@ class SubredditsDrawerListAdapter(
 
         // The view needs to be a subreddit list item
         val pos =
-            if (position in 0..subreddits.count {
-                    it.status == Status.IN_USER_LIST || it.status == Status.FAVORITED
-                }) {
-                position - shouldShowYourSubsHeader.toIntValue()
-            } else {
-                position - shouldShowYourSubsHeader.toIntValue() - shouldShowRecommendedSubsHeader.toIntValue()
-            }
-
-        val pos1 =
             if (position in 0..(recommendedSubredditsHeaderPosition ?: 0) - shouldShowYourSubsHeader.toIntValue()) {
                 position - shouldShowYourSubsHeader.toIntValue()
             } else {
                 position - shouldShowYourSubsHeader.toIntValue() - shouldShowRecommendedSubsHeader.toIntValue()
             }
 
-        val sub = subreddits[pos1]
+        val sub = subreddits[pos]
 
         val listViewItem = inflater.inflate(R.layout.list_item_drawer_subreddit, parent, false)
-        val actionImageView = listViewItem.findViewById<ImageView?>(R.id.image_view_drawer_subreddit_action)!!
+        val actionImageView = listViewItem.findViewById<ImageView?>(R.id.image_view_drawer_subreddit_action)
             .also {
                 when {
                     sub.name == viewModel.getDefaultSubreddit().name -> {

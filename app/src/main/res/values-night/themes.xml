@@ -37,5 +37,6 @@
         <item name="colorHomeBackground">@color/md_theme_dark_surface</item>
         <item name="colorHudGradientStart">#55001F2A</item>
         <item name="colorHudGradientEnd">#AA001F2A</item>
+        <item name="drawer_action_button_default_color">@color/md_theme_light_primary</item>
     </style>
 </resources>

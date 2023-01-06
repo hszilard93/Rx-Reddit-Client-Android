@@ -2,8 +2,10 @@ package com.b4kancs.rxredditdemo.ui.follows
 
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.view.children
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.FragmentNavigatorExtras
@@ -13,18 +15,21 @@ import androidx.paging.LoadState
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.databinding.FragmentFollowsBinding
+import com.b4kancs.rxredditdemo.model.UserFeed
 import com.b4kancs.rxredditdemo.ui.main.MainActivity
 import com.b4kancs.rxredditdemo.ui.postviewer.PostViewerFragment
 import com.b4kancs.rxredditdemo.ui.shared.PostsVerticalRvAdapter
 import com.b4kancs.rxredditdemo.ui.uiutils.CustomLinearLayoutManager
 import com.b4kancs.rxredditdemo.ui.uiutils.SnackType
 import com.b4kancs.rxredditdemo.ui.uiutils.makeSnackBar
+import com.jakewharton.rxbinding4.view.clicks
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.kotlin.addTo
 import io.reactivex.rxjava3.kotlin.subscribeBy
+import io.reactivex.rxjava3.schedulers.Schedulers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.launchIn
@@ -42,7 +47,7 @@ class FollowsFragment : Fragment() {
     private var _binding: FragmentFollowsBinding? = null
     private val binding get() = _binding!!
     private val disposables = CompositeDisposable()
-    private var positionToGoTo: Int? = null
+    private var positionToGoTo: Int = 0
     private var isJustCreated = false
     private lateinit var delayedTransitionTriggerDisposable: Disposable
 
@@ -57,16 +62,6 @@ class FollowsFragment : Fragment() {
 
         isJustCreated = true
 
-        with(findNavController().currentBackStackEntry) {
-            positionToGoTo = this?.savedStateHandle?.get<Int>(PostViewerFragment.SAVED_STATE_POSITION_KEY)
-            this?.savedStateHandle?.remove<Int>(PostViewerFragment.SAVED_STATE_POSITION_KEY)
-            positionToGoTo?.let { logcat(LogPriority.INFO) { "Recovered position from PostViewerFragment. positionToGoTo = $it" } }
-        }
-
-        if (savedInstanceState != null) {
-            positionToGoTo = 0
-        }
-
         super.onCreate(savedInstanceState)
     }
 
@@ -74,6 +69,15 @@ class FollowsFragment : Fragment() {
         logcat { "onCreateView" }
 
         _binding = FragmentFollowsBinding.inflate(inflater, container, false)
+
+        with(findNavController().currentBackStackEntry) {
+            val recoveredPosition = this?.savedStateHandle?.get<Int>(PostViewerFragment.SAVED_STATE_POSITION_KEY)
+            recoveredPosition?.let {
+                this?.savedStateHandle?.remove<Int>(PostViewerFragment.SAVED_STATE_POSITION_KEY)
+                logcat(LogPriority.INFO) { "Recovered position from PostViewerFragment. positionToGoTo = $it" }
+                positionToGoTo = recoveredPosition
+            }
+        }
 
         logcat(LogPriority.INFO) { "postponeEnterTransition()" }
         postponeEnterTransition()
@@ -117,7 +121,7 @@ class FollowsFragment : Fragment() {
 
         followsViewModel.feedChangedBehaviorSubject
             .observeOn(AndroidSchedulers.mainThread())
-            .filter { _binding != null && !isJustCreated}
+            .filter { _binding != null && !isJustCreated }
 //            .filter {
 //                if (isJustCreated)
 //                    (binding.rvFollowsPosts.adapter as PostsVerticalRvAdapter).itemCount < 1
@@ -133,8 +137,9 @@ class FollowsFragment : Fragment() {
             .addTo(disposables)
 
         // If we got here from another fragment, we need to recover the navigation argument and go to the specified user's feed.
-        if ((binding.rvFollowsPosts.adapter as PostsVerticalRvAdapter).itemCount <= 1) {
-            val userNameFromNavigation = args.userName
+//        if ((binding.rvFollowsPosts.adapter as PostsVerticalRvAdapter).itemCount <= 1) {
+        val userNameFromNavigation = args.userName
+        if (followsViewModel.currentUserFeed.name != userNameFromNavigation) {
             userNameFromNavigation?.let { userName ->
                 followsViewModel.setUserFeedTo(userName)
                     .observeOn(AndroidSchedulers.mainThread())
@@ -155,7 +160,9 @@ class FollowsFragment : Fragment() {
     override fun onStart() {
         logcat { "onStart" }
         super.onStart()
-        (activity as MainActivity)  // TODO: Implement fragment specific drawer
+        (activity as MainActivity).apply {
+            setUpFollowsDrawer(followsViewModel)
+        }
 
         setUpOptionsMenu()
     }
@@ -289,7 +296,152 @@ class FollowsFragment : Fragment() {
 
     private fun setUpOptionsMenu() {
         logcat { "setUpOptionsMenu" }
-        // TODO
+
+        val mergedFeedUpdateObservable = Observable.merge(   // See setUpOptionsMenu() in HomeFragment.kt
+            followsViewModel.getFollowsChangedSubject(),
+            followsViewModel.feedChangedBehaviorSubject
+        )
+            .subscribeOn(Schedulers.io())
+            .doOnNext { logcat { "mergedFeedUpdateObservable.onNext" } }
+            .map { followsViewModel.feedChangedBehaviorSubject.blockingLatest().first() }
+            .share()
+
+        fun setUpAddToYourFollowsMenuItem(menuItems: Sequence<MenuItem>) {
+            mergedFeedUpdateObservable
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe { currentFeed ->
+                    val addToYourFollowsMenuItem = menuItems
+                        .find { it.itemId == R.id.menu_item_toolbar_follows_add }
+                    addToYourFollowsMenuItem?.isVisible = currentFeed.status == UserFeed.Status.NOT_IN_DB
+                    addToYourFollowsMenuItem?.clicks()
+                        ?.doOnNext { logcat { "addToYourFollowsMenuItem.clicks.onNext" } }
+                        ?.subscribe {
+                            followsViewModel.saveUserFeed(currentFeed)
+                                .observeOn(AndroidSchedulers.mainThread())
+                                .subscribeBy(
+                                    onComplete = {
+                                        makeSnackBar(binding.root, R.string.string_common_done).show()
+                                    },
+                                    onError = { _ ->
+                                        makeSnackBar(
+                                            binding.root,
+                                            null,
+                                            "Could not perform action :(",
+                                            SnackType.ERROR
+                                        ).show()
+                                    }
+                                ).addTo(disposables)
+                        }?.addTo(disposables)
+                }.addTo(disposables)
+        }
+
+        fun setUpDeleteFromYourFollowsMenuItem(menuItems: Sequence<MenuItem>) {
+            mergedFeedUpdateObservable
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe { currentFeed ->
+                    val deleteFromYourFollowsMenuItem = menuItems
+                        .find { it.itemId == R.id.menu_item_toolbar_follows_delete }
+                    deleteFromYourFollowsMenuItem?.isVisible =
+                        currentFeed.status in setOf(UserFeed.Status.FOLLOWED, UserFeed.Status.SUBSCRIBED)
+                    deleteFromYourFollowsMenuItem?.clicks()
+                        ?.doOnNext { logcat { "deleteFromYourFollowsMenuItem.clicks.onNext" } }
+                        ?.subscribe {
+                            followsViewModel.deleteUserFeed(currentFeed)
+                                .observeOn(AndroidSchedulers.mainThread())
+                                .subscribeBy(
+                                    onComplete = {
+                                        makeSnackBar(binding.root, null, "${currentFeed.name} has been deleted!").show()
+                                    },
+                                    onError = { _ ->
+                                        makeSnackBar(
+                                            binding.root,
+                                            R.string.string_common_could_not_perform,
+                                            type = SnackType.ERROR
+                                        ).show()
+                                    }
+                                ).addTo(disposables)
+                        }?.addTo(disposables)
+                }.addTo(disposables)
+        }
+
+        fun subscribeToUserFeedMenuItem(menuItems: Sequence<MenuItem>) {
+            mergedFeedUpdateObservable
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe { currentFeed ->
+                    val subscribeToFeedMenuItem = menuItems
+                        .find { it.itemId == R.id.menu_item_toolbar_follows_subscribe }
+                    subscribeToFeedMenuItem?.isVisible =
+                        currentFeed.status in setOf(UserFeed.Status.NOT_IN_DB, UserFeed.Status.FOLLOWED)
+                    subscribeToFeedMenuItem?.clicks()
+                        ?.doOnNext { logcat { "subscribeToFeedMenuItem.clicks.onNext" } }
+                        ?.subscribe {
+                            followsViewModel.subscribeToFeed(currentFeed)
+                                .observeOn(AndroidSchedulers.mainThread())
+                                .subscribeBy(
+                                    onComplete = {
+                                        makeSnackBar(binding.root, null, "${currentFeed.name} has been deleted!").show()
+                                    },
+                                    onError = { _ ->
+                                        makeSnackBar(
+                                            binding.root,
+                                            R.string.string_common_could_not_perform,
+                                            type = SnackType.ERROR
+                                        ).show()
+                                    }
+                                ).addTo(disposables)
+                        }?.addTo(disposables)
+                }.addTo(disposables)
+        }
+
+        fun unsubscribeFromUserFeedMenuItem(menuItems: Sequence<MenuItem>) {
+            mergedFeedUpdateObservable
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe { currentFeed ->
+                    val unsubscribeFromFeedMenuItem = menuItems
+                        .find { it.itemId == R.id.menu_item_toolbar_follows_unsubscribe }
+                    unsubscribeFromFeedMenuItem?.isVisible = currentFeed.status == UserFeed.Status.SUBSCRIBED
+                    unsubscribeFromFeedMenuItem?.clicks()
+                        ?.doOnNext { logcat { "unsubscribeFromFeedMenuItem.clicks.onNext" } }
+                        ?.subscribe {
+                            followsViewModel.unsubscribeFromFeed(currentFeed)
+                                .observeOn(AndroidSchedulers.mainThread())
+                                .subscribeBy(
+                                    onComplete = {
+                                        makeSnackBar(binding.root, null, "${currentFeed.name} has been deleted!").show()
+                                    },
+                                    onError = { _ ->
+                                        makeSnackBar(
+                                            binding.root,
+                                            R.string.string_common_could_not_perform,
+                                            type = SnackType.ERROR
+                                        ).show()
+                                    }
+                                ).addTo(disposables)
+                        }?.addTo(disposables)
+                }.addTo(disposables)
+        }
+
+        Observable.interval(250, TimeUnit.MILLISECONDS)
+            .filter { (activity as MainActivity).menu != null }
+            .take(1)    // Wait until the menu is ready.
+            .observeOn(AndroidSchedulers.mainThread())
+            .doOnNext { logcat { "menu is ready .onNext" } }
+            .subscribe { _ ->
+                val menu = (activity as MainActivity).menu!!
+                val menuItems = menu.children
+                for (item in menuItems) {
+                    when (item.groupId) {
+                        R.id.menu_group_toolbar_follows_actions -> item.isVisible = true
+                        R.id.menu_group_toolbar_app_actions -> item.isVisible = true
+                        else -> item.isVisible = false
+                    }
+                }
+                setUpAddToYourFollowsMenuItem(menuItems)
+                setUpDeleteFromYourFollowsMenuItem(menuItems)
+                subscribeToUserFeedMenuItem(menuItems)
+                unsubscribeFromUserFeedMenuItem(menuItems)
+            }
+            .addTo(disposables)
     }
 
     override fun onDestroy() {

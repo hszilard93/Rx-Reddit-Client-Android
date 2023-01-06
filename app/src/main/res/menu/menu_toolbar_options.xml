@@ -41,4 +41,23 @@
             android:id="@+id/menu_item_toolbar_settings"
             android:title="@string/string_toolbar_menu_action_settings" />
     </group>
+
+    <group android:id="@+id/menu_group_toolbar_follows_actions">
+
+        <item
+            android:id="@+id/menu_item_toolbar_follows_add"
+            android:title="Add user feed to Your follows" />
+
+        <item
+            android:id="@+id/menu_item_toolbar_follows_delete"
+            android:title="Delete user feed from Your follows" />
+
+        <item
+            android:id="@+id/menu_item_toolbar_follows_subscribe"
+            android:title="Subscribe to user feed" />
+
+        <item
+            android:id="@+id/menu_item_toolbar_follows_unsubscribe"
+            android:title="Unsubscribe from user feed" />
+    </group>
 </menu>

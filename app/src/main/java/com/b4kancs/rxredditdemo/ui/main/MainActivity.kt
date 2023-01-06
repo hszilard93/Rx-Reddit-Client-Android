@@ -16,8 +16,10 @@ import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.navigation.ui.setupWithNavController
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.databinding.ActivityMainBinding
+import com.b4kancs.rxredditdemo.ui.drawer.FollowsDrawerListAdapter
 import com.b4kancs.rxredditdemo.ui.drawer.SubredditsDrawerListAdapter
 import com.b4kancs.rxredditdemo.ui.drawer.SubredditsDrawerSearchListAdapter
+import com.b4kancs.rxredditdemo.ui.follows.FollowsViewModel
 import com.b4kancs.rxredditdemo.ui.uiutils.ANIMATION_DURATION_LONG
 import com.b4kancs.rxredditdemo.ui.uiutils.ANIMATION_DURATION_SHORT
 import com.b4kancs.rxredditdemo.ui.uiutils.animateViewHeightChange
@@ -51,8 +53,6 @@ class MainActivity : AppCompatActivity() {
         val navController = findNavController(R.id.fragment_main_nav_host)
         setUpActionBar(navController)
         setUpActionBarAndNavigation(navController)
-        setUpSubredditDrawer()
-        setupSearchViewDrawerAndList()
     }
 
     private fun setUpActionBar(navController: NavController) {
@@ -149,7 +149,7 @@ class MainActivity : AppCompatActivity() {
     }
 
 
-    private fun setUpSubredditDrawer() {
+    fun setUpSubredditDrawer() {
         logcat { "setUpSubredditDrawer" }
         val adapter = SubredditsDrawerListAdapter(this, viewModel)
         binding.listViewDrawerSubreddits.adapter = adapter
@@ -172,8 +172,14 @@ class MainActivity : AppCompatActivity() {
             }.addTo(disposables)
     }
 
+    fun setUpFollowsDrawer(followsViewModel: FollowsViewModel) {
+        logcat { "setUpFollowsDrawer" }
+        val adapter = FollowsDrawerListAdapter(this, followsViewModel)
+        binding.listViewDrawerSubreddits.adapter = adapter
+    }
 
-    private fun setupSearchViewDrawerAndList() {
+
+    fun setupSearchViewDrawerAndList() {
         logcat { "setupSearchViewDrawerAndList" }
 
         with(binding) {

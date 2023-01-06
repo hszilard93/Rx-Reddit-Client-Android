@@ -99,6 +99,14 @@ class HomeFragment : Fragment() {
         setUpRecyclerView()
     }
 
+    override fun onStart() {
+        super.onStart()
+        (activity as MainActivity).apply {
+            setUpSubredditDrawer()
+            setupSearchViewDrawerAndList()
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         setUpOptionsMenu()
@@ -296,9 +304,8 @@ class HomeFragment : Fragment() {
                                     onError = {
                                         makeSnackBar(
                                             binding.root,
-                                            null,
-                                            "Error: ${currentSub.address} could not be set as the default subreddit :(",
-                                            SnackType.ERROR
+                                            R.string.string_common_could_not_perform,
+                                            type = SnackType.ERROR
                                         ).show()
                                     }
                                 ).addTo(disposables)
@@ -331,9 +338,8 @@ class HomeFragment : Fragment() {
                                             onError = {
                                                 makeSnackBar(
                                                     binding.root,
-                                                    null,
-                                                    "Could not perform action :(",
-                                                    SnackType.ERROR
+                                                    R.string.string_common_could_not_perform,
+                                                    type = SnackType.ERROR
                                                 ).show()
                                             }
                                         ).addTo(disposables)
@@ -369,9 +375,8 @@ class HomeFragment : Fragment() {
                                             onError = {
                                                 makeSnackBar(
                                                     binding.root,
-                                                    null,
-                                                    "Could not delete ${updatedSub.address} :(",
-                                                    SnackType.ERROR
+                                                    R.string.string_common_could_not_perform,
+                                                    type = SnackType.ERROR
                                                 ).show()
                                             }
                                         )
@@ -400,15 +405,14 @@ class HomeFragment : Fragment() {
                                     mainViewModel.changeSubredditStatusTo(updatedSub, Status.IN_USER_LIST)
                                         .observeOn(AndroidSchedulers.mainThread())
                                         .subscribeBy(
-                                            onSuccess = {
-                                                makeSnackBar(binding.root, null, "Done!").show()
+                                            onSuccess = { _ ->
+                                                makeSnackBar(binding.root, R.string.string_common_done).show()
                                             },
-                                            onError = {
+                                            onError = { _ ->
                                                 makeSnackBar(
                                                     binding.root,
-                                                    null,
-                                                    "Could not perform action :(",
-                                                    SnackType.ERROR
+                                                    R.string.string_common_could_not_perform,
+                                                    type = SnackType.ERROR
                                                 ).show()
                                             }
                                         )
@@ -499,7 +503,7 @@ class HomeFragment : Fragment() {
             .take(1)    // Wait until the menu is ready.
             .observeOn(AndroidSchedulers.mainThread())
             .doOnNext { logcat { "menu is ready .onNext" } }
-            .subscribe {
+            .subscribe { _ ->
                 val menu = (activity as MainActivity).menu!!
                 val menuItems = menu.children
                 for (item in menuItems) {

@@ -67,9 +67,12 @@ class PostViewerFragment : Fragment() {
 
         currentPosition = savedInstanceState?.getInt(SAVED_STATE_POSITION_KEY)
             ?: if (args.position != -1) args.position else 0
+
         logcat { "currentPosition = $currentPosition" }
 
         setUpViewModel()
+//        currentPosition = viewModel.savedPosition ?: 0
+
         setUpOnBackPressedCallback()
         setUpNavigationToFollows()
 
@@ -151,8 +154,8 @@ class PostViewerFragment : Fragment() {
         logcat { "viewModel.pagingDataObservable = ${viewModel.pagingDataObservable}" }
     }
 
-    private fun setUpViewPager(isSlideShowOngoing: Boolean = false) {
-        logcat { "setUpViewPager: isSlideShowOnGoing = $isSlideShowOngoing" }
+    private fun setUpViewPager(isSlideShowOnGoing: Boolean = false) {
+        logcat { "setUpViewPager" }
 
         val onPositionChangedCallback = { nextPosition: Int ->
             logcat { "onPositionChangedCallback: nextPosition = $nextPosition" }
@@ -165,7 +168,7 @@ class PostViewerFragment : Fragment() {
             requireContext(),
             viewModel,
             onPositionChangedCallback,
-            isSlideShowOngoing
+            isSlideShowOnGoing
         )
 
         with(binding) {
@@ -233,7 +236,7 @@ class PostViewerFragment : Fragment() {
             logcat(LogPriority.INFO) { "Transition name = $imageTransitionName" }
             imageTransitionName?.let { (sharedElementReturnTransition as Transition).addTarget(it) }
 
-            findNavController().previousBackStackEntry?.savedStateHandle?.set("position", currentPosition)
+            findNavController().previousBackStackEntry?.savedStateHandle?.set(SAVED_STATE_POSITION_KEY, currentPosition)
             findNavController().popBackStack()
         }
     }
@@ -258,6 +261,7 @@ class PostViewerFragment : Fragment() {
 
     private fun goToFollowsFragment(userName: String) {
         logcat { "goToFollowsFragment: userName = $userName" }
+
 
         val action = PostViewerFragmentDirections.actionPostViewerToFollows(userName)
         findNavController().navigate(action)
@@ -285,13 +289,16 @@ class PostViewerFragment : Fragment() {
 
     override fun onSaveInstanceState(outState: Bundle) {
         logcat { "onSaveInstanceState" }
+        outState.putInt(SAVED_STATE_POSITION_KEY, currentPosition)
         _binding?.let { binding ->
-            outState.putInt(SAVED_STATE_POSITION_KEY, currentPosition)
             outState.putBoolean(
                 SAVED_STATE_SLIDESHOW_KEY,
                 (binding.viewPagerPostViewer.adapter as PostViewerAdapter).slideShowOnOffSubject.value ?: return
             )
         }
+//        viewModel.savedPosition = currentPosition
+//        viewModel.savedSlideshowStateIsOn = (binding.viewPagerPostViewer.adapter as PostViewerAdapter).slideShowOnOffSubject.value ?: return
+
         super.onSaveInstanceState(outState)
     }
 

@@ -33,4 +33,7 @@
     <string name="string_common_error_something_went_wrong">Uh-oh, something went wrong :(</string>
     <string name="string_options_wallpaper_error_something_went_wrong">Uh-oh, something went wrong! Please try downloading the image and setting it as a wallpaper from your Gallery!</string>
     <string name="follows_no_media">There are no followed users to show yet.</string>
+    <string name="drawer_header_your_followed_feeds">Users you follow</string>
+    <string name="string_common_done">Done!</string>
+    <string name="string_common_could_not_perform">Could not perform action :(</string>
 </resources>
