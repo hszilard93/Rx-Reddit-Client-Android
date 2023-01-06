@@ -9,7 +9,7 @@ import androidx.core.view.isVisible
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.model.Subreddit
 import com.b4kancs.rxredditdemo.model.Subreddit.Status
-import com.b4kancs.rxredditdemo.ui.main.MainViewModel
+import com.b4kancs.rxredditdemo.ui.home.HomeViewModel
 import com.b4kancs.rxredditdemo.ui.uiutils.SnackType
 import com.b4kancs.rxredditdemo.ui.uiutils.dpToPixel
 import com.b4kancs.rxredditdemo.ui.uiutils.makeSnackBar
@@ -26,7 +26,7 @@ import logcat.logcat
 
 class SubredditsDrawerListAdapter(
         private val c: Context,
-        private val viewModel: MainViewModel
+        private val viewModel: HomeViewModel
 ) : ArrayAdapter<Subreddit>(c, R.layout.list_item_drawer_subreddit) {
 
     private val disposables = CompositeDisposable()
@@ -84,7 +84,8 @@ class SubredditsDrawerListAdapter(
                             subreddits.count {
                                 it.status == Status.IN_USER_LIST || it.status == Status.FAVORITED
                             } + shouldShowYourSubsHeader.toIntValue()
-                        } else {
+                        }
+                        else {
                             null
                         }
 
@@ -124,7 +125,8 @@ class SubredditsDrawerListAdapter(
         val pos =
             if (position in 0..(recommendedSubredditsHeaderPosition ?: 0) - shouldShowYourSubsHeader.toIntValue()) {
                 position - shouldShowYourSubsHeader.toIntValue()
-            } else {
+            }
+            else {
                 position - shouldShowYourSubsHeader.toIntValue() - shouldShowRecommendedSubsHeader.toIntValue()
             }
 

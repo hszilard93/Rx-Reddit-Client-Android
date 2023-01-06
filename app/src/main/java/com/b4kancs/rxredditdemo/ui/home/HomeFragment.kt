@@ -17,7 +17,6 @@ import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.databinding.FragmentHomeBinding
 import com.b4kancs.rxredditdemo.model.Subreddit.Status
 import com.b4kancs.rxredditdemo.ui.main.MainActivity
-import com.b4kancs.rxredditdemo.ui.main.MainViewModel
 import com.b4kancs.rxredditdemo.ui.postviewer.PostViewerFragment
 import com.b4kancs.rxredditdemo.ui.shared.PostsVerticalRvAdapter
 import com.b4kancs.rxredditdemo.ui.uiutils.CustomLinearLayoutManager
@@ -47,9 +46,8 @@ class HomeFragment : Fragment() {
     companion object {
         const val FLICKERING_DELAY = 200L
     }
-
-    private val mainViewModel: MainViewModel by sharedViewModel()
-    private val homeViewModel: HomeViewModel by sharedViewModel { parametersOf(mainViewModel) }
+    
+    private val viewModel: HomeViewModel by sharedViewModel()
     private var _binding: FragmentHomeBinding? = null
     private val binding get() = _binding!!
     private val disposables = CompositeDisposable()
@@ -72,10 +70,10 @@ class HomeFragment : Fragment() {
             positionToGoTo?.let { logcat(LogPriority.INFO) { "Recovered position from PostViewerFragment. positionToGoTo = $it" } }
         }
 
-        if (homeViewModel.isAppJustStarted) {
+        if (viewModel.isAppJustStarted) {
             logcat(LogPriority.INFO) { "Condition: the app just started." }
             positionToGoTo = 0
-            homeViewModel.isAppJustStarted = false
+            viewModel.isAppJustStarted = false
         }
 
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
@@ -90,7 +88,7 @@ class HomeFragment : Fragment() {
         logcat { "onViewCreated" }
 
         // Every time the Fragment is recreated, we need to change the support action bar title.
-        mainViewModel.selectedSubredditReplayObservable
+        viewModel.selectedSubredditReplayObservable
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe { (activity as MainActivity).supportActionBar?.title = it.name }
             .addTo(disposables)
@@ -101,9 +99,9 @@ class HomeFragment : Fragment() {
 
     override fun onStart() {
         super.onStart()
-        (activity as MainActivity).apply {
-            setUpSubredditDrawer()
-            setupSearchViewDrawerAndList()
+        (activity as MainActivity).also {
+            it.setUpSubredditDrawer(viewModel)
+            it.setUpHomeDrawerSearchView(viewModel)
         }
     }
 
@@ -148,12 +146,12 @@ class HomeFragment : Fragment() {
                 rvHomePosts.adapter = PostsVerticalRvAdapter(
                     mainActivity,
                     shouldDisableTransformations,
-                    homeViewModel
+                    viewModel
                 )
             }
             val postsHomeAdapter = rvHomePosts.adapter as PostsVerticalRvAdapter
 
-            homeViewModel.subredditPostsCachedPagingObservable
+            viewModel.subredditPostsCachedPagingObservable
                 .subscribe { pagingData ->
                     try {
                         postsHomeAdapter.submitData(viewLifecycleOwner.lifecycle, pagingData)
@@ -199,7 +197,7 @@ class HomeFragment : Fragment() {
                 progressBarHomeLarge.isVisible = combinedLoadStates.refresh is LoadState.Loading
             }
 
-            mainViewModel.selectedSubredditChangedPublishSubject
+            viewModel.selectedSubredditChangedPublishSubject
                 .throttleFirst(1, TimeUnit.SECONDS)
                 .observeOn(AndroidSchedulers.mainThread())
                 .doOnNext { logcat(LogPriority.INFO) { "selectedSubredditChangedSubject.doOnNext: ${it.name}" } }
@@ -274,11 +272,11 @@ class HomeFragment : Fragment() {
         logcat { "setUpOptionsMenu" }
 
         val mergedCurrentSubUpdateObservable = Observable.merge(    // We want to refresh the visibility of the menu item not only when the
-            mainViewModel.getSubredditsChangedSubject(),         // subreddit is changed, but also when there is a modification of the subreddits
-            mainViewModel.selectedSubredditReplayObservable // (e.g. a sub is set as default, so the option should no longer be visible)
+            viewModel.getSubredditsChangedSubject(),         // subreddit is changed, but also when there is a modification of the subreddits
+            viewModel.selectedSubredditReplayObservable // (e.g. a sub is set as default, so the option should no longer be visible)
         )
             .subscribeOn(Schedulers.io())
-            .map { mainViewModel.selectedSubredditReplayObservable.blockingLatest().first() }
+            .map { viewModel.selectedSubredditReplayObservable.blockingLatest().first() }
             .share()
 
         fun setUpSetAsDefaultMenuItem(menuItems: Sequence<MenuItem>) {
@@ -287,11 +285,11 @@ class HomeFragment : Fragment() {
                 .subscribe { currentSub ->
                     val setAsDefaultMenuItem = menuItems
                         .find { it.itemId == R.id.menu_item_toolbar_subreddit_set_default }
-                    setAsDefaultMenuItem?.isVisible = currentSub.name != homeViewModel.getDefaultSubreddit().name
+                    setAsDefaultMenuItem?.isVisible = currentSub.name != viewModel.getDefaultSubreddit().name
                     setAsDefaultMenuItem?.clicks()
                         ?.doOnNext { logcat(LogPriority.INFO) { "setAsDefaultMenuItem.clicks.onNext" } }
                         ?.subscribe {
-                            mainViewModel.setAsDefaultSub(currentSub)
+                            viewModel.setAsDefaultSub(currentSub)
                                 .observeOn(AndroidSchedulers.mainThread())
                                 .subscribeBy(
                                     onComplete = {
@@ -317,7 +315,7 @@ class HomeFragment : Fragment() {
             mergedCurrentSubUpdateObservable
                 .subscribe { currentSub ->
                     // The sub from the selectedSubredditReplayObservable may not reflect changes in Status, only the DB is always up to date.
-                    mainViewModel.getSubredditByAddress(currentSub.address)
+                    viewModel.getSubredditByAddress(currentSub.address)
                         .onErrorResumeWith { Single.just(currentSub) }
                         .observeOn(AndroidSchedulers.mainThread())
                         .subscribe { updatedSub ->
@@ -325,11 +323,11 @@ class HomeFragment : Fragment() {
                                 .find { it.itemId == R.id.menu_item_toolbar_subreddit_remove }
 
                             removeFromYourMenuItem?.isVisible = updatedSub.status in listOf(Status.IN_USER_LIST, Status.FAVORITED)
-                                    && updatedSub.name != homeViewModel.getDefaultSubreddit().name
+                                    && updatedSub.name != viewModel.getDefaultSubreddit().name
                             removeFromYourMenuItem?.clicks()
                                 ?.doOnNext { logcat(LogPriority.INFO) { "removeFromYourMenuItem.clicks.onNext" } }
                                 ?.subscribe {
-                                    mainViewModel.changeSubredditStatusTo(updatedSub, Status.IN_DEFAULTS_LIST)
+                                    viewModel.changeSubredditStatusTo(updatedSub, Status.IN_DEFAULTS_LIST)
                                         .observeOn(AndroidSchedulers.mainThread())
                                         .subscribeBy(
                                             onSuccess = {
@@ -353,7 +351,7 @@ class HomeFragment : Fragment() {
             mergedCurrentSubUpdateObservable
                 .subscribe { currentSub ->
                     // The sub from the selectedSubredditReplayObservable may not reflect changes in Status, only the DB is always up to date.
-                    mainViewModel.getSubredditByAddress(currentSub.address)
+                    viewModel.getSubredditByAddress(currentSub.address)
                         .onErrorResumeWith { Single.just(currentSub) }
                         .observeOn(AndroidSchedulers.mainThread())
                         .subscribe { updatedSub ->
@@ -361,11 +359,11 @@ class HomeFragment : Fragment() {
                                 .find { it.itemId == R.id.menu_item_toolbar_subreddit_delete }
 
                             deleteSubMenuItem?.isVisible = updatedSub.status != Status.NOT_IN_DB
-                                    && updatedSub != homeViewModel.getDefaultSubreddit()
+                                    && updatedSub != viewModel.getDefaultSubreddit()
                             deleteSubMenuItem?.clicks()
                                 ?.doOnNext { logcat(LogPriority.INFO) { "deleteSubMenuItem.clicks.onNext" } }
                                 ?.subscribe {
-                                    mainViewModel.deleteSubreddit(updatedSub)
+                                    viewModel.deleteSubreddit(updatedSub)
                                         .observeOn(AndroidSchedulers.mainThread())
                                         .subscribeBy(
                                             onComplete = {
@@ -383,7 +381,7 @@ class HomeFragment : Fragment() {
                                         .addTo(disposables)
                                 }
                                 ?.addTo(disposables)
-                        }
+                        }.addTo(disposables)
                 }.addTo(disposables)
         }
 
@@ -391,7 +389,7 @@ class HomeFragment : Fragment() {
             mergedCurrentSubUpdateObservable
                 .subscribe { currentSub ->
                     // The sub from the selectedSubredditReplayObservable may not reflect changes in Status, only the DB is always up to date.
-                    mainViewModel.getSubredditByAddress(currentSub.address)
+                    viewModel.getSubredditByAddress(currentSub.address)
                         .onErrorResumeWith { Single.just(currentSub) }
                         .observeOn(AndroidSchedulers.mainThread())
                         .subscribe { updatedSub ->
@@ -402,7 +400,7 @@ class HomeFragment : Fragment() {
                             addToYourSubsMenuItem?.clicks()
                                 ?.doOnNext { logcat(LogPriority.INFO) { "addToYourSubreddits.clicks.onNext" } }
                                 ?.subscribe {
-                                    mainViewModel.changeSubredditStatusTo(updatedSub, Status.IN_USER_LIST)
+                                    viewModel.changeSubredditStatusTo(updatedSub, Status.IN_USER_LIST)
                                         .observeOn(AndroidSchedulers.mainThread())
                                         .subscribeBy(
                                             onSuccess = { _ ->
@@ -419,7 +417,7 @@ class HomeFragment : Fragment() {
                                         .addTo(disposables)
                                 }
                                 ?.addTo(disposables)
-                        }
+                        }.addTo(disposables)
                 }.addTo(disposables)
         }
 
@@ -427,7 +425,7 @@ class HomeFragment : Fragment() {
             mergedCurrentSubUpdateObservable
                 .subscribe { currentSub ->
                     // The sub from the selectedSubredditReplayObservable may not reflect changes in Status, only the DB is always up to date.
-                    mainViewModel.getSubredditByAddress(currentSub.address)
+                    viewModel.getSubredditByAddress(currentSub.address)
                         .onErrorResumeWith { Single.just(currentSub) }
                         .observeOn(AndroidSchedulers.mainThread())
                         .subscribe { updatedSub ->
@@ -438,7 +436,7 @@ class HomeFragment : Fragment() {
                             addToFavoritesMenuItem?.clicks()
                                 ?.doOnNext { logcat(LogPriority.INFO) { "addToFavoriteSubreddits.clicks.onNext" } }
                                 ?.subscribe {
-                                    mainViewModel.changeSubredditStatusTo(updatedSub, Status.FAVORITED)
+                                    viewModel.changeSubredditStatusTo(updatedSub, Status.FAVORITED)
                                         .observeOn(AndroidSchedulers.mainThread())
                                         .subscribeBy(
                                             onSuccess = {
@@ -456,7 +454,7 @@ class HomeFragment : Fragment() {
                                         .addTo(disposables)
                                 }
                                 ?.addTo(disposables)
-                        }
+                        }.addTo(disposables)
                 }.addTo(disposables)
         }
 
@@ -464,7 +462,7 @@ class HomeFragment : Fragment() {
             mergedCurrentSubUpdateObservable
                 .subscribe { currentSub ->
                     // The sub from the selectedSubredditReplayObservable may not reflect changes in Status, only the DB is always up to date.
-                    mainViewModel.getSubredditByAddress(currentSub.address)
+                    viewModel.getSubredditByAddress(currentSub.address)
                         .onErrorResumeWith { Single.just(currentSub) }
                         .observeOn(AndroidSchedulers.mainThread())
                         .subscribe { updatedSub ->
@@ -472,11 +470,11 @@ class HomeFragment : Fragment() {
                                 .find { it.itemId == R.id.menu_item_toolbar_subreddit_remove_from_favorites }
 
                             removeFromFavoritesMenuItem?.isVisible = updatedSub.status == Status.FAVORITED
-                                    && updatedSub.name != homeViewModel.getDefaultSubreddit().name
+                                    && updatedSub.name != viewModel.getDefaultSubreddit().name
                             removeFromFavoritesMenuItem?.clicks()
                                 ?.doOnNext { logcat(LogPriority.INFO) { "removeFromFavoriteSubreddits.clicks.onNext" } }
                                 ?.subscribe {
-                                    mainViewModel.changeSubredditStatusTo(updatedSub, Status.IN_USER_LIST)
+                                    viewModel.changeSubredditStatusTo(updatedSub, Status.IN_USER_LIST)
                                         .observeOn(AndroidSchedulers.mainThread())
                                         .subscribeBy(
                                             onSuccess = {
@@ -494,7 +492,7 @@ class HomeFragment : Fragment() {
                                         .addTo(disposables)
                                 }
                                 ?.addTo(disposables)
-                        }
+                        }.addTo(disposables)
                 }.addTo(disposables)
         }
 
@@ -525,7 +523,7 @@ class HomeFragment : Fragment() {
     private fun createNewPostViewerFragment(position: Int, sharedView: View) {
         logcat { "createNewPostViewerFragment" }
         val sharedElementExtras = FragmentNavigatorExtras(sharedView to sharedView.transitionName)
-        val action = HomeFragmentDirections.actionHomeToPostViewer(position, homeViewModel.javaClass.simpleName)
+        val action = HomeFragmentDirections.actionHomeToPostViewer(position, viewModel.javaClass.simpleName)
         findNavController().navigate(action, sharedElementExtras)
     }
 

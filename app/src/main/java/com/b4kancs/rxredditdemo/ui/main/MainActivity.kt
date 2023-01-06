@@ -20,6 +20,7 @@ import com.b4kancs.rxredditdemo.ui.drawer.FollowsDrawerListAdapter
 import com.b4kancs.rxredditdemo.ui.drawer.SubredditsDrawerListAdapter
 import com.b4kancs.rxredditdemo.ui.drawer.SubredditsDrawerSearchListAdapter
 import com.b4kancs.rxredditdemo.ui.follows.FollowsViewModel
+import com.b4kancs.rxredditdemo.ui.home.HomeViewModel
 import com.b4kancs.rxredditdemo.ui.uiutils.ANIMATION_DURATION_LONG
 import com.b4kancs.rxredditdemo.ui.uiutils.ANIMATION_DURATION_SHORT
 import com.b4kancs.rxredditdemo.ui.uiutils.animateViewHeightChange
@@ -29,6 +30,7 @@ import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.addTo
+import io.reactivex.rxjava3.schedulers.Schedulers
 import logcat.LogPriority
 import logcat.logcat
 import org.koin.androidx.viewmodel.ext.android.viewModel
@@ -149,17 +151,17 @@ class MainActivity : AppCompatActivity() {
     }
 
 
-    fun setUpSubredditDrawer() {
+    fun setUpSubredditDrawer(homeViewModel: HomeViewModel) {
         logcat { "setUpSubredditDrawer" }
-        val adapter = SubredditsDrawerListAdapter(this, viewModel)
+        val adapter = SubredditsDrawerListAdapter(this, homeViewModel)
         binding.listViewDrawerSubreddits.adapter = adapter
 
-        viewModel.getSubredditsChangedSubject()
+        homeViewModel.getSubredditsChangedSubject()
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe { adapter.notifyDataSetChanged() }
             .addTo(disposables)
 
-        viewModel.selectedSubredditChangedPublishSubject
+        homeViewModel.selectedSubredditChangedPublishSubject
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe {
                 // I think this small delay before triggering the closing animation of the drawer
@@ -179,7 +181,7 @@ class MainActivity : AppCompatActivity() {
     }
 
 
-    fun setupSearchViewDrawerAndList() {
+    fun setUpHomeDrawerSearchView(homeViewModel: HomeViewModel) {
         logcat { "setupSearchViewDrawerAndList" }
 
         with(binding) {
@@ -201,22 +203,22 @@ class MainActivity : AppCompatActivity() {
                     logcat { "queryTextChangeEvents.subscribe: query $query isSubmitted $isSubmitted" }
                     // If isSubmitted is true, it means that the Search button was clicked. In this case, we should go straight to the subreddit entered.
                     if (isSubmitted) {
-                        viewModel.goToSubredditByName(query)
+                        homeViewModel.goToSubredditByName(query)
                     }
                     // Otherwise, show the query search results in a list.
                     else {
-                        viewModel.getSubredditsSearchResultsFromDbAndNw(query)
+                        homeViewModel.getSubredditsSearchResultsFromDbAndNw(query)
                             .subscribe { searchResultSubs ->
-                                viewModel.subredditSearchResultsChangedSubject.onNext(searchResultSubs)
+                                homeViewModel.subredditSearchResultsChangedSubject.onNext(searchResultSubs)
                             }
                             .addTo(disposables)
                     }
                 }
                 .addTo(disposables)
 
-            val searchListAdapter = SubredditsDrawerSearchListAdapter(this@MainActivity, viewModel)
+            val searchListAdapter = SubredditsDrawerSearchListAdapter(this@MainActivity, homeViewModel)
 
-            viewModel.subredditSearchResultsChangedSubject
+            homeViewModel.subredditSearchResultsChangedSubject
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe { subs ->
                     // Setting the height of the list of the search results according to the available and the desired height.

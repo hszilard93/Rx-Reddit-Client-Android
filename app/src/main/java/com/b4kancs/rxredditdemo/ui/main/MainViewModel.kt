@@ -18,105 +18,10 @@ import logcat.logcat
 import org.koin.java.KoinJavaComponent.inject
 
 class MainViewModel : ViewModel() {
-    private val subredditRepository: SubredditRepository by inject(SubredditRepository::class.java)
-
-    val selectedSubredditChangedPublishSubject: PublishSubject<Subreddit> = PublishSubject.create()
-    val selectedSubredditReplayObservable: ConnectableObservable<Subreddit> = selectedSubredditChangedPublishSubject.replay(1)
-    val subredditSearchResultsChangedSubject: PublishSubject<List<Subreddit>> = PublishSubject.create()
     var isActionBarShowing: Boolean = true
     var isNavBarShowing: Boolean = true
-    private val disposables = CompositeDisposable()
 
     init {
         logcat { "init" }
-        selectedSubredditReplayObservable.connect()
-        selectedSubredditChangedPublishSubject.doOnNext { logcat(LogPriority.INFO) { "selectedSubredditChangedSubject.onNext" } }
-        subredditRepository.loadDefaultSubreddit()
-            .subscribe { selectedSubredditChangedPublishSubject.onNext(subredditRepository.defaultSubreddit) }
-            .addTo(disposables)
     }
-
-    fun getAllSubreddits(): Single<List<Subreddit>> =
-        subredditRepository.getAllSubredditsFromDb()
-
-    fun getSubredditByAddress(address: String): Maybe<Subreddit> =
-        subredditRepository.getSubredditFromDbByAddress(address)
-
-    fun deleteSubreddit(subreddit: Subreddit): Completable =
-        subredditRepository.deleteSubredditFromDb(subreddit)
-
-    fun setAsDefaultSub(subreddit: Subreddit): Completable =
-        subredditRepository.setAsDefaultSubreddit(subreddit)
-
-    fun changeSubredditStatusByActionLogic(subreddit: Subreddit): Single<Subreddit> {
-        logcat { "changeSubredditStatusByActionLogic: subreddit = $subreddit" }
-        val newStatus = when (subreddit.status) {
-            Subreddit.Status.NOT_IN_DB -> Subreddit.Status.IN_USER_LIST
-            Subreddit.Status.IN_DEFAULTS_LIST -> Subreddit.Status.IN_USER_LIST
-            Subreddit.Status.IN_USER_LIST -> Subreddit.Status.FAVORITED
-            Subreddit.Status.FAVORITED -> Subreddit.Status.IN_USER_LIST
-        }
-        return changeSubredditStatusTo(subreddit, newStatus)
-    }
-
-    fun changeSubredditStatusTo(subreddit: Subreddit, status: Subreddit.Status): Single<Subreddit> {
-        logcat { "changeSubredditStatusTo: subreddit = $subreddit, status = $status" }
-        val newSub = Subreddit(subreddit.name, subreddit.address, status, subreddit.nsfw)
-        return Single.create { emitter ->
-            subredditRepository.saveSubredditToDb(newSub)
-                .subscribeBy(
-                    onComplete = { emitter.onSuccess(newSub) },
-                    onError = { e -> emitter.onError(e) }
-                ).addTo(disposables)
-        }
-    }
-
-    fun goToSubredditByName(name: String) {
-        logcat { "goToSubredditByName: name = $name" }
-
-        val newSubNotInDb = Subreddit(name, "r/$name", Subreddit.Status.NOT_IN_DB)
-        // We first check if we already know that subreddit.
-        getSubredditByAddress(name)
-            .subscribeBy(
-                // The sub was in the db. Let's work with that!
-                onSuccess = {
-                    selectedSubredditChangedPublishSubject.onNext(it)
-                },
-                // The sub was not in the db. No problem, let's go to that address anyway.
-                onComplete = {
-                    selectedSubredditChangedPublishSubject.onNext(newSubNotInDb)
-                },
-                // Oh well, let's try going to that address anyway.
-                onError = { e ->
-                    logcat(LogPriority.ERROR) { "Error during DB operation 'getSubredditFromDbByName($name)'! Message: ${e.message}" }
-                    selectedSubredditChangedPublishSubject.onNext(newSubNotInDb)
-                }
-            )
-    }
-
-    fun getSubredditsSearchResultsFromDbAndNw(query: String): Observable<List<Subreddit>> {
-        logcat { "getSearchResultsFromDbAndNw: query = $query" }
-        if (query.isEmpty()) return Observable.just(emptyList())
-
-        // Get the query results from both the DB and the network and combine them.
-        val dbResultObservable = subredditRepository.getSubredditsFromDbByNameLike(query)
-            .toObservable()
-
-        val nwResultObservable = subredditRepository.getSubredditsFromNetworkByNameLike(query)
-            .doOnError { logcat(LogPriority.ERROR) { "Did not receive a network response for query: $query" } }
-            .onErrorComplete()
-            .startWith(Single.just(emptyList()))
-            .toObservable()
-
-        return Observable.combineLatest(
-            dbResultObservable,
-            nwResultObservable
-        ) { a: List<Subreddit>, b: List<Subreddit> -> a + b }
-            .map { subs -> subs.distinctBy { it.address.lowercase() } }
-    }
-
-    fun getSubredditsChangedSubject(): PublishSubject<Unit> =
-        subredditRepository.subredditsChangedSubject
-
-    fun getDefaultSubreddit() = subredditRepository.defaultSubreddit
 }

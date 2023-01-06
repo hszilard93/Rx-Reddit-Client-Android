@@ -9,7 +9,7 @@ import android.widget.ArrayAdapter
 import android.widget.ImageView
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.model.Subreddit
-import com.b4kancs.rxredditdemo.ui.main.MainViewModel
+import com.b4kancs.rxredditdemo.ui.home.HomeViewModel
 import com.b4kancs.rxredditdemo.ui.uiutils.SnackType
 import com.b4kancs.rxredditdemo.ui.uiutils.makeSnackBar
 import com.google.android.material.textview.MaterialTextView
@@ -22,11 +22,12 @@ import logcat.LogPriority
 import logcat.logcat
 
 class SubredditsDrawerSearchListAdapter(
-    private val c: Context,
-    private val viewModel: MainViewModel
+        private val c: Context,
+        private val viewModel: HomeViewModel
 ) : ArrayAdapter<Subreddit>(c, R.layout.list_item_drawer_search) {
 
     val disposables = CompositeDisposable()
+
     // A local copy of the search results. It's used because the user can interact w/ the results and modify them (add to, etc).
     private var subreddits = ArrayList<Subreddit>()
 

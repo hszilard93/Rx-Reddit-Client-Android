@@ -77,7 +77,7 @@ class App : Application() {
         }
         viewModel {
             logcat { "Koin providing ViewModel HomeViewModel instance." }
-            HomeViewModel(mainViewModel = it.get())
+            HomeViewModel()
         }
         viewModel {
             logcat { "Koin providing ViewModel FavoritesViewModel instance." }
