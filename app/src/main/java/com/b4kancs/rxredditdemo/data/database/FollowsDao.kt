@@ -1,7 +1,6 @@
 package com.b4kancs.rxredditdemo.data.database
 
 import androidx.room.*
-import com.b4kancs.rxredditdemo.model.Subreddit
 import com.b4kancs.rxredditdemo.model.UserFeed
 import io.reactivex.rxjava3.core.Completable
 import io.reactivex.rxjava3.core.Single
@@ -15,7 +14,7 @@ interface FollowsDao {
     @Query("SELECT * FROM follows ORDER BY name")
     fun getFollowedUsers(): Single<List<UserFeed>>
 
-    @Query("SELECT * FROM follows WHERE name LIKE :name")
+    @Query("SELECT * FROM follows WHERE LOWER(name) LIKE LOWER('%' || :name || '%')")
     fun getFollowedUsersByNameLike(name: String): Single<List<UserFeed>>
 
     @Delete

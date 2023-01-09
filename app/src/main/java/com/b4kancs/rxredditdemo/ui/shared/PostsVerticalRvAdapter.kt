@@ -315,7 +315,7 @@ class PostsVerticalRvAdapter(
         }
     }
 
-    // In the future, might use LoadStateFooter instead, but this solution is also satisfactory.
+    // In the future, might want to use LoadStateFooter instead, but this solution is also satisfactory.
     // https://developer.android.com/topic/libraries/architecture/paging/load-state#kotlin
     inner class SmallBottomLoadingIndicatorViewHolder(val view: View) : RecyclerView.ViewHolder(view) {
 

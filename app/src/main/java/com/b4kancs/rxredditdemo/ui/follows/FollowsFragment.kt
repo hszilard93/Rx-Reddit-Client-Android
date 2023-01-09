@@ -16,6 +16,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.databinding.FragmentFollowsBinding
 import com.b4kancs.rxredditdemo.model.UserFeed
+import com.b4kancs.rxredditdemo.ui.follows.FollowsViewModel.*
 import com.b4kancs.rxredditdemo.ui.main.MainActivity
 import com.b4kancs.rxredditdemo.ui.postviewer.PostViewerFragment
 import com.b4kancs.rxredditdemo.ui.shared.PostsVerticalRvAdapter
@@ -23,6 +24,7 @@ import com.b4kancs.rxredditdemo.ui.uiutils.CustomLinearLayoutManager
 import com.b4kancs.rxredditdemo.ui.uiutils.SnackType
 import com.b4kancs.rxredditdemo.ui.uiutils.makeSnackBar
 import com.jakewharton.rxbinding4.view.clicks
+import com.jakewharton.rxbinding4.view.visibility
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.CompositeDisposable
@@ -33,11 +35,12 @@ import io.reactivex.rxjava3.schedulers.Schedulers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.flow.take
 import logcat.LogPriority
 import logcat.logcat
 import org.koin.androidx.viewmodel.ext.android.sharedViewModel
+import retrofit2.HttpException
 import java.util.concurrent.TimeUnit
 
 class FollowsFragment : Fragment() {
@@ -105,20 +108,18 @@ class FollowsFragment : Fragment() {
         logcat { "onViewCreated" }
     }
 
-    private fun setUpBehaviourDisposables() {
-        followsViewModel.getAreThereFollowedUsersBehaviourSubject()
-            .observeOn(AndroidSchedulers.mainThread())
-            .doOnNext { logcat { "followsViewModel.getAreThereFollowedUsersBehaviourSubject.onNext" } }
-            .filter { _binding != null }
-//            .distinctUntilChanged()
-            .subscribe { hasFollowedUsers ->
-                binding.textViewFollowsNoMedia.isVisible = !hasFollowedUsers
-//                (binding.rvFollowsPosts.adapter as PostsVerticalRvAdapter).let { adapter ->
-//                    if (adapter.itemCount > 1 && !hasFollowedUsers) adapter.refresh()
-//                    if (adapter.itemCount <= 1 && hasFollowedUsers) adapter.refresh()
-//                }
-            }.addTo(disposables)
+    override fun onStart() {
+        logcat { "onStart" }
+        super.onStart()
+        (activity as MainActivity).apply {
+            setUpFollowsDrawer(followsViewModel)
+            setUpFollowsDrawerSearchView(followsViewModel)
+        }
 
+        setUpOptionsMenu()
+    }
+
+    private fun setUpBehaviourDisposables() {
         followsViewModel.feedChangedBehaviorSubject
             .observeOn(AndroidSchedulers.mainThread())
             .filter { _binding != null && !isJustCreated }
@@ -155,16 +156,52 @@ class FollowsFragment : Fragment() {
                     ).addTo(disposables)
             }
         }
-    }
 
-    override fun onStart() {
-        logcat { "onStart" }
-        super.onStart()
-        (activity as MainActivity).apply {
-            setUpFollowsDrawer(followsViewModel)
-        }
-
-        setUpOptionsMenu()
+        followsViewModel.uiStateBehaviorSubject
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe { uiState ->
+                with(binding) {
+                    when (uiState) {
+                        FollowsUiStates.NORMAL -> {
+                            rvFollowsPosts.isVisible = true
+                            linearLayoutFollowsErrorContainer.isVisible = false
+                            progressBarFollowsLarge.isVisible = false
+                        }
+                        FollowsUiStates.LOADING -> {
+                            rvFollowsPosts.isVisible = false
+                            linearLayoutFollowsErrorContainer.isVisible = false
+                            progressBarFollowsLarge.isVisible = true
+                        }
+                        FollowsUiStates.ERROR_404 -> {
+                            val errorMessage = getString(R.string.string_follows_http_404_error_message)
+                            val errorImageId = R.drawable.im_error_404_resized
+                            linearLayoutFollowsErrorContainer.isVisible = true
+                            textViewFollowsNoMedia.text = errorMessage
+                            imageViewFollowsError.setImageResource(errorImageId)
+                            progressBarFollowsLarge.isVisible = false
+                            rvFollowsPosts.isVisible = false
+                        }
+                        FollowsUiStates.ERROR_GENERIC -> {
+                            val errorMessage = getString(R.string.string_common_network_error_message)
+                            val errorImageId = R.drawable.im_error_network
+                            linearLayoutFollowsErrorContainer.isVisible = true
+                            textViewFollowsNoMedia.text = errorMessage
+                            imageViewFollowsError.setImageResource(errorImageId)
+                            progressBarFollowsLarge.isVisible = false
+                            rvFollowsPosts.isVisible = false
+                        }
+                        FollowsUiStates.NO_CONTENT -> {
+                            val errorMessage = getString(R.string.string_follows_no_posts_for_user)
+                            val errorImageId = R.drawable.im_error_no_content
+                            linearLayoutFollowsErrorContainer.isVisible = true
+                            textViewFollowsNoMedia.text = errorMessage
+                            imageViewFollowsError.setImageResource(errorImageId)
+                            progressBarFollowsLarge.isVisible = false
+                            rvFollowsPosts.isVisible = false
+                        }
+                    }
+                }
+            }.addTo(disposables)
     }
 
     private fun goToNewPostViewerFragment(position: Int, sharedView: View) {
@@ -215,15 +252,34 @@ class FollowsFragment : Fragment() {
                 }.addTo(disposables)
 
             postsFollowsAdapter.loadStateFlow
+                .map { loadStates ->
+                    if (loadStates.refresh is LoadState.Error) {
+                        logcat(LogPriority.WARN) { "LoadState.Error detected." }
+                        val e = ((loadStates.refresh as LoadState.Error).error)
+                        if (e is HttpException && e.code() == 404)
+                            followsViewModel.uiStateBehaviorSubject.onNext(FollowsUiStates.ERROR_404)
+                        else
+                            followsViewModel.uiStateBehaviorSubject.onNext(FollowsUiStates.ERROR_GENERIC)
+                    }
+                    else if (loadStates.refresh is LoadState.Loading) {
+                        followsViewModel.uiStateBehaviorSubject.onNext(FollowsUiStates.LOADING)
+                    }
+                    loadStates
+                }
                 .filter { loadStates -> loadStates.refresh is LoadState.NotLoading }
-                .take(1)
+//                    .take(1)
                 .onEach {
                     logcat(LogPriority.INFO) { "postFollowsAdapter.loadStateFlow.onEach loadStates.refresh == LoadState.NotLoading" }
                     if (postsFollowsAdapter.itemCount != 1) {
+                        followsViewModel.uiStateBehaviorSubject.onNext(FollowsUiStates.NORMAL)
+
                         positionToGoTo?.let { pos ->
                             logcat(LogPriority.INFO) { "Scrolling to position: $pos" }
                             rvFollowsPosts.scrollToPosition(pos)
                         }
+                    }
+                    else {
+                        followsViewModel.uiStateBehaviorSubject.onNext(FollowsUiStates.NO_CONTENT)
                     }
                 }.launchIn(MainScope())
 
@@ -290,7 +346,13 @@ class FollowsFragment : Fragment() {
                 progressBarFollowsLarge.isVisible = combinedLoadStates.refresh is LoadState.Loading
             }
 
-            srlFollows.isEnabled = false
+            srlFollows.isEnabled = true
+            srlFollows.setOnRefreshListener {
+                postsFollowsAdapter.refresh()
+                followsViewModel.uiStateBehaviorSubject.onNext(FollowsUiStates.NORMAL)
+                rvFollowsPosts.scrollToPosition(0)
+                srlFollows.isRefreshing = false
+            }
         }
     }
 

@@ -18,10 +18,10 @@ interface SubredditDao {
     @Query("SELECT * FROM subreddit ORDER BY name")
     fun getSubreddits(): Single<List<Subreddit>>
 
-    @Query("SELECT * FROM subreddit WHERE address = :address")
+    @Query("SELECT * FROM subreddit WHERE LOWER(address) = LOWER(:address)")
     fun getSubredditByAddress(address: String): Maybe<Subreddit>
 
-    @Query("SELECT * FROM subreddit WHERE name LIKE :name")
+    @Query("SELECT * FROM subreddit WHERE LOWER(name) LIKE LOWER('%' || :name || '%')")
     fun getSubredditsByNameLike(name: String): Single<List<Subreddit>>
 
     @Delete

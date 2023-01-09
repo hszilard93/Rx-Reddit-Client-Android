@@ -16,3 +16,4 @@ fun CompletableEmitter.fromCompletable(completable: Completable) =
         onComplete = { this.onComplete() },
         onError = { e -> this.onError(e) }
     )
+

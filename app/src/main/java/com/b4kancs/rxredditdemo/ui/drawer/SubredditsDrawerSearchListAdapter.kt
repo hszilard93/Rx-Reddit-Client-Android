@@ -36,11 +36,12 @@ class SubredditsDrawerSearchListAdapter(
         viewModel.subredditSearchResultsChangedSubject
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe { searchResults ->
-                logcat(LogPriority.INFO) { "New searchResults: size = ${searchResults.size}; items = ${searchResults.map { it.name }}" }
+                logcat(LogPriority.INFO) { "Drawer searchResults: size = ${searchResults.size}; items = ${searchResults.map { it.name }}" }
                 subreddits.clear()
                 subreddits.addAll(searchResults)
                 notifyDataSetChanged()
-            }.addTo(disposables)
+            }
+            .addTo(disposables)
     }
 
     override fun getCount(): Int = subreddits.size

@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.view.Menu
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ArrayAdapter
 import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.*
@@ -17,6 +18,7 @@ import androidx.navigation.ui.setupWithNavController
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.databinding.ActivityMainBinding
 import com.b4kancs.rxredditdemo.ui.drawer.FollowsDrawerListAdapter
+import com.b4kancs.rxredditdemo.ui.drawer.FollowsDrawerSearchListAdapter
 import com.b4kancs.rxredditdemo.ui.drawer.SubredditsDrawerListAdapter
 import com.b4kancs.rxredditdemo.ui.drawer.SubredditsDrawerSearchListAdapter
 import com.b4kancs.rxredditdemo.ui.follows.FollowsViewModel
@@ -25,12 +27,13 @@ import com.b4kancs.rxredditdemo.ui.uiutils.ANIMATION_DURATION_LONG
 import com.b4kancs.rxredditdemo.ui.uiutils.ANIMATION_DURATION_SHORT
 import com.b4kancs.rxredditdemo.ui.uiutils.animateViewHeightChange
 import com.b4kancs.rxredditdemo.ui.uiutils.dpToPixel
+import com.jakewharton.rxbinding4.widget.SearchViewQueryTextEvent
 import com.jakewharton.rxbinding4.widget.queryTextChangeEvents
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.CompositeDisposable
+import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.kotlin.addTo
-import io.reactivex.rxjava3.schedulers.Schedulers
 import logcat.LogPriority
 import logcat.logcat
 import org.koin.androidx.viewmodel.ext.android.viewModel
@@ -141,7 +144,7 @@ class MainActivity : AppCompatActivity() {
 //            navController.navigateUp()
 //        }
 //        else
-            super.onBackPressed()
+        super.onBackPressed()
     }
 
 
@@ -178,30 +181,44 @@ class MainActivity : AppCompatActivity() {
         logcat { "setUpFollowsDrawer" }
         val adapter = FollowsDrawerListAdapter(this, followsViewModel)
         binding.listViewDrawerSubreddits.adapter = adapter
+
+        followsViewModel.getFollowsChangedSubject()
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe { adapter.notifyDataSetChanged() }
+            .addTo(disposables)
+
+        followsViewModel.feedChangedBehaviorSubject
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe {
+                Observable.timer(300, TimeUnit.MILLISECONDS)
+                    .subscribe {
+                        binding.drawerMain.closeDrawer(GravityCompat.START)
+                    }
+                    .addTo(disposables)
+            }.addTo(disposables)
     }
 
 
     fun setUpHomeDrawerSearchView(homeViewModel: HomeViewModel) {
-        logcat { "setupSearchViewDrawerAndList" }
+        logcat { "setUpHomeDrawerSearchView" }
 
-        with(binding) {
-            searchViewDrawer.queryTextChangeEvents()
-                .observeOn(AndroidSchedulers.mainThread())
+        val queryTextChangeEventHandlerDisposable: Observable<SearchViewQueryTextEvent>.() -> Disposable = {
+            observeOn(AndroidSchedulers.mainThread())
                 .debounce(250, TimeUnit.MILLISECONDS)
-                .map {
-                    val query = it.queryText
-                    if (it.isSubmitted) {
-                        logcat(LogPriority.INFO) { "Subreddit query text submitted: $query" }
-                        it.queryText.toString() to true
+                .map { event ->
+                    if (event.isSubmitted) {
+                        logcat(LogPriority.INFO) { "Subreddit query text submitted: ${event.queryText}" }
+                        event.queryText.toString() to true
                     }
                     else {
-                        logcat(LogPriority.INFO) { "Querying keyword: $query" }
-                        it.queryText.toString() to false
+                        logcat(LogPriority.INFO) { "Querying keyword: ${event.queryText}" }
+                        event.queryText.toString() to false
                     }
                 }
                 .subscribe { (query, isSubmitted) ->
                     logcat { "queryTextChangeEvents.subscribe: query $query isSubmitted $isSubmitted" }
-                    // If isSubmitted is true, it means that the Search button was clicked. In this case, we should go straight to the subreddit entered.
+                    // If isSubmitted is true, it means that the Search button was clicked.
+                    // In this case, we should go straight to the subreddit entered.
                     if (isSubmitted) {
                         homeViewModel.goToSubredditByName(query)
                     }
@@ -214,19 +231,88 @@ class MainActivity : AppCompatActivity() {
                             .addTo(disposables)
                     }
                 }
+        }
+
+        setUpGenericDrawerSearchView(
+            searchListAdapter = SubredditsDrawerSearchListAdapter(this@MainActivity, homeViewModel),
+            title = getString(R.string.drawer_title_subreddits),
+            queryHint = getString(R.string.text_view_drawer_query_hint_subreddit),
+            queryTextChangeEventHandlerDisposable = queryTextChangeEventHandlerDisposable,
+            searchResultsChangedObservable = homeViewModel.subredditSearchResultsChangedSubject
+        )
+    }
+
+    fun setUpFollowsDrawerSearchView(followsViewModel: FollowsViewModel) {
+        logcat { "setUpFollowsDrawerSearchView" }
+
+        val queryTextChangeEventHandlerDisposable: Observable<SearchViewQueryTextEvent>.() -> Disposable = {
+            observeOn(AndroidSchedulers.mainThread())
+                .debounce(250, TimeUnit.MILLISECONDS)
+                .map { event ->
+                    if (event.isSubmitted) {
+                        logcat(LogPriority.INFO) { "UserFeeds query text submitted: ${event.queryText}" }
+                        event.queryText.toString() to true
+                    }
+                    else {
+                        logcat(LogPriority.INFO) { "Querying keyword: ${event.queryText}" }
+                        event.queryText.toString() to false
+                    }
+                }
+                .subscribe { (query, isSubmitted) ->
+                    logcat { "queryTextChangeEvents.subscribe: query $query isSubmitted $isSubmitted" }
+                    // If isSubmitted is true, it means that the Search button was clicked.
+                    // In this case, we should go straight to the user feed entered.
+                    if (isSubmitted) {
+                        followsViewModel.setUserFeedTo(query)
+                            .subscribe()
+                            .addTo(disposables)
+                    }
+                    // Otherwise, show the query search results in a list.
+                    else {
+                        followsViewModel.getUserFeedSearchResultsFromDb(query)
+                            .subscribe { searchResultFeeds ->
+                                followsViewModel.followsSearchResultsChangedSubject.onNext(searchResultFeeds)
+                            }
+                            .addTo(disposables)
+                    }
+                }
+        }
+
+        setUpGenericDrawerSearchView(
+            searchListAdapter = FollowsDrawerSearchListAdapter(this@MainActivity, followsViewModel),
+            title = getString(R.string.drawer_title_follows),
+            queryHint = getString(R.string.text_view_drawer_query_hint_follows),
+            queryTextChangeEventHandlerDisposable = queryTextChangeEventHandlerDisposable,
+            searchResultsChangedObservable = followsViewModel.followsSearchResultsChangedSubject
+        )
+    }
+
+    private fun <T> setUpGenericDrawerSearchView(
+            searchListAdapter: ArrayAdapter<T>,
+            title: String,
+            queryHint: String,
+            queryTextChangeEventHandlerDisposable: Observable<SearchViewQueryTextEvent>.() -> Disposable,
+            searchResultsChangedObservable: Observable<List<T>>
+    ) {
+        logcat { "setupSearchViewDrawer" }
+
+        with(binding) {
+            textViewDrawerTitle.text = title
+            searchViewDrawer.queryHint = queryHint
+
+            searchViewDrawer.queryTextChangeEvents()
+                .queryTextChangeEventHandlerDisposable()
                 .addTo(disposables)
 
-            val searchListAdapter = SubredditsDrawerSearchListAdapter(this@MainActivity, homeViewModel)
-
-            homeViewModel.subredditSearchResultsChangedSubject
+            searchResultsChangedObservable
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe { subs ->
+                .subscribe { items ->
                     // Setting the height of the list of the search results according to the available and the desired height.
                     fun redrawSearchResultsList() {
                         logcat { "drawSearchResults" }
                         val listView = listViewDrawerSearchResults
                         val oldHeight = abs(listView.measuredHeight)
-                        val desiredHeight = dpToPixel(40, this@MainActivity) * subs.size
+                        val desiredHeight = dpToPixel(40, this@MainActivity) * items.size
 
                         val listLocationInWindowArray = IntArray(2)
                         listViewDrawerSearchResults.getLocationInWindow(listLocationInWindowArray)
@@ -266,7 +352,6 @@ class MainActivity : AppCompatActivity() {
             })
         }
     }
-
 
     fun lockDrawerClosed() {
         logcat { "lockDrawerClosed" }

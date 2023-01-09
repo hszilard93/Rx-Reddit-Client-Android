@@ -32,8 +32,14 @@
     <string name="string_post_popup_action_go_to_user">Go to %1$s\'s submissions</string>
     <string name="string_common_error_something_went_wrong">Uh-oh, something went wrong :(</string>
     <string name="string_options_wallpaper_error_something_went_wrong">Uh-oh, something went wrong! Please try downloading the image and setting it as a wallpaper from your Gallery!</string>
-    <string name="follows_no_media">There are no followed users to show yet.</string>
+    <string name="follows_no_media">There are no followed users to show yet. You can add users you\'d like to follow from the drawer, fow example.</string>
     <string name="drawer_header_your_followed_feeds">Users you follow</string>
     <string name="string_common_done">Done!</string>
     <string name="string_common_could_not_perform">Could not perform action :(</string>
+    <string name="text_view_drawer_query_hint_subreddit">Add a new subreddit</string>
+    <string name="drawer_title_follows">Followed users</string>
+    <string name="text_view_drawer_query_hint_follows">Go to user feed</string>
+    <string name="string_follows_http_404_error_message">Uh-oh, it seems like this user doesn\'t exist! </string>
+    <string name="string_common_network_error_message">Uh-oh, something went wrong! Please check your network connection or try again later!</string>
+    <string name="string_follows_no_posts_for_user">This user doesn\'t seem to have posted any image content yet. So here is a cat.</string>
 </resources>

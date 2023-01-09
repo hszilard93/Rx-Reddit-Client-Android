@@ -8,10 +8,12 @@ import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.model.UserFeed
 import com.b4kancs.rxredditdemo.repository.FollowsRepository
 import io.reactivex.rxjava3.core.Single
+import io.reactivex.rxjava3.schedulers.Schedulers
+import logcat.LogPriority
 import logcat.logcat
 import org.koin.java.KoinJavaComponent.inject
+import retrofit2.HttpException
 
-// For now, the same as SubredditJsonPagingSource, just doing a different request. Still, I think it deserves its own class for now.
 class UserPostsJsonPagingSource(private val userFeed: UserFeed?) : RxPagingSource<String, Post>() {
 
     companion object {
@@ -24,7 +26,6 @@ class UserPostsJsonPagingSource(private val userFeed: UserFeed?) : RxPagingSourc
         logcat { "init username = $userFeed" }
     }
 
-    // Load the posts of a given subreddit into a PagingSource.LoadResult
     override fun loadSingle(params: LoadParams<String>): Single<LoadResult<String, Post>> {
         logcat { "loadSingle" }
 
@@ -41,18 +42,28 @@ class UserPostsJsonPagingSource(private val userFeed: UserFeed?) : RxPagingSourc
             params.loadSize,
             params.key
         )
-            .map { response -> response.body()!!.data.children }
+            .subscribeOn(Schedulers.io())
+            .map { response ->
+                if (response.isSuccessful)
+                    response.body()!!.data.children
+                else
+                    throw HttpException(response)
+            }
             .map { posts ->
                 posts
                     .map { fromJsonPostDataModel(it.data) }
                     .filter { it.links != null }        // The 'links' of all posts that are not picture or gallery posts is null
             }
-            .map { posts ->
+            .map<LoadResult<String, Post>> { posts ->
                 LoadResult.Page(
                     data = posts,
                     prevKey = null,
                     nextKey = if (posts.isNotEmpty()) posts.last().name else null
                 )
+            }
+            .onErrorReturn { e ->
+                logcat(LogPriority.WARN) { "Exception caught: ${e.message}" }
+                LoadResult.Error(e)
             }
     }
 

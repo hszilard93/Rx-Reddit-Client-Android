@@ -94,7 +94,7 @@
                 android:layout_marginStart="-12dp"
                 android:background="?attr/colorOnPrimary"
                 android:iconifiedByDefault="false"
-                android:queryHint="Add a new subreddit" />
+                android:queryHint="@string/text_view_drawer_query_hint_subreddit" />
 
             <ListView
                 android:id="@+id/list_view_drawer_search_results"

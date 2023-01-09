@@ -120,7 +120,7 @@ class HomeViewModel : ViewModel(), PostPagingDataObservableProvider, FavoritesPr
 
         val newSubNotInDb = Subreddit(name, "r/$name", Subreddit.Status.NOT_IN_DB)
         // We first check if we already know that subreddit.
-        getSubredditByAddress(name)
+        getSubredditByAddress("r/$name")
             .subscribeBy(
                 // The sub was in the db. Let's work with that!
                 onSuccess = {

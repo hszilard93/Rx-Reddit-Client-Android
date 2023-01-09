@@ -12,7 +12,6 @@ import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.model.UserFeed
 import com.b4kancs.rxredditdemo.repository.FollowsRepository
 import com.b4kancs.rxredditdemo.ui.PostPagingDataObservableProvider
-import com.b4kancs.rxredditdemo.utils.fromCompletable
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Completable
 import io.reactivex.rxjava3.core.Maybe
@@ -21,7 +20,6 @@ import io.reactivex.rxjava3.core.Single
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.addTo
 import io.reactivex.rxjava3.kotlin.subscribeBy
-import io.reactivex.rxjava3.observables.ConnectableObservable
 import io.reactivex.rxjava3.subjects.BehaviorSubject
 import io.reactivex.rxjava3.subjects.PublishSubject
 import logcat.LogPriority
@@ -30,13 +28,14 @@ import org.koin.java.KoinJavaComponent.inject
 
 class FollowsViewModel : ViewModel(), PostPagingDataObservableProvider {
 
+    enum class FollowsUiStates { NORMAL, LOADING, ERROR_404, ERROR_GENERIC, NO_CONTENT }
+
     private val followsRepository: FollowsRepository by inject(FollowsRepository::class.java)
 
     val postsCachedPagingObservable: Observable<PagingData<Post>>
     val feedChangedBehaviorSubject: BehaviorSubject<UserFeed> = BehaviorSubject.create()
-    val selectedUserFeedReplayObservable: ConnectableObservable<UserFeed> = feedChangedBehaviorSubject.replay(1)
     val followsSearchResultsChangedSubject: PublishSubject<List<UserFeed>> = PublishSubject.create()
-
+    val uiStateBehaviorSubject: BehaviorSubject<FollowsUiStates> = BehaviorSubject.createDefault(FollowsUiStates.LOADING)
 
     val currentUserFeed: UserFeed
         get() = feedChangedBehaviorSubject
@@ -46,7 +45,7 @@ class FollowsViewModel : ViewModel(), PostPagingDataObservableProvider {
     init {
         logcat { "init" }
 
-        selectedUserFeedReplayObservable.connect()
+//        selectedUserFeedReplayObservable.connect()
         feedChangedBehaviorSubject.doOnNext { logcat(LogPriority.INFO) { "selectedUserFeedChangedSubject.onNext" } }
 
         val pager = Pager(
@@ -103,12 +102,17 @@ class FollowsViewModel : ViewModel(), PostPagingDataObservableProvider {
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribeBy(
                     onSuccess = { userFeed ->
-                        emitter.fromCompletable(setUserFeedTo(userFeed))
+                        setUserFeedTo(userFeed)
+                            .subscribeBy(
+                                onComplete = emitter::onComplete
+                            ).addTo(disposables)
                     },
                     onComplete = {
-                        emitter.fromCompletable(
-                            setUserFeedTo(UserFeed(userName, UserFeed.Status.NOT_IN_DB))
-                        )
+                        setUserFeedTo(UserFeed(userName, UserFeed.Status.NOT_IN_DB))
+                            .subscribeBy(
+                                onComplete = emitter::onComplete,
+                                onError = emitter::onError
+                            ).addTo(disposables)
                     },
                     onError = { e ->
                         logcat(LogPriority.ERROR) { "Could not get user feed! Message: ${e.message}" }
@@ -119,16 +123,17 @@ class FollowsViewModel : ViewModel(), PostPagingDataObservableProvider {
     }
 
     fun setUserFeedTo(userFeed: UserFeed): Completable {
+        logcat { "setUserFeedTo: userFeed = $userFeed" }
         feedChangedBehaviorSubject.onNext(userFeed)
         return Completable.complete()
     }
 
-    fun getUserFeedSearchResultsFromDb(query: String): Observable<List<UserFeed>> {
+    fun getUserFeedSearchResultsFromDb(query: String): Single<List<UserFeed>> {
         logcat { "getUserFeedSearchResultsFromDb: query = $query" }
-        if (query.isEmpty()) return Observable.just(emptyList())
-
-        return followsRepository.getUserFeedFromDbByNameLike(query)
-            .toObservable()
+        return if (query.isEmpty())
+            Single.just(emptyList())
+        else
+            followsRepository.getUserFeedFromDbByNameLike(query)
     }
 
     fun getFollowsChangedSubject(): PublishSubject<Unit> =
