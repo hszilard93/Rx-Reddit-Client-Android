@@ -15,7 +15,9 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.transition.TransitionInflater
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.databinding.FragmentHomeBinding
+import com.b4kancs.rxredditdemo.domain.pagination.SubredditJsonPagingSource
 import com.b4kancs.rxredditdemo.model.Subreddit.Status
+import com.b4kancs.rxredditdemo.ui.home.HomeViewModel.HomeUiStates
 import com.b4kancs.rxredditdemo.ui.main.MainActivity
 import com.b4kancs.rxredditdemo.ui.postviewer.PostViewerFragment
 import com.b4kancs.rxredditdemo.ui.shared.PostsVerticalRvAdapter
@@ -32,21 +34,18 @@ import io.reactivex.rxjava3.kotlin.addTo
 import io.reactivex.rxjava3.kotlin.subscribeBy
 import io.reactivex.rxjava3.schedulers.Schedulers
 import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.flow.*
 import logcat.LogPriority
 import logcat.logcat
 import org.koin.androidx.viewmodel.ext.android.sharedViewModel
-import org.koin.core.parameter.parametersOf
+import retrofit2.HttpException
 import java.util.concurrent.TimeUnit
 
 class HomeFragment : Fragment() {
     companion object {
         const val FLICKERING_DELAY = 200L
     }
-    
+
     private val viewModel: HomeViewModel by sharedViewModel()
     private var _binding: FragmentHomeBinding? = null
     private val binding get() = _binding!!
@@ -95,6 +94,7 @@ class HomeFragment : Fragment() {
 
         setUpSharedElementTransition()
         setUpRecyclerView()
+        setUpUiStatesBehaviour()
     }
 
     override fun onStart() {
@@ -142,7 +142,8 @@ class HomeFragment : Fragment() {
                 val shouldDisableTransformations = if (positionToGoTo != null) {
                     logcat { "Disabling glide transformations" }
                     true
-                } else false
+                }
+                else false
                 rvHomePosts.adapter = PostsVerticalRvAdapter(
                     mainActivity,
                     shouldDisableTransformations,
@@ -162,10 +163,11 @@ class HomeFragment : Fragment() {
                             .onEach {
                                 logcat { "loadStateFlow.onEach" }
                                 // If the subreddit feed contains no displayable posts (images etc.), display a textview
-                                if (postsHomeAdapter.itemCount == 1) {   // The 1 is because of the always-present bottom loading indicator
-                                    binding.textViewHomeNoMedia.isVisible = true
-                                } else {
-                                    binding.textViewHomeNoMedia.isVisible = false
+                                if (postsHomeAdapter.itemCount <= 1) {   // The 1 is because of the always-present bottom loading indicator
+                                    viewModel.uiStateBehaviorSubject.onNext(HomeUiStates.NO_CONTENT)
+                                }
+                                else {
+                                    viewModel.uiStateBehaviorSubject.onNext(HomeUiStates.NORMAL)
                                     positionToGoTo?.let { pos ->
                                         logcat(LogPriority.INFO) { "Scrolling to position: $pos" }
                                         rvHomePosts.scrollToPosition(pos)
@@ -175,7 +177,7 @@ class HomeFragment : Fragment() {
                                         logcat(LogPriority.INFO) { "justChangedSubreddits = true; scrolling to position 0" }
                                         rvHomePosts.scrollToPosition(0)
                                         rvHomePosts.visibility = View.INVISIBLE
-                                        // This delay stops the flickering after a subreddit change
+                                        // This delay eliminates the flickering of the RV after a subreddit change
                                         Observable.timer(FLICKERING_DELAY, TimeUnit.MILLISECONDS)
                                             .observeOn(AndroidSchedulers.mainThread())
                                             .subscribe {
@@ -186,29 +188,59 @@ class HomeFragment : Fragment() {
                                 }
                             }
                             .launchIn(MainScope())
-                    } catch (e: Exception) {
+                    }
+                    catch (e: Exception) {
                         // There might be a weird NullPointerException happening sometimes that doesn't really seem to affect anything
                         logcat(LogPriority.ERROR) { e.stackTrace.toString() }
                     }
                 }
                 .addTo(disposables)
 
-            postsHomeAdapter.addLoadStateListener { combinedLoadStates ->
-                progressBarHomeLarge.isVisible = combinedLoadStates.refresh is LoadState.Loading
-            }
+            postsHomeAdapter.loadStateFlow
+                .map { loadStates ->
+                    if (loadStates.refresh is LoadState.Error) {
+                        logcat(LogPriority.WARN) { "LoadState.Error detected." }
+                        val e = ((loadStates.refresh as LoadState.Error).error)
+                        if ((e is HttpException && e.code() == 404)
+                            || e is SubredditJsonPagingSource.NoSuchSubredditException)
+                            viewModel.uiStateBehaviorSubject.onNext(HomeUiStates.ERROR_404)
+                        else
+                            viewModel.uiStateBehaviorSubject.onNext(HomeUiStates.ERROR_GENERIC)
+                    }
+                    else if (loadStates.refresh is LoadState.Loading) {
+                        viewModel.uiStateBehaviorSubject.onNext(HomeUiStates.LOADING)
+                    }
+                    loadStates
+                }
+                .filter { loadStates -> loadStates.refresh is LoadState.NotLoading }
+                .onEach {
+                    logcat(LogPriority.INFO) { "postsHomeAdapter.loadStateFlow.onEach loadStates.refresh == LoadState.NotLoading" }
+                    if (postsHomeAdapter.itemCount != 1) {
+                        viewModel.uiStateBehaviorSubject.onNext(HomeUiStates.NORMAL)
+
+                        positionToGoTo?.let { pos ->
+                            logcat(LogPriority.INFO) { "Scrolling to position: $pos" }
+                            rvHomePosts.scrollToPosition(pos)
+                        }
+                    }
+                    else {
+                        viewModel.uiStateBehaviorSubject.onNext(HomeUiStates.NO_CONTENT)
+                    }
+                }.launchIn(MainScope())
 
             viewModel.selectedSubredditChangedPublishSubject
                 .throttleFirst(1, TimeUnit.SECONDS)
                 .observeOn(AndroidSchedulers.mainThread())
                 .doOnNext { logcat(LogPriority.INFO) { "selectedSubredditChangedSubject.doOnNext: ${it.name}" } }
-                .subscribe { sub ->
-                    rvHomePosts.isVisible = false
+                .subscribe { _ ->
+                    viewModel.uiStateBehaviorSubject.onNext(HomeUiStates.LOADING)
                     justChangedSubreddits = true
                     postsHomeAdapter.refresh()
                 }
                 .addTo(disposables)
 
             srlHome.setOnRefreshListener {
+                viewModel.uiStateBehaviorSubject.onNext(HomeUiStates.LOADING)
                 postsHomeAdapter.refresh()
                 rvHomePosts.scrollToPosition(0)
                 srlHome.isRefreshing = false
@@ -266,6 +298,56 @@ class HomeFragment : Fragment() {
                         }.addTo(disposables)
                 }.addTo(disposables)
         }
+    }
+
+    private fun setUpUiStatesBehaviour() {
+        logcat { "setUpUiStatesBehaviour" }
+        viewModel.uiStateBehaviorSubject
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe { uiState ->
+                logcat { "uiState = $uiState" }
+                with(binding) {
+                    when (uiState) {
+                        HomeUiStates.NORMAL -> {
+                            rvHomePosts.isVisible = true
+                            linearLayoutHomeErrorContainer.isVisible = false
+                            progressBarHomeLarge.isVisible = false
+                        }
+                        HomeUiStates.LOADING -> {
+                            rvHomePosts.isVisible = false
+                            linearLayoutHomeErrorContainer.isVisible = false
+                            progressBarHomeLarge.isVisible = true
+                        }
+                        HomeUiStates.ERROR_404 -> {
+                            val errorMessage = getString(R.string.string_home_http_404_error_message)
+                            val errorImageId = R.drawable.im_error_404_resized
+                            linearLayoutHomeErrorContainer.isVisible = true
+                            textViewHomeError.text = errorMessage
+                            imageViewHomeError.setImageResource(errorImageId)
+                            progressBarHomeLarge.isVisible = false
+                            rvHomePosts.isVisible = false
+                        }
+                        HomeUiStates.ERROR_GENERIC -> {
+                            val errorMessage = getString(R.string.string_common_network_error_message)
+                            val errorImageId = R.drawable.im_error_network
+                            linearLayoutHomeErrorContainer.isVisible = true
+                            textViewHomeError.text = errorMessage
+                            imageViewHomeError.setImageResource(errorImageId)
+                            progressBarHomeLarge.isVisible = false
+                            rvHomePosts.isVisible = false
+                        }
+                        HomeUiStates.NO_CONTENT -> {
+                            val errorMessage = getString(R.string.string_home_no_posts_in_sub)
+                            val errorImageId = R.drawable.im_error_no_content_dog
+                            linearLayoutHomeErrorContainer.isVisible = true
+                            textViewHomeError.text = errorMessage
+                            imageViewHomeError.setImageResource(errorImageId)
+                            progressBarHomeLarge.isVisible = false
+                            rvHomePosts.isVisible = false
+                        }
+                    }
+                }
+            }.addTo(disposables)
     }
 
     private fun setUpOptionsMenu() {

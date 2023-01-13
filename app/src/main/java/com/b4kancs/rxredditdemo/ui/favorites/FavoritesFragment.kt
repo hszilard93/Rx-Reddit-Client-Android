@@ -308,6 +308,7 @@ class FavoritesFragment : Fragment() {
                 }
                 setUpClearAllFavoritesMenuItem(menuItems)
             }
+            .addTo(disposables)
     }
 
     override fun onDestroyView() {

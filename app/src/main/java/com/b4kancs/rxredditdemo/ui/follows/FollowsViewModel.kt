@@ -60,40 +60,46 @@ class FollowsViewModel : ViewModel(), PostPagingDataObservableProvider {
     }
 
 
-    fun getAllUserFeeds(): Single<List<UserFeed>> =
-        followsRepository.getAllFollowsFromDb()
+    fun getAllUserFeeds(): Single<List<UserFeed>> {
+        logcat { "getAllUserFeeds" }
+        return followsRepository.getAllFollowsFromDb()
+    }
 
-    fun getUserFeedByName(name: String): Maybe<UserFeed> =
-        followsRepository.getUserFeedFromDbByName(name)
+    fun getUserFeedByName(name: String): Maybe<UserFeed> {
+        logcat { "getUserFeedByName: name = $name" }
+        return followsRepository.getUserFeedFromDbByName(name)
+    }
 
-    fun saveUserFeed(userFeed: UserFeed): Completable =
-        followsRepository.addUserFeedToDb(userFeed)
+    fun saveUserFeed(userFeed: UserFeed): Completable {
+        logcat { "saveUserFeed: userFeed = $userFeed" }
+        return followsRepository.saveUserFeedToDb(userFeed)
             .doOnComplete {
-                val newFeed = UserFeed(userFeed.name, UserFeed.Status.FOLLOWED)
-                feedChangedBehaviorSubject.onNext(newFeed)
+                followsRepository.followsChangedSubject.onNext(Unit)
             }
+    }
 
-    fun deleteUserFeed(userFeed: UserFeed): Completable =
-        followsRepository.deleteUserFeedFromDb(userFeed)
+    fun deleteUserFeed(userFeed: UserFeed): Completable {
+        logcat { "deleteUserFeed: userFeed = ${userFeed.name}" }
+        return followsRepository.deleteUserFeedFromDb(userFeed)
             .doOnComplete {
                 val newFeed = UserFeed(userFeed.name, UserFeed.Status.NOT_IN_DB)
-                feedChangedBehaviorSubject.onNext(newFeed)
+                followsRepository.followsChangedSubject.onNext(Unit)
             }
+    }
 
     fun subscribeToFeed(userFeed: UserFeed): Completable {
+        logcat { "subscribeToFeed: userFeed = ${userFeed.name}" }
         val newFeed = UserFeed(userFeed.name, UserFeed.Status.SUBSCRIBED)
         return saveUserFeed(newFeed)
-            .doOnComplete { feedChangedBehaviorSubject.onNext(newFeed) }
+            .doOnComplete { followsRepository.followsChangedSubject.onNext(Unit) }
     }
 
     fun unsubscribeFromFeed(userFeed: UserFeed): Completable {
+        logcat { "unsubscribeFromFeed: userFeed = ${userFeed.name}" }
         val newFeed = UserFeed(userFeed.name, UserFeed.Status.FOLLOWED)
         return saveUserFeed(newFeed)
-            .doOnComplete { feedChangedBehaviorSubject.onNext(newFeed) }
+            .doOnComplete { followsRepository.followsChangedSubject.onNext(Unit) }
     }
-
-    fun getAreThereFollowedUsersBehaviourSubject() =
-        followsRepository.areThereFollowedUsersBehaviourSubject
 
     fun setUserFeedTo(userName: String): Completable {
         logcat { "setUserFeedTo: userName = $userName" }
@@ -138,6 +144,9 @@ class FollowsViewModel : ViewModel(), PostPagingDataObservableProvider {
 
     fun getFollowsChangedSubject(): PublishSubject<Unit> =
         followsRepository.followsChangedSubject
+
+    fun getAreThereFollowedUsersBehaviourSubject() =
+        followsRepository.areThereFollowedUsersBehaviourSubject
 
     fun getDefaultUserFeed() = FollowsRepository.defaultUserFeed
 

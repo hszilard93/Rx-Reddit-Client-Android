@@ -13,7 +13,7 @@
         android:fontFamily="sans-serif-light"
         android:gravity="center"
         android:padding="8dp"
-        android:text="@string/string_common_action_remove_from_your"
+        android:text="@string/string_home_action_remove_from_your"
         android:textColor="?attr/colorTertiary"
         android:textSize="15sp" />
 
@@ -32,7 +32,7 @@
         android:fontFamily="sans-serif-light"
         android:gravity="center"
         android:padding="8dp"
-        android:text="@string/string_common_action_delete_subreddit"
+        android:text="@string/string_home_action_delete_subreddit"
         android:textColor="?attr/colorTertiary"
         android:textSize="15sp" />
 
@@ -49,7 +49,7 @@
         android:fontFamily="sans-serif-light"
         android:gravity="center"
         android:padding="8dp"
-        android:text="@string/string_common_action_set_as_default_sub"
+        android:text="@string/string_home_action_set_as_default_sub"
         android:textColor="?attr/colorTertiary"
         android:textSize="15sp" />
 </LinearLayout>

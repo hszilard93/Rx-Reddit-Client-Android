@@ -177,7 +177,7 @@ class SubredditsDrawerListAdapter(
 
         optionsImageView.clicks()
             .subscribe {
-                val popupView = inflater.inflate(R.layout.popup_drawer_list_options, parent, false)
+                val popupView = inflater.inflate(R.layout.popup_drawer_home_options, parent, false)
                 val popupWindow = PopupWindow(
                     popupView,
                     WindowManager.LayoutParams.WRAP_CONTENT,

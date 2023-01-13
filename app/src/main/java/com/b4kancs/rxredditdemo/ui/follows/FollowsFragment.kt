@@ -16,7 +16,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.databinding.FragmentFollowsBinding
 import com.b4kancs.rxredditdemo.model.UserFeed
-import com.b4kancs.rxredditdemo.ui.follows.FollowsViewModel.*
+import com.b4kancs.rxredditdemo.ui.follows.FollowsViewModel.FollowsUiStates
 import com.b4kancs.rxredditdemo.ui.main.MainActivity
 import com.b4kancs.rxredditdemo.ui.postviewer.PostViewerFragment
 import com.b4kancs.rxredditdemo.ui.shared.PostsVerticalRvAdapter
@@ -24,7 +24,6 @@ import com.b4kancs.rxredditdemo.ui.uiutils.CustomLinearLayoutManager
 import com.b4kancs.rxredditdemo.ui.uiutils.SnackType
 import com.b4kancs.rxredditdemo.ui.uiutils.makeSnackBar
 import com.jakewharton.rxbinding4.view.clicks
-import com.jakewharton.rxbinding4.view.visibility
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.CompositeDisposable
@@ -45,7 +44,7 @@ import java.util.concurrent.TimeUnit
 
 class FollowsFragment : Fragment() {
 
-    private val followsViewModel: FollowsViewModel by sharedViewModel()
+    private val viewModel: FollowsViewModel by sharedViewModel()
     private val args: FollowsFragmentArgs by navArgs()
     private var _binding: FragmentFollowsBinding? = null
     private val binding get() = _binding!!
@@ -112,15 +111,20 @@ class FollowsFragment : Fragment() {
         logcat { "onStart" }
         super.onStart()
         (activity as MainActivity).apply {
-            setUpFollowsDrawer(followsViewModel)
-            setUpFollowsDrawerSearchView(followsViewModel)
+            setUpFollowsDrawer(this@FollowsFragment.viewModel)
+            setUpFollowsDrawerSearchView(this@FollowsFragment.viewModel)
         }
+    }
 
+    override fun onResume() {
+        logcat { "onResume" }
         setUpOptionsMenu()
+
+        super.onResume()
     }
 
     private fun setUpBehaviourDisposables() {
-        followsViewModel.feedChangedBehaviorSubject
+        viewModel.feedChangedBehaviorSubject
             .observeOn(AndroidSchedulers.mainThread())
             .filter { _binding != null && !isJustCreated }
 //            .filter {
@@ -140,9 +144,9 @@ class FollowsFragment : Fragment() {
         // If we got here from another fragment, we need to recover the navigation argument and go to the specified user's feed.
 //        if ((binding.rvFollowsPosts.adapter as PostsVerticalRvAdapter).itemCount <= 1) {
         val userNameFromNavigation = args.userName
-        if (followsViewModel.currentUserFeed.name != userNameFromNavigation) {
+        if (viewModel.currentUserFeed.name != userNameFromNavigation) {
             userNameFromNavigation?.let { userName ->
-                followsViewModel.setUserFeedTo(userName)
+                viewModel.setUserFeedTo(userName)
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribeBy(
                         onError = { e ->
@@ -157,7 +161,7 @@ class FollowsFragment : Fragment() {
             }
         }
 
-        followsViewModel.uiStateBehaviorSubject
+        viewModel.uiStateBehaviorSubject
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe { uiState ->
                 with(binding) {
@@ -176,7 +180,7 @@ class FollowsFragment : Fragment() {
                             val errorMessage = getString(R.string.string_follows_http_404_error_message)
                             val errorImageId = R.drawable.im_error_404_resized
                             linearLayoutFollowsErrorContainer.isVisible = true
-                            textViewFollowsNoMedia.text = errorMessage
+                            textViewFollowsError.text = errorMessage
                             imageViewFollowsError.setImageResource(errorImageId)
                             progressBarFollowsLarge.isVisible = false
                             rvFollowsPosts.isVisible = false
@@ -185,16 +189,16 @@ class FollowsFragment : Fragment() {
                             val errorMessage = getString(R.string.string_common_network_error_message)
                             val errorImageId = R.drawable.im_error_network
                             linearLayoutFollowsErrorContainer.isVisible = true
-                            textViewFollowsNoMedia.text = errorMessage
+                            textViewFollowsError.text = errorMessage
                             imageViewFollowsError.setImageResource(errorImageId)
                             progressBarFollowsLarge.isVisible = false
                             rvFollowsPosts.isVisible = false
                         }
                         FollowsUiStates.NO_CONTENT -> {
                             val errorMessage = getString(R.string.string_follows_no_posts_for_user)
-                            val errorImageId = R.drawable.im_error_no_content
+                            val errorImageId = R.drawable.im_error_no_content_cat
                             linearLayoutFollowsErrorContainer.isVisible = true
-                            textViewFollowsNoMedia.text = errorMessage
+                            textViewFollowsError.text = errorMessage
                             imageViewFollowsError.setImageResource(errorImageId)
                             progressBarFollowsLarge.isVisible = false
                             rvFollowsPosts.isVisible = false
@@ -207,7 +211,7 @@ class FollowsFragment : Fragment() {
     private fun goToNewPostViewerFragment(position: Int, sharedView: View) {
         logcat { "goToNewPostViewerFragment" }
         val sharedElementExtras = FragmentNavigatorExtras(sharedView to sharedView.transitionName)
-        val action = FollowsFragmentDirections.actionFollowsToPostViewer(position, followsViewModel::class.simpleName!!)
+        val action = FollowsFragmentDirections.actionFollowsToPostViewer(position, viewModel::class.simpleName!!)
         findNavController().navigate(action, sharedElementExtras)
     }
 
@@ -240,7 +244,7 @@ class FollowsFragment : Fragment() {
             }
             val postsFollowsAdapter = rvFollowsPosts.adapter as PostsVerticalRvAdapter
 
-            followsViewModel.postsCachedPagingObservable
+            viewModel.postsCachedPagingObservable
                 .subscribe { pagingData ->
                     try {
                         postsFollowsAdapter.submitData(viewLifecycleOwner.lifecycle, pagingData)
@@ -257,12 +261,12 @@ class FollowsFragment : Fragment() {
                         logcat(LogPriority.WARN) { "LoadState.Error detected." }
                         val e = ((loadStates.refresh as LoadState.Error).error)
                         if (e is HttpException && e.code() == 404)
-                            followsViewModel.uiStateBehaviorSubject.onNext(FollowsUiStates.ERROR_404)
+                            viewModel.uiStateBehaviorSubject.onNext(FollowsUiStates.ERROR_404)
                         else
-                            followsViewModel.uiStateBehaviorSubject.onNext(FollowsUiStates.ERROR_GENERIC)
+                            viewModel.uiStateBehaviorSubject.onNext(FollowsUiStates.ERROR_GENERIC)
                     }
                     else if (loadStates.refresh is LoadState.Loading) {
-                        followsViewModel.uiStateBehaviorSubject.onNext(FollowsUiStates.LOADING)
+                        viewModel.uiStateBehaviorSubject.onNext(FollowsUiStates.LOADING)
                     }
                     loadStates
                 }
@@ -270,8 +274,8 @@ class FollowsFragment : Fragment() {
 //                    .take(1)
                 .onEach {
                     logcat(LogPriority.INFO) { "postFollowsAdapter.loadStateFlow.onEach loadStates.refresh == LoadState.NotLoading" }
-                    if (postsFollowsAdapter.itemCount != 1) {
-                        followsViewModel.uiStateBehaviorSubject.onNext(FollowsUiStates.NORMAL)
+                    if (postsFollowsAdapter.itemCount > 1) {
+                        viewModel.uiStateBehaviorSubject.onNext(FollowsUiStates.NORMAL)
 
                         positionToGoTo?.let { pos ->
                             logcat(LogPriority.INFO) { "Scrolling to position: $pos" }
@@ -279,7 +283,7 @@ class FollowsFragment : Fragment() {
                         }
                     }
                     else {
-                        followsViewModel.uiStateBehaviorSubject.onNext(FollowsUiStates.NO_CONTENT)
+                        viewModel.uiStateBehaviorSubject.onNext(FollowsUiStates.NO_CONTENT)
                     }
                 }.launchIn(MainScope())
 
@@ -348,8 +352,8 @@ class FollowsFragment : Fragment() {
 
             srlFollows.isEnabled = true
             srlFollows.setOnRefreshListener {
+                viewModel.uiStateBehaviorSubject.onNext(FollowsUiStates.LOADING)
                 postsFollowsAdapter.refresh()
-                followsViewModel.uiStateBehaviorSubject.onNext(FollowsUiStates.NORMAL)
                 rvFollowsPosts.scrollToPosition(0)
                 srlFollows.isRefreshing = false
             }
@@ -360,13 +364,15 @@ class FollowsFragment : Fragment() {
         logcat { "setUpOptionsMenu" }
 
         val mergedFeedUpdateObservable = Observable.merge(   // See setUpOptionsMenu() in HomeFragment.kt
-            followsViewModel.getFollowsChangedSubject(),
-            followsViewModel.feedChangedBehaviorSubject
+            viewModel.getFollowsChangedSubject(),
+            viewModel.feedChangedBehaviorSubject
         )
             .subscribeOn(Schedulers.io())
             .doOnNext { logcat { "mergedFeedUpdateObservable.onNext" } }
-            .map { followsViewModel.feedChangedBehaviorSubject.blockingLatest().first() }
-            .share()
+            .map { viewModel.feedChangedBehaviorSubject.blockingLatest().first() }
+            .startWithItem(viewModel.getDefaultUserFeed())
+            .replay(1)
+            .apply { connect() }
 
         fun setUpAddToYourFollowsMenuItem(menuItems: Sequence<MenuItem>) {
             mergedFeedUpdateObservable
@@ -378,7 +384,7 @@ class FollowsFragment : Fragment() {
                     addToYourFollowsMenuItem?.clicks()
                         ?.doOnNext { logcat { "addToYourFollowsMenuItem.clicks.onNext" } }
                         ?.subscribe {
-                            followsViewModel.saveUserFeed(currentFeed)
+                            viewModel.saveUserFeed(currentFeed)
                                 .observeOn(AndroidSchedulers.mainThread())
                                 .subscribeBy(
                                     onComplete = {
@@ -408,7 +414,7 @@ class FollowsFragment : Fragment() {
                     deleteFromYourFollowsMenuItem?.clicks()
                         ?.doOnNext { logcat { "deleteFromYourFollowsMenuItem.clicks.onNext" } }
                         ?.subscribe {
-                            followsViewModel.deleteUserFeed(currentFeed)
+                            viewModel.deleteUserFeed(currentFeed)
                                 .observeOn(AndroidSchedulers.mainThread())
                                 .subscribeBy(
                                     onComplete = {
@@ -437,7 +443,7 @@ class FollowsFragment : Fragment() {
                     subscribeToFeedMenuItem?.clicks()
                         ?.doOnNext { logcat { "subscribeToFeedMenuItem.clicks.onNext" } }
                         ?.subscribe {
-                            followsViewModel.subscribeToFeed(currentFeed)
+                            viewModel.subscribeToFeed(currentFeed)
                                 .observeOn(AndroidSchedulers.mainThread())
                                 .subscribeBy(
                                     onComplete = {
@@ -465,7 +471,7 @@ class FollowsFragment : Fragment() {
                     unsubscribeFromFeedMenuItem?.clicks()
                         ?.doOnNext { logcat { "unsubscribeFromFeedMenuItem.clicks.onNext" } }
                         ?.subscribe {
-                            followsViewModel.unsubscribeFromFeed(currentFeed)
+                            viewModel.unsubscribeFromFeed(currentFeed)
                                 .observeOn(AndroidSchedulers.mainThread())
                                 .subscribeBy(
                                     onComplete = {

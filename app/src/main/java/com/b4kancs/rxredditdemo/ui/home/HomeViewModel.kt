@@ -24,6 +24,7 @@ import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.addTo
 import io.reactivex.rxjava3.kotlin.subscribeBy
 import io.reactivex.rxjava3.observables.ConnectableObservable
+import io.reactivex.rxjava3.subjects.BehaviorSubject
 import io.reactivex.rxjava3.subjects.PublishSubject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import logcat.LogPriority
@@ -33,6 +34,8 @@ import org.koin.java.KoinJavaComponent.inject
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeViewModel : ViewModel(), PostPagingDataObservableProvider, FavoritesProvider {
 
+    enum class HomeUiStates { NORMAL, LOADING, ERROR_404, ERROR_GENERIC, NO_CONTENT }
+
     private val favoritePostsRepository: FavoritePostsRepository by inject(FavoritePostsRepository::class.java)
     private val subredditRepository: SubredditRepository by inject(SubredditRepository::class.java)
     private lateinit var subredditAddress: String
@@ -41,6 +44,7 @@ class HomeViewModel : ViewModel(), PostPagingDataObservableProvider, FavoritesPr
     val selectedSubredditChangedPublishSubject: PublishSubject<Subreddit> = PublishSubject.create()
     val selectedSubredditReplayObservable: ConnectableObservable<Subreddit> = selectedSubredditChangedPublishSubject.replay(1)
     val subredditSearchResultsChangedSubject: PublishSubject<List<Subreddit>> = PublishSubject.create()
+    val uiStateBehaviorSubject: BehaviorSubject<HomeUiStates> = BehaviorSubject.createDefault(HomeUiStates.LOADING)
 
     val subredditPostsCachedPagingObservable: Observable<PagingData<Post>>
     var isAppJustStarted = true

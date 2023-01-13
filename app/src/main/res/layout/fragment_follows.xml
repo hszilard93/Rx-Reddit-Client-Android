@@ -30,7 +30,7 @@
             android:src="@drawable/im_error_404" />
 
         <com.google.android.material.textview.MaterialTextView
-            android:id="@+id/text_view_follows_no_media"
+            android:id="@+id/text_view_follows_error"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_margin="24dp"

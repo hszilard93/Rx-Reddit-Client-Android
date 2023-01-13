@@ -182,11 +182,6 @@ class MainActivity : AppCompatActivity() {
         val adapter = FollowsDrawerListAdapter(this, followsViewModel)
         binding.listViewDrawerSubreddits.adapter = adapter
 
-        followsViewModel.getFollowsChangedSubject()
-            .observeOn(AndroidSchedulers.mainThread())
-            .subscribe { adapter.notifyDataSetChanged() }
-            .addTo(disposables)
-
         followsViewModel.feedChangedBehaviorSubject
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe {

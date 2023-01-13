@@ -43,12 +43,11 @@ class FollowsDrawerSearchListAdapter(
         logcat(LogPriority.VERBOSE) { "getView: position = $position" }
 
         val inflater = LayoutInflater.from(c)
-        val binding: ListItemDrawerSearchBinding = if (convertView == null) {
-            ListItemDrawerSearchBinding.inflate(inflater, parent, false)
-        }
-        else {
-            ListItemDrawerSearchBinding.bind(convertView)
-        }
+        val binding: ListItemDrawerSearchBinding =
+            if (convertView == null)
+                ListItemDrawerSearchBinding.inflate(inflater, parent, false)
+            else
+                ListItemDrawerSearchBinding.bind(convertView)
 
         val feed = feeds[position]
         with(binding) {

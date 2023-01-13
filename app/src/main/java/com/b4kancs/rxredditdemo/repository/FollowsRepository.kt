@@ -27,6 +27,11 @@ class FollowsRepository {
     private val followsDatabase: FollowsDatabase by inject(FollowsDatabase::class.java)
     private val disposables = CompositeDisposable()
 
+    init {
+        followsChangedSubject
+            .doOnNext { logcat { "followsChangedSubject.onNext" } }
+    }
+
     fun getAllFollowsFromDb(): Single<List<UserFeed>> {
         logcat { "getAllFollowsFromDb" }
         return followsDatabase.followsDao().getFollowedUsers()
@@ -36,13 +41,17 @@ class FollowsRepository {
                 areThereFollowedUsersBehaviourSubject.let {
                     if (follows.isNotEmpty() != it.value) it.onNext(follows.isNotEmpty())
                 }
+                // A bit of self-correction.
+                follows
+                    .filter { it.status == UserFeed.Status.NOT_IN_DB }
+                    .forEach { saveUserFeedToDb(it) }    // Updates the user with correct status. TODO Remove
             }
             .doOnError { e ->
                 logcat(LogPriority.ERROR) { "Could not get followed users from DB! Message: ${e.message}" }
             }
     }
 
-    fun addUserFeedToDb(userFeed: UserFeed): Completable {
+    fun saveUserFeedToDb(userFeed: UserFeed): Completable {
         logcat(LogPriority.INFO) { "addFollowedUserToDb: post = ${userFeed.name}" }
         return followsDatabase.followsDao().insertFollowedUser(userFeed)
             .subscribeOn(Schedulers.io())

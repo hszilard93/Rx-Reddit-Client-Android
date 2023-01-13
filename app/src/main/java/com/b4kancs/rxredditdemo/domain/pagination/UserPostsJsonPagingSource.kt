@@ -54,6 +54,7 @@ class UserPostsJsonPagingSource(private val userFeed: UserFeed?) : RxPagingSourc
                     .map { fromJsonPostDataModel(it.data) }
                     .filter { it.links != null }        // The 'links' of all posts that are not picture or gallery posts is null
             }
+            // Not specifying the Type here causes a 'type mismatch' error that made me run in circles for a while..
             .map<LoadResult<String, Post>> { posts ->
                 LoadResult.Page(
                     data = posts,

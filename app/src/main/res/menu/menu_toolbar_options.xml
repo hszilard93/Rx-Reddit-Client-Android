@@ -5,59 +5,61 @@
 
         <item
             android:id="@+id/menu_item_toolbar_subreddit_set_default"
-            android:title="@string/string_common_action_set_as_default_sub" />
+            android:title="@string/string_home_action_set_as_default_sub" />
 
         <item
             android:id="@+id/menu_item_toolbar_subreddit_remove"
-            android:title="@string/string_common_action_remove_from_your" />
+            android:title="@string/string_home_action_remove_from_your" />
 
         <item
             android:id="@+id/menu_item_toolbar_subreddit_add_to_your"
-            android:title="@string/string_common_action_subreddit_add_to_your" />
+            android:title="@string/string_home_action_subreddit_add_to_your" />
 
         <item
             android:id="@+id/menu_item_toolbar_subreddit_add_to_favorites"
-            android:title="@string/string_common_action_subreddit_add_to_favorites" />
+            android:title="@string/string_home_action_subreddit_add_to_favorites" />
 
         <item
             android:id="@+id/menu_item_toolbar_subreddit_remove_from_favorites"
-            android:title="@string/string_common_action_subreddit_remove_from_favorites" />
+            android:title="@string/string_home_action_subreddit_remove_from_favorites" />
 
         <item
             android:id="@+id/menu_item_toolbar_subreddit_delete"
-            android:title="@string/string_common_action_delete_subreddit" />
+            android:title="@string/string_home_action_delete_subreddit" />
     </group>
 
     <group android:id="@+id/menu_group_toolbar_favorites_actions">
 
         <item
             android:id="@+id/menu_item_toolbar_favorites_delete_all"
-            android:title="@string/string_toolbar_menu_favorites_action_delete_all" />
-    </group>
-
-    <group android:id="@+id/menu_group_toolbar_app_actions">
-
-        <item
-            android:id="@+id/menu_item_toolbar_settings"
-            android:title="@string/string_toolbar_menu_action_settings" />
+            android:title="@string/string_favorites_action_delete_all" />
     </group>
 
     <group android:id="@+id/menu_group_toolbar_follows_actions">
 
         <item
             android:id="@+id/menu_item_toolbar_follows_add"
-            android:title="Add user feed to Your follows" />
+            android:title="@string/string_follows_action_add_user" />
 
         <item
             android:id="@+id/menu_item_toolbar_follows_delete"
-            android:title="Delete user feed from Your follows" />
+            android:title="@string/string_follows_action_delete_user" />
 
         <item
             android:id="@+id/menu_item_toolbar_follows_subscribe"
-            android:title="Subscribe to user feed" />
+            android:title="@string/string_follows_action_subscribe" />
 
         <item
             android:id="@+id/menu_item_toolbar_follows_unsubscribe"
-            android:title="Unsubscribe from user feed" />
+            android:title="@string/string_follows_action_unsubscribe" />
+    </group>
+
+
+
+    <group android:id="@+id/menu_group_toolbar_app_actions">
+
+        <item
+            android:id="@+id/menu_item_toolbar_settings"
+            android:title="@string/string_common_action_settings" />
     </group>
 </menu>

@@ -660,7 +660,7 @@ class PostViewerAdapter(
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe {
                     val popupView = LayoutInflater.from(context)
-                        .inflate(R.layout.popup_post_options, binding.root, false)
+                        .inflate(R.layout.popup_post_viewer_options, binding.root, false)
                     val popupWindow = PopupWindow(
                         popupView,
                         WindowManager.LayoutParams.WRAP_CONTENT,
