@@ -21,6 +21,7 @@ import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.databinding.FragmentPostViewerBinding
 import com.b4kancs.rxredditdemo.ui.PostPagingDataObservableProvider
 import com.b4kancs.rxredditdemo.ui.favorites.FavoritesViewModel
+import com.b4kancs.rxredditdemo.ui.follows.FollowsFragment
 import com.b4kancs.rxredditdemo.ui.follows.FollowsViewModel
 import com.b4kancs.rxredditdemo.ui.home.HomeViewModel
 import com.b4kancs.rxredditdemo.ui.main.MainActivity
@@ -55,6 +56,7 @@ class PostViewerFragment : Fragment() {
     private var _binding: FragmentPostViewerBinding? = null
     private val binding: FragmentPostViewerBinding get() = _binding!!
     private lateinit var viewModel: PostViewerViewModel
+    private var previousFragmentName: String? = null
     private lateinit var delayedEnterTransitionTriggerDisposable: Disposable
     private var currentPosition = 0     // This gets recovered when the Fragment gets restored from the BackStack
 
@@ -112,6 +114,7 @@ class PostViewerFragment : Fragment() {
         logcat { "onViewCreated" }
 
         val isSlideShowOngoing = savedInstanceState?.getBoolean(SAVED_STATE_SLIDESHOW_KEY) ?: false
+        previousFragmentName = findNavController().previousBackStackEntry?.destination?.displayName
         setUpViewPager(isSlideShowOngoing)
     }
 
@@ -168,7 +171,8 @@ class PostViewerFragment : Fragment() {
             requireContext(),
             viewModel,
             onPositionChangedCallback,
-            isSlideShowOnGoing
+            isSlideShowOnGoing,
+            shouldShowNavigationToFollowsOption = previousFragmentName?.contains("follows", ignoreCase = true)?.not() ?: true
         )
 
         with(binding) {
@@ -198,6 +202,7 @@ class PostViewerFragment : Fragment() {
                         }
                         .launchIn(MainScope())
                 }
+                .addTo(disposables)
 
             postViewerAdapter.readyToBeDrawnSubject
                 .observeOn(AndroidSchedulers.mainThread())
@@ -306,10 +311,10 @@ class PostViewerFragment : Fragment() {
     // Apparently, this is the simplest way to customize the scrolling speed of a ViewPager2...
     // Code based on https://stackoverflow.com/a/73318028.
     private fun ViewPager2.customSetCurrentItem(
-            item: Int,
-            duration: Long,
-            interpolator: TimeInterpolator = AccelerateDecelerateInterpolator(),
-            pagePxWidth: Int = width
+        item: Int,
+        duration: Long,
+        interpolator: TimeInterpolator = AccelerateDecelerateInterpolator(),
+        pagePxWidth: Int = width
     ) {
         logcat { "customSetCurrentItem" }
         val pxToDrag: Int = pagePxWidth * (item - currentItem)

@@ -1,4 +1,4 @@
-package com.b4kancs.rxredditdemo.ui.drawer
+package com.b4kancs.rxredditdemo.ui.home
 
 import android.content.Context
 import android.view.*
@@ -9,7 +9,6 @@ import androidx.core.view.isVisible
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.model.Subreddit
 import com.b4kancs.rxredditdemo.model.Subreddit.Status
-import com.b4kancs.rxredditdemo.ui.home.HomeViewModel
 import com.b4kancs.rxredditdemo.ui.uiutils.SnackType
 import com.b4kancs.rxredditdemo.ui.uiutils.dpToPixel
 import com.b4kancs.rxredditdemo.ui.uiutils.makeSnackBar

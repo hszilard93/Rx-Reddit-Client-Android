@@ -1,4 +1,4 @@
-package com.b4kancs.rxredditdemo.ui.drawer
+package com.b4kancs.rxredditdemo.ui.follows
 
 import android.content.Context
 import android.view.LayoutInflater
@@ -8,7 +8,6 @@ import android.widget.ArrayAdapter
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.databinding.ListItemDrawerSearchBinding
 import com.b4kancs.rxredditdemo.model.UserFeed
-import com.b4kancs.rxredditdemo.ui.follows.FollowsViewModel
 import com.jakewharton.rxbinding4.view.clicks
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.disposables.CompositeDisposable
@@ -76,7 +75,7 @@ class FollowsDrawerSearchListAdapter(
                     .doOnNext { logcat(LogPriority.INFO) { "imageViewDrawerListItemActionSearch.clicks.onNext" } }
                     .subscribe {
                         when (feed.status) {
-                            UserFeed.Status.NOT_IN_DB -> viewModel.saveUserFeed(feed)
+                            UserFeed.Status.NOT_IN_DB -> viewModel.addUserFeed(feed)
                             UserFeed.Status.FOLLOWED -> viewModel.subscribeToFeed(feed)
                             UserFeed.Status.SUBSCRIBED -> viewModel.unsubscribeFromFeed(feed)
                             UserFeed.Status.AGGREGATE -> throw IllegalStateException("AGGREGATE feed in search results!")

@@ -52,4 +52,5 @@
     <string name="string_follows_snack_deleted">No longer following %1$s!</string>
     <string name="string_follows_snack_subscribed">Subscribed for notifications to %1$s\'s posts!</string>
     <string name="string_follows_snack_unsubscribed">Unsubscribed from %1$s\'s post notifications!</string>
+    <string name="string_follows_no_posts_aggregate">You aren\'t following any users yet, so there is nothing to show here. Here\'s a cat instead!</string>
 </resources>

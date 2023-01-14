@@ -23,6 +23,8 @@ import com.b4kancs.rxredditdemo.ui.shared.PostsVerticalRvAdapter
 import com.b4kancs.rxredditdemo.ui.uiutils.CustomLinearLayoutManager
 import com.b4kancs.rxredditdemo.ui.uiutils.SnackType
 import com.b4kancs.rxredditdemo.ui.uiutils.makeSnackBar
+import com.google.android.material.appbar.AppBarLayout
+import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.jakewharton.rxbinding4.view.clicks
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Observable
@@ -203,6 +205,25 @@ class FollowsFragment : Fragment() {
                             progressBarFollowsLarge.isVisible = false
                             rvFollowsPosts.isVisible = false
                         }
+                        FollowsUiStates.NO_CONTENT_AGGREGATE -> {
+                            val errorMessage = getString(R.string.string_follows_no_posts_aggregate)
+                            val errorImageId = R.drawable.im_error_no_content_cat
+                            linearLayoutFollowsErrorContainer.isVisible = true
+                            textViewFollowsError.text = errorMessage
+                            imageViewFollowsError.setImageResource(errorImageId)
+                            progressBarFollowsLarge.isVisible = false
+                            rvFollowsPosts.isVisible = false
+                        }
+                    }
+
+                    if (uiState in setOf(
+                            FollowsUiStates.ERROR_GENERIC,
+                            FollowsUiStates.ERROR_404,
+                            FollowsUiStates.NO_CONTENT,
+                            FollowsUiStates.NO_CONTENT_AGGREGATE
+                        )) {
+                        (activity as MainActivity).expandAppBar()
+                        (activity as MainActivity).expandBottomNavBar()
                     }
                 }
             }.addTo(disposables)
@@ -283,7 +304,10 @@ class FollowsFragment : Fragment() {
                         }
                     }
                     else {
-                        viewModel.uiStateBehaviorSubject.onNext(FollowsUiStates.NO_CONTENT)
+                        if (viewModel.currentUserFeed.status == UserFeed.Status.AGGREGATE)
+                            viewModel.uiStateBehaviorSubject.onNext(FollowsUiStates.NO_CONTENT_AGGREGATE)
+                        else
+                            viewModel.uiStateBehaviorSubject.onNext(FollowsUiStates.NO_CONTENT)
                     }
                 }.launchIn(MainScope())
 
@@ -384,7 +408,7 @@ class FollowsFragment : Fragment() {
                     addToYourFollowsMenuItem?.clicks()
                         ?.doOnNext { logcat { "addToYourFollowsMenuItem.clicks.onNext" } }
                         ?.subscribe {
-                            viewModel.saveUserFeed(currentFeed)
+                            viewModel.addUserFeed(currentFeed)
                                 .observeOn(AndroidSchedulers.mainThread())
                                 .subscribeBy(
                                     onComplete = {

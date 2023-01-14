@@ -1,4 +1,4 @@
-package com.b4kancs.rxredditdemo.ui.drawer
+package com.b4kancs.rxredditdemo.ui.home
 
 import android.annotation.SuppressLint
 import android.content.Context
@@ -9,7 +9,6 @@ import android.widget.ArrayAdapter
 import android.widget.ImageView
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.model.Subreddit
-import com.b4kancs.rxredditdemo.ui.home.HomeViewModel
 import com.b4kancs.rxredditdemo.ui.uiutils.SnackType
 import com.b4kancs.rxredditdemo.ui.uiutils.makeSnackBar
 import com.google.android.material.textview.MaterialTextView

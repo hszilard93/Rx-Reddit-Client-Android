@@ -26,6 +26,7 @@ import com.b4kancs.rxredditdemo.ui.uiutils.SnackType
 import com.b4kancs.rxredditdemo.ui.uiutils.makeSnackBar
 import com.jakewharton.rxbinding4.view.clicks
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
+import io.reactivex.rxjava3.core.Maybe
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.core.Single
 import io.reactivex.rxjava3.disposables.CompositeDisposable
@@ -346,6 +347,15 @@ class HomeFragment : Fragment() {
                             rvHomePosts.isVisible = false
                         }
                     }
+
+                    if (uiState in setOf(
+                            HomeUiStates.ERROR_404,
+                            HomeUiStates.ERROR_GENERIC,
+                            HomeUiStates.NO_CONTENT
+                        )) {
+                        (activity as MainActivity).expandAppBar()
+                        (activity as MainActivity).expandBottomNavBar()
+                    }
                 }
             }.addTo(disposables)
     }
@@ -398,7 +408,7 @@ class HomeFragment : Fragment() {
                 .subscribe { currentSub ->
                     // The sub from the selectedSubredditReplayObservable may not reflect changes in Status, only the DB is always up to date.
                     viewModel.getSubredditByAddress(currentSub.address)
-                        .onErrorResumeWith { Single.just(currentSub) }
+                        .onErrorResumeWith { Maybe.just(currentSub) }
                         .observeOn(AndroidSchedulers.mainThread())
                         .subscribe { updatedSub ->
                             val removeFromYourMenuItem = menuItems
@@ -434,7 +444,7 @@ class HomeFragment : Fragment() {
                 .subscribe { currentSub ->
                     // The sub from the selectedSubredditReplayObservable may not reflect changes in Status, only the DB is always up to date.
                     viewModel.getSubredditByAddress(currentSub.address)
-                        .onErrorResumeWith { Single.just(currentSub) }
+                        .onErrorResumeWith { Maybe.just(currentSub) }
                         .observeOn(AndroidSchedulers.mainThread())
                         .subscribe { updatedSub ->
                             val deleteSubMenuItem = menuItems
@@ -472,7 +482,7 @@ class HomeFragment : Fragment() {
                 .subscribe { currentSub ->
                     // The sub from the selectedSubredditReplayObservable may not reflect changes in Status, only the DB is always up to date.
                     viewModel.getSubredditByAddress(currentSub.address)
-                        .onErrorResumeWith { Single.just(currentSub) }
+                        .onErrorResumeWith { Maybe.just(currentSub) }
                         .observeOn(AndroidSchedulers.mainThread())
                         .subscribe { updatedSub ->
                             val addToYourSubsMenuItem = menuItems
@@ -508,7 +518,7 @@ class HomeFragment : Fragment() {
                 .subscribe { currentSub ->
                     // The sub from the selectedSubredditReplayObservable may not reflect changes in Status, only the DB is always up to date.
                     viewModel.getSubredditByAddress(currentSub.address)
-                        .onErrorResumeWith { Single.just(currentSub) }
+                        .onErrorResumeWith { Maybe.just(currentSub) }
                         .observeOn(AndroidSchedulers.mainThread())
                         .subscribe { updatedSub ->
                             val addToFavoritesMenuItem = menuItems
@@ -545,7 +555,7 @@ class HomeFragment : Fragment() {
                 .subscribe { currentSub ->
                     // The sub from the selectedSubredditReplayObservable may not reflect changes in Status, only the DB is always up to date.
                     viewModel.getSubredditByAddress(currentSub.address)
-                        .onErrorResumeWith { Single.just(currentSub) }
+                        .onErrorResumeWith { Maybe.just(currentSub) }
                         .observeOn(AndroidSchedulers.mainThread())
                         .subscribe { updatedSub ->
                             val removeFromFavoritesMenuItem = menuItems

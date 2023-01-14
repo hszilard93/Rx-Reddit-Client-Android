@@ -1,4 +1,4 @@
-package com.b4kancs.rxredditdemo.ui.drawer
+package com.b4kancs.rxredditdemo.ui.follows
 
 import android.content.Context
 import android.view.*
@@ -11,7 +11,6 @@ import com.b4kancs.rxredditdemo.databinding.ListItemDrawerFollowsBinding
 import com.b4kancs.rxredditdemo.databinding.PopupDrawerFollowsOptionsBinding
 import com.b4kancs.rxredditdemo.model.UserFeed
 import com.b4kancs.rxredditdemo.model.UserFeed.Status
-import com.b4kancs.rxredditdemo.ui.follows.FollowsViewModel
 import com.b4kancs.rxredditdemo.ui.uiutils.SnackType
 import com.b4kancs.rxredditdemo.ui.uiutils.dpToPixel
 import com.b4kancs.rxredditdemo.ui.uiutils.makeSnackBar

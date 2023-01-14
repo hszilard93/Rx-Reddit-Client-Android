@@ -28,7 +28,7 @@ import org.koin.java.KoinJavaComponent.inject
 
 class FollowsViewModel : ViewModel(), PostPagingDataObservableProvider {
 
-    enum class FollowsUiStates { NORMAL, LOADING, ERROR_404, ERROR_GENERIC, NO_CONTENT }
+    enum class FollowsUiStates { NORMAL, LOADING, ERROR_404, ERROR_GENERIC, NO_CONTENT, NO_CONTENT_AGGREGATE }
 
     private val followsRepository: FollowsRepository by inject(FollowsRepository::class.java)
 
@@ -45,7 +45,6 @@ class FollowsViewModel : ViewModel(), PostPagingDataObservableProvider {
     init {
         logcat { "init" }
 
-//        selectedUserFeedReplayObservable.connect()
         feedChangedBehaviorSubject.doOnNext { logcat(LogPriority.INFO) { "selectedUserFeedChangedSubject.onNext" } }
 
         val pager = Pager(
@@ -59,7 +58,6 @@ class FollowsViewModel : ViewModel(), PostPagingDataObservableProvider {
             .cachedIn(this.viewModelScope)
     }
 
-
     fun getAllUserFeeds(): Single<List<UserFeed>> {
         logcat { "getAllUserFeeds" }
         return followsRepository.getAllFollowsFromDb()
@@ -70,35 +68,27 @@ class FollowsViewModel : ViewModel(), PostPagingDataObservableProvider {
         return followsRepository.getUserFeedFromDbByName(name)
     }
 
-    fun saveUserFeed(userFeed: UserFeed): Completable {
-        logcat { "saveUserFeed: userFeed = $userFeed" }
-        return followsRepository.saveUserFeedToDb(userFeed)
-            .doOnComplete {
-                followsRepository.followsChangedSubject.onNext(Unit)
-            }
+    fun addUserFeed(userFeed: UserFeed): Completable {
+        logcat { "addUserFeed: userFeed = ${userFeed.name}" }
+        val newFeed = UserFeed(userFeed.name, UserFeed.Status.FOLLOWED)
+        return followsRepository.saveUserFeedToDb(newFeed)
     }
 
     fun deleteUserFeed(userFeed: UserFeed): Completable {
         logcat { "deleteUserFeed: userFeed = ${userFeed.name}" }
         return followsRepository.deleteUserFeedFromDb(userFeed)
-            .doOnComplete {
-                val newFeed = UserFeed(userFeed.name, UserFeed.Status.NOT_IN_DB)
-                followsRepository.followsChangedSubject.onNext(Unit)
-            }
     }
 
     fun subscribeToFeed(userFeed: UserFeed): Completable {
         logcat { "subscribeToFeed: userFeed = ${userFeed.name}" }
         val newFeed = UserFeed(userFeed.name, UserFeed.Status.SUBSCRIBED)
-        return saveUserFeed(newFeed)
-            .doOnComplete { followsRepository.followsChangedSubject.onNext(Unit) }
+        return followsRepository.saveUserFeedToDb(newFeed)
     }
 
     fun unsubscribeFromFeed(userFeed: UserFeed): Completable {
         logcat { "unsubscribeFromFeed: userFeed = ${userFeed.name}" }
         val newFeed = UserFeed(userFeed.name, UserFeed.Status.FOLLOWED)
-        return saveUserFeed(newFeed)
-            .doOnComplete { followsRepository.followsChangedSubject.onNext(Unit) }
+        return followsRepository.saveUserFeedToDb(newFeed)
     }
 
     fun setUserFeedTo(userName: String): Completable {

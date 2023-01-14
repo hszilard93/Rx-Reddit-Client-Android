@@ -57,7 +57,8 @@ class PostViewerAdapter(
     private val viewModel: PostViewerViewModel,
     // This is how the ViewPager scrolls to the next/previous ViewHolder.
     private val onPositionChangedCallback: (Int) -> Unit,
-    isSlideShowOnGoing: Boolean = false
+    isSlideShowOnGoing: Boolean = false,
+    private val shouldShowNavigationToFollowsOption: Boolean = true
 ) : PagingDataAdapter<Post, PostViewerAdapter.PostViewerViewHolder>(PostComparator) {
     companion object {
         private const val SLIDESHOW_INTERVAL_KEY = "slideshowInterval"
@@ -294,6 +295,7 @@ class PostViewerAdapter(
                 .subscribe {
                     autoHideHudTimerDisposable?.dispose()
                 }
+                .addTo(disposables)
         }
 
         fun showNextInGallery(): Boolean {
@@ -758,6 +760,7 @@ class PostViewerAdapter(
                     val goToUserSubmissionTextView = popupView.findViewById<MaterialTextView>(R.id.text_view_post_popup_option_go_to_user)
                         .apply {
                             text = context.getString(R.string.string_post_popup_action_go_to_user, post.author)
+                            isVisible = this@PostViewerAdapter.shouldShowNavigationToFollowsOption
                             clicks()
                                 .observeOn(AndroidSchedulers.mainThread())
                                 .subscribe {

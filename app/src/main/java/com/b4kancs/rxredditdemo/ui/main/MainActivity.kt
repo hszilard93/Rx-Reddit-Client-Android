@@ -7,6 +7,8 @@ import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AppCompatActivity
+import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.coordinatorlayout.widget.CoordinatorLayout
 import androidx.core.view.*
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.navigation.NavController
@@ -17,16 +19,18 @@ import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.navigation.ui.setupWithNavController
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.databinding.ActivityMainBinding
-import com.b4kancs.rxredditdemo.ui.drawer.FollowsDrawerListAdapter
-import com.b4kancs.rxredditdemo.ui.drawer.FollowsDrawerSearchListAdapter
-import com.b4kancs.rxredditdemo.ui.drawer.SubredditsDrawerListAdapter
-import com.b4kancs.rxredditdemo.ui.drawer.SubredditsDrawerSearchListAdapter
+import com.b4kancs.rxredditdemo.ui.follows.FollowsDrawerListAdapter
+import com.b4kancs.rxredditdemo.ui.follows.FollowsDrawerSearchListAdapter
 import com.b4kancs.rxredditdemo.ui.follows.FollowsViewModel
 import com.b4kancs.rxredditdemo.ui.home.HomeViewModel
+import com.b4kancs.rxredditdemo.ui.home.SubredditsDrawerListAdapter
+import com.b4kancs.rxredditdemo.ui.home.SubredditsDrawerSearchListAdapter
 import com.b4kancs.rxredditdemo.ui.uiutils.ANIMATION_DURATION_LONG
 import com.b4kancs.rxredditdemo.ui.uiutils.ANIMATION_DURATION_SHORT
 import com.b4kancs.rxredditdemo.ui.uiutils.animateViewHeightChange
 import com.b4kancs.rxredditdemo.ui.uiutils.dpToPixel
+import com.google.android.material.behavior.HideBottomViewOnScrollBehavior
+import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.jakewharton.rxbinding4.widget.SearchViewQueryTextEvent
 import com.jakewharton.rxbinding4.widget.queryTextChangeEvents
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
@@ -40,6 +44,7 @@ import org.koin.androidx.viewmodel.ext.android.viewModel
 import java.util.concurrent.TimeUnit
 import kotlin.math.abs
 import kotlin.math.min
+
 
 class MainActivity : AppCompatActivity() {
     val viewModel: MainViewModel by viewModel()
@@ -283,11 +288,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun <T> setUpGenericDrawerSearchView(
-            searchListAdapter: ArrayAdapter<T>,
-            title: String,
-            queryHint: String,
-            queryTextChangeEventHandlerDisposable: Observable<SearchViewQueryTextEvent>.() -> Disposable,
-            searchResultsChangedObservable: Observable<List<T>>
+        searchListAdapter: ArrayAdapter<T>,
+        title: String,
+        queryHint: String,
+        queryTextChangeEventHandlerDisposable: Observable<SearchViewQueryTextEvent>.() -> Disposable,
+        searchResultsChangedObservable: Observable<List<T>>
     ) {
         logcat { "setupSearchViewDrawer" }
 
@@ -325,16 +330,17 @@ class MainActivity : AppCompatActivity() {
                     redrawSearchResultsList()
                     // Keyboard layout animation listener
                     ViewCompat.setWindowInsetsAnimationCallback(listViewDrawerSearchResults,
-                        object : WindowInsetsAnimationCompat.Callback(DISPATCH_MODE_STOP) {
-                            override fun onProgress(
-                                    insets: WindowInsetsCompat, runningAnimations: MutableList<WindowInsetsAnimationCompat>
-                            ): WindowInsetsCompat = insets
+                                                                object : WindowInsetsAnimationCompat.Callback(DISPATCH_MODE_STOP) {
+                                                                    override fun onProgress(
+                                                                        insets: WindowInsetsCompat,
+                                                                        runningAnimations: MutableList<WindowInsetsAnimationCompat>
+                                                                    ): WindowInsetsCompat = insets
 
-                            override fun onEnd(animation: WindowInsetsAnimationCompat) {
-                                super.onEnd(animation)
-                                if (drawerMain.isDrawerVisible(linearMainDrawerOuter)) redrawSearchResultsList()
-                            }
-                        })
+                                                                    override fun onEnd(animation: WindowInsetsAnimationCompat) {
+                                                                        super.onEnd(animation)
+                                                                        if (drawerMain.isDrawerVisible(linearMainDrawerOuter)) redrawSearchResultsList()
+                                                                    }
+                                                                })
                 }
                 .addTo(disposables)
 
@@ -458,12 +464,27 @@ class MainActivity : AppCompatActivity() {
 
     private fun setNavIconBackPressedBehaviour() {
         logcat { "setAlternativeNavigationBehaviour" }
-//        binding.toolbarMain.navigationIcon = ResourcesCompat.getDrawable(resources, R.drawable.ic_baseline_arrow_back_24, theme)
         binding.toolbarMain.setNavigationOnClickListener { onBackPressed() }
     }
 
     private fun setNavIconDrawerBehaviour() {
         logcat { "resetNavigationBehaviour" }
         binding.toolbarMain.setNavigationOnClickListener { binding.drawerMain.open() }
+    }
+
+    fun expandAppBar() {
+        logcat { "expandAppBar" }
+        binding.appbarMain.setExpanded(true)
+    }
+
+    fun expandBottomNavBar() {
+        logcat { "expandAppBar" }
+
+        val layoutParams = (binding.bottomNavViewMain.parent as ConstraintLayout).layoutParams
+        val behavior = (layoutParams as CoordinatorLayout.LayoutParams).behavior
+        if (behavior is HideBottomViewOnScrollBehavior) {
+            // TODO Get the BottomNavBar slideUp behaviour to work.
+            (behavior as HideBottomViewOnScrollBehavior<BottomNavigationView>).slideUp(binding.bottomNavViewMain)
+        }
     }
 }
