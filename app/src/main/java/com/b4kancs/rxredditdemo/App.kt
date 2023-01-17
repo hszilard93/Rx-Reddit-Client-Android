@@ -7,6 +7,7 @@ import com.b4kancs.rxredditdemo.data.database.FollowsRoomDatabase
 import com.b4kancs.rxredditdemo.data.database.SubredditRoomDatabase
 import com.b4kancs.rxredditdemo.data.networking.RedditJsonClient
 import com.b4kancs.rxredditdemo.data.networking.RedditJsonService
+import com.b4kancs.rxredditdemo.domain.pagination.AggregateFeedLoader
 import com.b4kancs.rxredditdemo.repository.FavoritePostsRepository
 import com.b4kancs.rxredditdemo.repository.FollowsRepository
 import com.b4kancs.rxredditdemo.repository.SubredditRepository
@@ -35,6 +36,10 @@ import retrofit2.converter.gson.GsonConverterFactory
 class App : Application() {
 
     private val appModule = module {
+        single {
+            logcat { "Koin providing application Context." }
+            applicationContext
+        }
         single {
             logcat { "Koin providing Single RedditJsonService instance." }
             createRedditJsonServiceInstance()
@@ -71,6 +76,11 @@ class App : Application() {
             logcat { "Koin providing Single RedditJsonClient object." }
             return@single RedditJsonClient
         }
+        single {
+            logcat { "Koin providing Single AggregateFeedLoader object." }
+            return@single AggregateFeedLoader
+        }
+
         viewModel {
             logcat { "Koin providing ViewModel MainViewModel instance." }
             MainViewModel()

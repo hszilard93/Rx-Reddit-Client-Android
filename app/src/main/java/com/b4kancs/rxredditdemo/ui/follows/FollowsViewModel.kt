@@ -45,7 +45,9 @@ class FollowsViewModel : ViewModel(), PostPagingDataObservableProvider {
     init {
         logcat { "init" }
 
-        feedChangedBehaviorSubject.doOnNext { logcat(LogPriority.INFO) { "selectedUserFeedChangedSubject.onNext" } }
+        feedChangedBehaviorSubject
+            .subscribe { logcat(LogPriority.INFO) { "feedChangedPublishSubject.onNext" } }
+            .addTo(disposables)
 
         val pager = Pager(
             PagingConfig(
@@ -53,7 +55,10 @@ class FollowsViewModel : ViewModel(), PostPagingDataObservableProvider {
                 prefetchDistance = 5,
                 initialLoadSize = UserPostsJsonPagingSource.PAGE_SIZE
             )
-        ) { UserPostsJsonPagingSource(currentUserFeed) }
+        ) {
+            logcat { "Follows pager pagingSourceFactory method called." }
+            UserPostsJsonPagingSource(currentUserFeed)
+        }
         postsCachedPagingObservable = pager.observable
             .cachedIn(this.viewModelScope)
     }

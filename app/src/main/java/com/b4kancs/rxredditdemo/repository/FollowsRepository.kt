@@ -1,5 +1,7 @@
 package com.b4kancs.rxredditdemo.repository
 
+import android.content.Context
+import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.data.database.FollowsDatabase
 import com.b4kancs.rxredditdemo.model.UserFeed
 import io.reactivex.rxjava3.core.Completable
@@ -18,7 +20,9 @@ import org.koin.java.KoinJavaComponent.inject
 class FollowsRepository {
 
     companion object {
-        val defaultUserFeed = UserFeed("All your follows", UserFeed.Status.AGGREGATE)
+        private val applicationContext: Context by inject(Context::class.java)
+        private val defaultUserFeedName = applicationContext.getString(R.string.string_follows_default_feed_name)
+        val defaultUserFeed = UserFeed(defaultUserFeedName, UserFeed.Status.AGGREGATE)
     }
 
     val followsChangedSubject: PublishSubject<Unit> = PublishSubject.create()

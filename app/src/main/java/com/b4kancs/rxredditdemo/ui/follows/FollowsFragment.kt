@@ -23,11 +23,10 @@ import com.b4kancs.rxredditdemo.ui.shared.PostsVerticalRvAdapter
 import com.b4kancs.rxredditdemo.ui.uiutils.CustomLinearLayoutManager
 import com.b4kancs.rxredditdemo.ui.uiutils.SnackType
 import com.b4kancs.rxredditdemo.ui.uiutils.makeSnackBar
-import com.google.android.material.appbar.AppBarLayout
-import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.jakewharton.rxbinding4.view.clicks
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Observable
+import io.reactivex.rxjava3.core.Single
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.kotlin.addTo
@@ -45,6 +44,8 @@ import retrofit2.HttpException
 import java.util.concurrent.TimeUnit
 
 class FollowsFragment : Fragment() {
+
+    // TODO Implement RVFlickerEliminator2000(TM) just as in the HomeFragment
 
     private val viewModel: FollowsViewModel by sharedViewModel()
     private val args: FollowsFragmentArgs by navArgs()
@@ -65,7 +66,6 @@ class FollowsFragment : Fragment() {
         }
 
         isJustCreated = true
-
         super.onCreate(savedInstanceState)
     }
 
@@ -97,6 +97,7 @@ class FollowsFragment : Fragment() {
             .addTo(disposables)
 
         setUpRecyclerView()
+        setUpLoadingStateAndErrorHandler(binding.rvFollowsPosts.adapter as PostsVerticalRvAdapter)
         if (isJustCreated) {
             setUpBehaviourDisposables()
         }
@@ -126,20 +127,29 @@ class FollowsFragment : Fragment() {
     }
 
     private fun setUpBehaviourDisposables() {
+        // This subscription is for refreshing the feed. Does not need to immediately execute upon subscription,
+        // hence the distinct until changed.
         viewModel.feedChangedBehaviorSubject
             .observeOn(AndroidSchedulers.mainThread())
             .filter { _binding != null && !isJustCreated }
-//            .filter {
-//                if (isJustCreated)
-//                    (binding.rvFollowsPosts.adapter as PostsVerticalRvAdapter).itemCount < 1
-//                else
-//                    true
-//            }
-//            .distinctUntilChanged()
+            .distinctUntilChanged()
             .doOnNext { logcat { "followsViewModel.feedChangedBehaviorSubject.onNext" } }
-            .subscribe { userFeed ->
+            .subscribe { _ ->
                 (binding.rvFollowsPosts.adapter as PostsVerticalRvAdapter).refresh()
-                (activity as MainActivity).supportActionBar?.title = "/u/${userFeed.name}"
+            }
+            .addTo(disposables)
+
+        // This subscription is to change the Fragment title. It does need to immediately execute with a starting value.
+        viewModel.feedChangedBehaviorSubject
+            .observeOn(AndroidSchedulers.mainThread())
+            .filter { _binding != null }
+            .startWithItem(viewModel.getDefaultUserFeed())
+            .subscribe { userFeed ->
+                (activity as MainActivity).supportActionBar?.title =
+                    if (userFeed.status == UserFeed.Status.AGGREGATE)
+                        userFeed.name
+                    else
+                        getString(R.string.string_follows_title_feed_name_template, userFeed.name)
             }
             .addTo(disposables)
 
@@ -276,41 +286,6 @@ class FollowsFragment : Fragment() {
                     }
                 }.addTo(disposables)
 
-            postsFollowsAdapter.loadStateFlow
-                .map { loadStates ->
-                    if (loadStates.refresh is LoadState.Error) {
-                        logcat(LogPriority.WARN) { "LoadState.Error detected." }
-                        val e = ((loadStates.refresh as LoadState.Error).error)
-                        if (e is HttpException && e.code() == 404)
-                            viewModel.uiStateBehaviorSubject.onNext(FollowsUiStates.ERROR_404)
-                        else
-                            viewModel.uiStateBehaviorSubject.onNext(FollowsUiStates.ERROR_GENERIC)
-                    }
-                    else if (loadStates.refresh is LoadState.Loading) {
-                        viewModel.uiStateBehaviorSubject.onNext(FollowsUiStates.LOADING)
-                    }
-                    loadStates
-                }
-                .filter { loadStates -> loadStates.refresh is LoadState.NotLoading }
-//                    .take(1)
-                .onEach {
-                    logcat(LogPriority.INFO) { "postFollowsAdapter.loadStateFlow.onEach loadStates.refresh == LoadState.NotLoading" }
-                    if (postsFollowsAdapter.itemCount > 1) {
-                        viewModel.uiStateBehaviorSubject.onNext(FollowsUiStates.NORMAL)
-
-                        positionToGoTo?.let { pos ->
-                            logcat(LogPriority.INFO) { "Scrolling to position: $pos" }
-                            rvFollowsPosts.scrollToPosition(pos)
-                        }
-                    }
-                    else {
-                        if (viewModel.currentUserFeed.status == UserFeed.Status.AGGREGATE)
-                            viewModel.uiStateBehaviorSubject.onNext(FollowsUiStates.NO_CONTENT_AGGREGATE)
-                        else
-                            viewModel.uiStateBehaviorSubject.onNext(FollowsUiStates.NO_CONTENT)
-                    }
-                }.launchIn(MainScope())
-
             postsFollowsAdapter.readyToBeDrawnSubject
                 .delay(200, TimeUnit.MILLISECONDS)
                 .observeOn(AndroidSchedulers.mainThread())
@@ -382,6 +357,43 @@ class FollowsFragment : Fragment() {
                 srlFollows.isRefreshing = false
             }
         }
+    }
+
+    // This where we handle the errors coming from the feed and set the uiState.
+    private fun setUpLoadingStateAndErrorHandler(postsFollowsAdapter: PostsVerticalRvAdapter) {
+        postsFollowsAdapter.loadStateFlow
+            .map { loadStates ->
+                if (loadStates.refresh is LoadState.Error) {
+                    logcat(LogPriority.WARN) { "LoadState.Error detected." }
+                    val e = ((loadStates.refresh as LoadState.Error).error)
+                    if (e is HttpException && e.code() == 404)
+                        viewModel.uiStateBehaviorSubject.onNext(FollowsUiStates.ERROR_404)
+                    else
+                        viewModel.uiStateBehaviorSubject.onNext(FollowsUiStates.ERROR_GENERIC)
+                }
+                else if (loadStates.refresh is LoadState.Loading) {
+                    viewModel.uiStateBehaviorSubject.onNext(FollowsUiStates.LOADING)
+                }
+                loadStates
+            }
+            .filter { loadStates -> loadStates.refresh is LoadState.NotLoading }
+            .onEach {
+                logcat(LogPriority.INFO) { "postFollowsAdapter.loadStateFlow.onEach loadStates.refresh == LoadState.NotLoading" }
+                if (postsFollowsAdapter.itemCount > 1) {
+                    viewModel.uiStateBehaviorSubject.onNext(FollowsUiStates.NORMAL)
+
+                    positionToGoTo?.let { pos ->
+                        logcat(LogPriority.INFO) { "Scrolling to position: $pos" }
+                        binding.rvFollowsPosts.scrollToPosition(pos)
+                    }
+                }
+                else {
+                    if (viewModel.currentUserFeed.status == UserFeed.Status.AGGREGATE)
+                        viewModel.uiStateBehaviorSubject.onNext(FollowsUiStates.NO_CONTENT_AGGREGATE)
+                    else
+                        viewModel.uiStateBehaviorSubject.onNext(FollowsUiStates.NO_CONTENT)
+                }
+            }.launchIn(MainScope())
     }
 
     private fun setUpOptionsMenu() {

@@ -37,13 +37,13 @@
     <string name="string_common_done">Done!</string>
     <string name="string_common_could_not_perform">Could not perform action :(</string>
     <string name="text_view_drawer_query_hint_subreddit">Add a new subreddit</string>
-    <string name="drawer_title_follows">Followed users</string>
     <string name="text_view_drawer_query_hint_follows">Go to user feed</string>
     <string name="string_follows_http_404_error_message">Uh-oh, it seems like this user doesn\'t exist! </string>
     <string name="string_common_network_error_message">Uh-oh, something went wrong! Please check your network connection or try again later!</string>
-    <string name="string_follows_no_posts_for_user">This user doesn\'t seem to have posted any image content yet. So here is a cat.</string>
     <string name="string_home_http_404_error_message">Uh-oh. This sub might not exist after all…</string>
     <string name="string_home_no_posts_in_sub">This sub doesn\'t seem to have any image posts. But here\'s a good boy instead!</string>
+    <string name="drawer_title_follows">Follows</string>
+    <string name="string_follows_no_posts_for_user">This user doesn\'t seem to have posted any image content yet. So here is a cat.</string>
     <string name="string_follows_action_add_user">Follow user</string>
     <string name="string_follows_action_delete_user">Unfollow user</string>
     <string name="string_follows_action_subscribe">Subscribe to user for notifications</string>
@@ -53,4 +53,6 @@
     <string name="string_follows_snack_subscribed">Subscribed for notifications to %1$s\'s posts!</string>
     <string name="string_follows_snack_unsubscribed">Unsubscribed from %1$s\'s post notifications!</string>
     <string name="string_follows_no_posts_aggregate">You aren\'t following any users yet, so there is nothing to show here. Here\'s a cat instead!</string>
+    <string name="string_follows_default_feed_name">Aggregate feed</string>
+    <string name="string_follows_title_feed_name_template">/u/%1$s\'s posts</string>
 </resources>

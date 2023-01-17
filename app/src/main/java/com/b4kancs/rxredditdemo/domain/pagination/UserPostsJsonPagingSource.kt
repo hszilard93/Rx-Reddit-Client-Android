@@ -1,5 +1,6 @@
 package com.b4kancs.rxredditdemo.domain.pagination
 
+import androidx.paging.PagingSource
 import androidx.paging.PagingState
 import androidx.paging.rxjava3.RxPagingSource
 import com.b4kancs.rxredditdemo.data.networking.RedditJsonService
@@ -8,19 +9,26 @@ import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.model.UserFeed
 import com.b4kancs.rxredditdemo.repository.FollowsRepository
 import io.reactivex.rxjava3.core.Single
+import io.reactivex.rxjava3.disposables.CompositeDisposable
+import io.reactivex.rxjava3.kotlin.addTo
+import io.reactivex.rxjava3.kotlin.subscribeBy
 import io.reactivex.rxjava3.schedulers.Schedulers
+import io.reactivex.rxjava3.subjects.PublishSubject
 import logcat.LogPriority
 import logcat.logcat
 import org.koin.java.KoinJavaComponent.inject
 import retrofit2.HttpException
 
-class UserPostsJsonPagingSource(private val userFeed: UserFeed?) : RxPagingSource<String, Post>() {
+class UserPostsJsonPagingSource(private val userFeed: UserFeed) : RxPagingSource<String, Post>() {
 
     companion object {
         const val PAGE_SIZE = 50
     }
 
+    object NoContentException : Exception()
+
     private val service: RedditJsonService by inject(RedditJsonService::class.java)
+    private val followsRepository: FollowsRepository by inject(FollowsRepository::class.java)
 
     init {
         logcat { "init username = $userFeed" }
@@ -29,12 +37,12 @@ class UserPostsJsonPagingSource(private val userFeed: UserFeed?) : RxPagingSourc
     override fun loadSingle(params: LoadParams<String>): Single<LoadResult<String, Post>> {
         logcat { "loadSingle" }
 
-        // If we aren't following a user, return an empty result.
-        if (userFeed == null) return Single.just(LoadResult.Page(emptyList(), null, null))
+        // If we aren't following any users, return an empty result.
+//        if (userFeed == null) return Single.just(LoadResult.Error(NoContentException))
 
         if (userFeed == FollowsRepository.defaultUserFeed) {
-            // TODO
-            return Single.just(LoadResult.Page(emptyList(), null, null))
+            val aggregateFeedLoader: AggregateFeedLoader by inject(AggregateFeedLoader::class.java)
+            return aggregateFeedLoader.loadAggregateFeeds(params.loadSize, params.key)
         }
 
         return service.getUsersPostsJson(
@@ -49,8 +57,8 @@ class UserPostsJsonPagingSource(private val userFeed: UserFeed?) : RxPagingSourc
                 else
                     throw HttpException(response)
             }
-            .map { posts ->
-                posts
+            .map { postsModels ->
+                postsModels
                     .map { fromJsonPostDataModel(it.data) }
                     .filter { it.links != null }        // The 'links' of all posts that are not picture or gallery posts is null
             }
