@@ -305,6 +305,8 @@ class HomeFragment : Fragment() {
         logcat { "setUpUiStatesBehaviour" }
         viewModel.uiStateBehaviorSubject
             .observeOn(AndroidSchedulers.mainThread())
+            .filter { _binding != null }
+            .doOnNext { logcat { "viewModel.uiStateBehaviorSubject.onNext" } }
             .subscribe { uiState ->
                 logcat { "uiState = $uiState" }
                 with(binding) {

@@ -7,14 +7,13 @@ import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.rxjava3.cachedIn
 import androidx.paging.rxjava3.observable
-import com.b4kancs.rxredditdemo.data.database.FavoritesDbEntryPost
+import com.b4kancs.rxredditdemo.data.database.PostFavoritesDbEntry
 import com.b4kancs.rxredditdemo.domain.pagination.SubredditJsonPagingSource
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.model.Subreddit
 import com.b4kancs.rxredditdemo.repository.FavoritePostsRepository
 import com.b4kancs.rxredditdemo.repository.SubredditRepository
 import com.b4kancs.rxredditdemo.ui.PostPagingDataObservableProvider
-import com.b4kancs.rxredditdemo.ui.main.MainViewModel
 import com.b4kancs.rxredditdemo.ui.shared.FavoritesProvider
 import io.reactivex.rxjava3.core.Completable
 import io.reactivex.rxjava3.core.Maybe
@@ -77,7 +76,7 @@ class HomeViewModel : ViewModel(), PostPagingDataObservableProvider, FavoritesPr
 
 
 
-    override fun getFavoritePosts(): Single<List<FavoritesDbEntryPost>> =
+    override fun getFavoritePosts(): Single<List<PostFavoritesDbEntry>> =
         favoritePostsRepository.getAllFavoritePostsFromDb()
 
     fun getDefaultSubreddit() = subredditRepository.defaultSubreddit

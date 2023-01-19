@@ -32,8 +32,11 @@ class FollowsRepository {
     private val disposables = CompositeDisposable()
 
     init {
+        logcat { "init" }
+
         followsChangedSubject
-            .doOnNext { logcat { "followsChangedSubject.onNext" } }
+            .subscribe { logcat { "followsChangedSubject.onNext" } }
+            .addTo(disposables)
     }
 
     fun getAllFollowsFromDb(): Single<List<UserFeed>> {

@@ -86,4 +86,5 @@ lint/outputs/
 lint/tmp/
 # lint/reports/
 
+DB_BACKUPS
 TODO.md

@@ -8,16 +8,16 @@ import io.reactivex.rxjava3.core.Single
 interface PostFavoritesDao {
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
-    fun insertPost(post: FavoritesDbEntryPost): Single<Long>
+    fun insertPost(post: PostFavoritesDbEntry): Single<Long>
 
     @Query("SELECT * FROM favoritePosts ORDER BY name")
-    fun getFavorites(): Single<List<FavoritesDbEntryPost>>
+    fun getFavorites(): Single<List<PostFavoritesDbEntry>>
 
-    @Query("SELECT * FROM favoritePosts ORDER BY addedDate DESC LIMIT :limit OFFSET :offset")
-    fun getFavoritesPaged(limit: Int, offset: Int): Single<List<FavoritesDbEntryPost>>
+    @Query("SELECT * FROM favoritePosts ORDER BY favoritedDate DESC LIMIT :limit OFFSET :offset")
+    fun getFavoritesPaged(limit: Int, offset: Int): Single<List<PostFavoritesDbEntry>>
 
     @Delete
-    fun deletePost(post: FavoritesDbEntryPost): Completable
+    fun deletePost(post: PostFavoritesDbEntry): Completable
 
     @Query("DELETE FROM favoritePosts")
     fun deleteAll(): Completable

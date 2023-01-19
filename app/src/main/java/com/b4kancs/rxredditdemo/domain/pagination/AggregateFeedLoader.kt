@@ -16,9 +16,8 @@ import logcat.LogPriority
 import logcat.logcat
 import org.koin.java.KoinJavaComponent.inject
 import retrofit2.HttpException
-import java.util.Collections
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicInteger
 
 object AggregateFeedLoader {
 
@@ -86,7 +85,7 @@ object AggregateFeedLoader {
         val feedsStillLoading = allUsers.toMutableSet()
         val feedsSuccessfullyLoaded = Collections.newSetFromMap(ConcurrentHashMap<String, Boolean>())
         val feedFinishedLoadingSubject = PublishSubject.create<String>()
-        val userToPostsMap = ConcurrentHashMap<String, List<Post>?>()
+        val userToPostsMap = ConcurrentHashMap<String, List<Post>>()
 
         if (allUsers.isEmpty())
             return Maybe.empty()
@@ -103,7 +102,7 @@ object AggregateFeedLoader {
                     },
                     onError = { e ->
                         logcat(LogPriority.WARN) { "Error getting user feed ${user}. Message: ${e.message}" }
-                        userToPostsMap[user] = null
+                        userToPostsMap [user] = emptyList()
                         feedFinishedLoadingSubject.onNext(user)
                     }
                 ).addTo(disposables)
@@ -122,15 +121,14 @@ object AggregateFeedLoader {
                     onComplete = {
                         logcat { "feedFinishedLoadingSubject.onComplete" }
                         // We were able to download all/some of the feeds.
-                        if (userToPostsMap.values.flatMap { it ?: emptyList() }.isNotEmpty())
+                        if (userToPostsMap.values.flatten().isNotEmpty())
                             emitter.onSuccess(userToPostsMap)
                         // Else we either have encountered errors or the feeds are simply empty.
                         else {
                             if (feedsSuccessfullyLoaded.isEmpty()) { // Likely a network error.
                                 logcat(LogPriority.ERROR) { "'Tis a network error, m'lord. It took all of them!" }
                                 emitter.onError(FeedsDownloadException())
-                            }
-                            else {   // The followed users could have been deleted etc. Unlikely but can happen.
+                            } else {   // The followed users could have been deleted etc. Unlikely but can happen.
                                 logcat(LogPriority.WARN) { "There is nothing to see here. (All downloaded user feeds are empty.)" }
                                 emitter.onSuccess(userToPostsMap)
                             }
@@ -138,7 +136,9 @@ object AggregateFeedLoader {
                     },
                     onError = { _ ->
                         logcat(LogPriority.ERROR) { "feedFinishedLoadingSubject.onError" }
-                        throw java.lang.IllegalStateException("This state should not be reached.")
+                        emitter.onError(
+                            java.lang.IllegalStateException("feedFinishedLoadingSubject.onError\tThis state should not have been reached.")
+                        )
                     }
                 )
                 .addTo(disposables)
@@ -198,8 +198,7 @@ object AggregateFeedLoader {
                 // We store the posts in chronological order.
                 val usersUpdatedPosts = (usersPreviousPosts + posts).sortedByDescending { post -> post.createdAt }
                 userNameToPostsMap[user] = usersUpdatedPosts
-            }
-            else {
+            } else {
                 logcat { "$user has run out of posts." }
                 usersWithNoMorePostsSet.add(user)
             }
@@ -248,8 +247,7 @@ object AggregateFeedLoader {
                     nextKey = nextKey
                 )
             )
-        }
-        else {  // Download the feed with the youngestOldestPost and start processing again.
+        } else {  // Download the feed with the youngestOldestPost and start processing again.
             return Single.create { emitter ->
                 logcat { "Continuing by downloading feed $youngestOldestUser from ${youngestOldestPost.name}" }
                 downloadSingleFeed(

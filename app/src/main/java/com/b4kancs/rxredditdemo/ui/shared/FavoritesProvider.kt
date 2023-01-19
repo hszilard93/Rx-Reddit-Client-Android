@@ -1,9 +1,9 @@
 package com.b4kancs.rxredditdemo.ui.shared
 
-import com.b4kancs.rxredditdemo.data.database.FavoritesDbEntryPost
+import com.b4kancs.rxredditdemo.data.database.PostFavoritesDbEntry
 import io.reactivex.rxjava3.core.Single
 
 interface FavoritesProvider {
 
-    fun getFavoritePosts(): Single<List<FavoritesDbEntryPost>>
+    fun getFavoritePosts(): Single<List<PostFavoritesDbEntry>>
 }

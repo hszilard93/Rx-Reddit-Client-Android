@@ -26,7 +26,6 @@ import com.b4kancs.rxredditdemo.ui.uiutils.makeSnackBar
 import com.jakewharton.rxbinding4.view.clicks
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Observable
-import io.reactivex.rxjava3.core.Single
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.kotlin.addTo
@@ -175,6 +174,8 @@ class FollowsFragment : Fragment() {
 
         viewModel.uiStateBehaviorSubject
             .observeOn(AndroidSchedulers.mainThread())
+            .filter { _binding != null }
+            .doOnNext { logcat { "viewModel.uiStateBehaviorSubject.onNext" } }
             .subscribe { uiState ->
                 with(binding) {
                     when (uiState) {
@@ -360,13 +361,14 @@ class FollowsFragment : Fragment() {
     }
 
     // This where we handle the errors coming from the feed and set the uiState.
-    private fun setUpLoadingStateAndErrorHandler(postsFollowsAdapter: PostsVerticalRvAdapter) {
-        postsFollowsAdapter.loadStateFlow
+    private fun setUpLoadingStateAndErrorHandler(adapter: PostsVerticalRvAdapter) {
+        logcat { "setUpLoadingStateAndErrorHandler" }
+        adapter.loadStateFlow
             .map { loadStates ->
                 if (loadStates.refresh is LoadState.Error) {
                     logcat(LogPriority.WARN) { "LoadState.Error detected." }
-                    val e = ((loadStates.refresh as LoadState.Error).error)
-                    if (e is HttpException && e.code() == 404)
+                    val error = ((loadStates.refresh as LoadState.Error).error)
+                    if (error is HttpException && error.code() == 404)
                         viewModel.uiStateBehaviorSubject.onNext(FollowsUiStates.ERROR_404)
                     else
                         viewModel.uiStateBehaviorSubject.onNext(FollowsUiStates.ERROR_GENERIC)
@@ -379,7 +381,7 @@ class FollowsFragment : Fragment() {
             .filter { loadStates -> loadStates.refresh is LoadState.NotLoading }
             .onEach {
                 logcat(LogPriority.INFO) { "postFollowsAdapter.loadStateFlow.onEach loadStates.refresh == LoadState.NotLoading" }
-                if (postsFollowsAdapter.itemCount > 1) {
+                if (adapter.itemCount > 1) {
                     viewModel.uiStateBehaviorSubject.onNext(FollowsUiStates.NORMAL)
 
                     positionToGoTo?.let { pos ->

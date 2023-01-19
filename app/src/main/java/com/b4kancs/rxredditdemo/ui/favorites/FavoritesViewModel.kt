@@ -7,6 +7,7 @@ import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.rxjava3.cachedIn
 import androidx.paging.rxjava3.observable
+import com.b4kancs.rxredditdemo.data.database.PostFavoritesDbEntry
 import com.b4kancs.rxredditdemo.domain.pagination.FavoritesDbPagingSource
 import com.b4kancs.rxredditdemo.domain.pagination.SubredditJsonPagingSource
 import com.b4kancs.rxredditdemo.model.Post
@@ -22,8 +23,11 @@ import org.koin.java.KoinJavaComponent.inject
 @OptIn(ExperimentalCoroutinesApi::class)
 class FavoritesViewModel : ViewModel(), PostPagingDataObservableProvider {
 
+    enum class FavoritesUiStates { NORMAL, LOADING, ERROR_GENERIC, NO_CONTENT }
+
     private val favoritePostsRepository: FavoritePostsRepository by inject(FavoritePostsRepository::class.java)
     val favoritePostsCachedPagingObservable: Observable<PagingData<Post>>
+    val uiStateBehaviorSubject = BehaviorSubject.createDefault(FavoritesUiStates.LOADING)
 
     init {
         logcat { "init" }
@@ -41,8 +45,8 @@ class FavoritesViewModel : ViewModel(), PostPagingDataObservableProvider {
     fun deleteAllFavoritePosts(): Completable =
         favoritePostsRepository.deleteAllFavoritePostsFromDb()
 
-    fun getIsFavoritePostsNotEmptyBehaviorSubject(): BehaviorSubject<Boolean> =
-        favoritePostsRepository.doesFavoritePostsHaveItemsBehaviorSubject
+    fun getFavoritePostsBehaviorSubject(): BehaviorSubject<List<PostFavoritesDbEntry>> =
+        favoritePostsRepository.favoritePostEntriesBehaviorSubject
 
     override fun cachedPagingObservable(): Observable<PagingData<Post>> =
         favoritePostsCachedPagingObservable

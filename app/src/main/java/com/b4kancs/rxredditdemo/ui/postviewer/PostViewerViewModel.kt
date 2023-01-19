@@ -14,7 +14,7 @@ import android.provider.MediaStore
 import androidx.core.graphics.drawable.toBitmap
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.ViewModel
-import com.b4kancs.rxredditdemo.data.database.FavoritesDbEntryPost
+import com.b4kancs.rxredditdemo.data.database.PostFavoritesDbEntry
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.repository.FavoritePostsRepository
 import com.b4kancs.rxredditdemo.ui.PostPagingDataObservableProvider
@@ -52,7 +52,7 @@ class PostViewerViewModel(pagingDataObservableProvider: PostPagingDataObservable
         logcat { "The paging data provider is $pagingDataObservableProvider" }
     }
 
-    fun getFavoritePosts(): Single<List<FavoritesDbEntryPost>> =
+    fun getFavoritePosts(): Single<List<PostFavoritesDbEntry>> =
         favoritePostsRepository.getAllFavoritePostsFromDb()
 
     fun addPostToFavorites(post: Post): Completable =

@@ -19,7 +19,7 @@ import androidx.fragment.app.FragmentActivity
 import androidx.paging.PagingDataAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.b4kancs.rxredditdemo.R
-import com.b4kancs.rxredditdemo.data.database.FavoritesDbEntryPost
+import com.b4kancs.rxredditdemo.data.database.PostFavoritesDbEntry
 import com.b4kancs.rxredditdemo.databinding.PagerItemPostViewerBinding
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.ui.PostComparator
@@ -633,7 +633,7 @@ class PostViewerAdapter(
             viewModel.getFavoritePosts()
                 .observeOn(AndroidSchedulers.mainThread())
                 .doOnSubscribe { logcat { "getFavoritePosts.onSubscribe" } }
-                .subscribe { favorites: List<FavoritesDbEntryPost> ->
+                .subscribe { favorites: List<PostFavoritesDbEntry> ->
                     isFavorite = post.name in favorites.map { it.name }
                     logcat { "Post ${post.name} isFavorite = $isFavorite" }
 
