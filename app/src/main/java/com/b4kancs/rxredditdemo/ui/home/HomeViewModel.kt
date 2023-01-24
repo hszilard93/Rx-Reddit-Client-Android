@@ -51,7 +51,9 @@ class HomeViewModel : ViewModel(), PostPagingDataObservableProvider, FavoritesPr
     init {
         logcat { "init" }
         selectedSubredditReplayObservable.connect()
-        selectedSubredditChangedPublishSubject.doOnNext { logcat(LogPriority.INFO) { "selectedSubredditChangedSubject.onNext" } }
+        selectedSubredditChangedPublishSubject
+            .subscribe { sub -> logcat(LogPriority.INFO) { "selectedSubredditChangedSubject.onNext: sub = ${sub.name}" } }
+            .addTo(disposables)
 
         subredditRepository.loadDefaultSubreddit()
             .subscribe { selectedSubredditChangedPublishSubject.onNext(subredditRepository.defaultSubreddit) }
@@ -165,4 +167,10 @@ class HomeViewModel : ViewModel(), PostPagingDataObservableProvider, FavoritesPr
 
     fun getSubredditsChangedSubject(): PublishSubject<Unit> =
         subredditRepository.subredditsChangedSubject
+
+    override fun onCleared() {
+        logcat { "onCleared" }
+        disposables.dispose()
+        super.onCleared()
+    }
 }

@@ -147,4 +147,10 @@ class FollowsViewModel : ViewModel(), PostPagingDataObservableProvider {
 
     override fun cachedPagingObservable(): Observable<PagingData<Post>> =
         postsCachedPagingObservable
+
+    override fun onCleared() {
+        logcat { "onCleared" }
+        disposables.clear()
+        super.onCleared()
+    }
 }

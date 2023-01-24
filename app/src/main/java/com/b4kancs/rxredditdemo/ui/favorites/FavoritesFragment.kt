@@ -34,7 +34,6 @@ import kotlinx.coroutines.flow.*
 import logcat.LogPriority
 import logcat.logcat
 import org.koin.androidx.viewmodel.ext.android.sharedViewModel
-import retrofit2.HttpException
 import java.util.concurrent.TimeUnit
 
 class FavoritesFragment : Fragment() {
@@ -56,6 +55,8 @@ class FavoritesFragment : Fragment() {
             }"
         }
 
+        _binding = FragmentFavoritesBinding.inflate(inflater, container, false)
+
         with(findNavController().currentBackStackEntry) {
             positionToGoTo = this?.savedStateHandle?.get<Int>(PostViewerFragment.SAVED_STATE_POSITION_KEY)
             this?.savedStateHandle?.remove<Int>(PostViewerFragment.SAVED_STATE_POSITION_KEY)
@@ -67,8 +68,6 @@ class FavoritesFragment : Fragment() {
         // If not returning from PVF and not recovering from rotation etc. positionToGoTo remains null, else 0.
         // When positionToGoTo is null, we should let the RecyclerView recover its previous position.
         if (positionToGoTo == null && !isBeingReconstructed) positionToGoTo = 0
-
-        _binding = FragmentFavoritesBinding.inflate(inflater, container, false)
 
         logcat(LogPriority.INFO) { "postponeEnterTransition()" }
         postponeEnterTransition()
@@ -82,12 +81,6 @@ class FavoritesFragment : Fragment() {
                 startPostponedEnterTransition()
             }
             .addTo(disposables)
-
-        return binding.root
-    }
-
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        logcat { "onViewCreated" }
 
         setUpRecyclerView()
         setUpStateBehaviour()
@@ -105,16 +98,28 @@ class FavoritesFragment : Fragment() {
                     if (adapter.itemCount <= 1 && !isEmpty) adapter.refresh()
                 }
             }.addTo(disposables)
+
+        return binding.root
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        logcat { "onViewCreated" }
     }
 
     override fun onResume() {
         logcat { "onResume" }
         super.onResume()
+
+        setUpOptionsMenu()
+    }
+
+    override fun onStart() {
+        logcat { "onStart" }
+        super.onStart()
+
         (activity as MainActivity).apply {
             lockDrawerClosed()
         }
-
-        setUpOptionsMenu()
     }
 
     private fun setUpStateBehaviour() {
@@ -122,6 +127,7 @@ class FavoritesFragment : Fragment() {
         viewModel.uiStateBehaviorSubject
             .observeOn(AndroidSchedulers.mainThread())
             .filter { _binding != null }
+            .distinctUntilChanged()
             .doOnNext { logcat { "viewModel.uiStateBehaviorSubject.onNext" } }
             .subscribe { uiState ->
                 with(binding) {
@@ -193,8 +199,7 @@ class FavoritesFragment : Fragment() {
                 .subscribe { pagingData ->
                     try {
                         postsFavoritesAdapter.submitData(viewLifecycleOwner.lifecycle, pagingData)
-                    }
-                    catch (e: Exception) {
+                    } catch (e: Exception) {
                         // There might be a weird NullPointerException happening sometimes that doesn't really seem to affect anything
                         logcat(LogPriority.ERROR) { e.stackTrace.toString() }
                     }
@@ -231,8 +236,7 @@ class FavoritesFragment : Fragment() {
                                             .transitionName
                                     logcat(LogPriority.INFO) { "Transition name = $transitionName" }
                                 }
-                        }
-                        catch (e: Exception) {
+                        } catch (e: Exception) {
                             logcat(LogPriority.WARN) { e.message.toString() }
                         }
                     }
@@ -264,13 +268,20 @@ class FavoritesFragment : Fragment() {
                 progressBarFavoritesLarge.isVisible = combinedLoadStates.refresh is LoadState.Loading
             }
 
-            srlFavorites.isEnabled = false
+            srlFavorites.isEnabled = true
+            srlFavorites.setOnRefreshListener {
+                viewModel.uiStateBehaviorSubject.onNext(FavoritesUiStates.LOADING)
+                postsFavoritesAdapter.refresh()
+                rvFavoritesPosts.scrollToPosition(0)
+                srlFavorites.isRefreshing = false
+            }
         }
     }
 
     private fun setUpLoadingStateAndErrorHandler(adapter: PostsVerticalRvAdapter) {
         logcat { "setUpLoadingStateAndErrorHandler" }
         adapter.loadStateFlow
+            .distinctUntilChanged()
             .map { loadStates ->
                 if (loadStates.refresh is LoadState.Error) {
                     logcat(LogPriority.WARN) { "LoadState.Error detected." }
@@ -290,6 +301,7 @@ class FavoritesFragment : Fragment() {
                     positionToGoTo?.let { pos ->
                         logcat(LogPriority.INFO) { "Scrolling to position: $pos" }
                         binding.rvFavoritesPosts.scrollToPosition(pos)
+                        positionToGoTo = null
                     }
                 }
                 else {

@@ -295,4 +295,10 @@ class PostViewerViewModel(pagingDataObservableProvider: PostPagingDataObservable
             return Single.error(e)
         }
     }
+
+    override fun onCleared() {
+        logcat { "onCleared" }
+        disposables.clear()
+        super.onCleared()
+    }
 }
