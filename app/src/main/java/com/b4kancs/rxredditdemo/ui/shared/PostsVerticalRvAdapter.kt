@@ -37,15 +37,13 @@ import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.kotlin.addTo
 import io.reactivex.rxjava3.subjects.PublishSubject
 import jp.wasabeef.glide.transformations.BlurTransformation
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.onEach
 import logcat.LogPriority
 import logcat.logcat
 
 class PostsVerticalRvAdapter(
     private val context: Context,
     var disableTransformations: Boolean,
-    val favoritesProvider: FavoritesProvider?
+    val viewModel: BaseListingFragmentViewModel
 ) :
     PagingDataAdapter<Post, RecyclerView.ViewHolder>(PostComparator) {
 
@@ -133,8 +131,8 @@ class PostsVerticalRvAdapter(
                 dateAuthorTextView.text = calculateDateAuthorSubredditText(post)
                 scoreTextView.text = "${post.score}"
 
-                favoritesProvider?.getFavoritePosts()
-                    ?.let {   // This is a nullable because it doesn't make sense to have it in the FavoritesFragment
+                viewModel.getFavoritePosts()
+                    .let {   // This is a nullable because it doesn't make sense to have it in the FavoritesFragment
                         it
                             .observeOn(AndroidSchedulers.mainThread())
                             .doOnSubscribe { logcat { "getFavorites.onSubscribe" } }

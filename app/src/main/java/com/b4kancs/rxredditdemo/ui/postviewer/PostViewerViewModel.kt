@@ -17,7 +17,7 @@ import androidx.lifecycle.ViewModel
 import com.b4kancs.rxredditdemo.data.database.PostFavoritesDbEntry
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.repository.FavoritePostsRepository
-import com.b4kancs.rxredditdemo.ui.PostPagingDataObservableProvider
+import com.b4kancs.rxredditdemo.ui.shared.PostPagingDataObservableProvider
 import com.b4kancs.rxredditdemo.utils.fromCompletable
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.target.CustomTarget
@@ -43,7 +43,7 @@ class PostViewerViewModel(pagingDataObservableProvider: PostPagingDataObservable
     private val favoritePostsRepository: FavoritePostsRepository by inject(FavoritePostsRepository::class.java)
     private val disposables = CompositeDisposable()
 
-    val pagingDataObservable = pagingDataObservableProvider.cachedPagingObservable()
+    val pagingDataObservable = pagingDataObservableProvider.getCachedPagingObservable()
     val navigateToFollowsActionTriggerSubject =
         // We need username for FollowsFragment as well as a Subject that will pass back a Completable which will signal the success of the navigation.
         PublishSubject.create<Pair<String, PublishSubject<Completable>>>()

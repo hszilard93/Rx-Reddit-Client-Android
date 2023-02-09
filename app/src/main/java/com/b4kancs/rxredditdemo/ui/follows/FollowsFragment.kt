@@ -7,18 +7,18 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.core.view.children
 import androidx.core.view.isVisible
-import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.FragmentNavigatorExtras
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import androidx.paging.LoadState
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.viewbinding.ViewBinding
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.databinding.FragmentFollowsBinding
 import com.b4kancs.rxredditdemo.model.UserFeed
-import com.b4kancs.rxredditdemo.ui.follows.FollowsViewModel.FollowsUiStates
 import com.b4kancs.rxredditdemo.ui.main.MainActivity
-import com.b4kancs.rxredditdemo.ui.postviewer.PostViewerFragment
+import com.b4kancs.rxredditdemo.ui.shared.BaseListingFragment
+import com.b4kancs.rxredditdemo.ui.shared.BaseListingFragmentViewModel.UiState
 import com.b4kancs.rxredditdemo.ui.shared.PostsVerticalRvAdapter
 import com.b4kancs.rxredditdemo.ui.uiutils.CustomLinearLayoutManager
 import com.b4kancs.rxredditdemo.ui.uiutils.SnackType
@@ -26,8 +26,6 @@ import com.b4kancs.rxredditdemo.ui.uiutils.makeSnackBar
 import com.jakewharton.rxbinding4.view.clicks
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Observable
-import io.reactivex.rxjava3.disposables.CompositeDisposable
-import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.kotlin.addTo
 import io.reactivex.rxjava3.kotlin.subscribeBy
 import io.reactivex.rxjava3.schedulers.Schedulers
@@ -42,91 +40,48 @@ import org.koin.androidx.viewmodel.ext.android.sharedViewModel
 import retrofit2.HttpException
 import java.util.concurrent.TimeUnit
 
-class FollowsFragment : Fragment() {
+class FollowsFragment : BaseListingFragment() {
 
-    // TODO Implement RVFlickerEliminator2000(TM) just as in the HomeFragment
-
-    private val viewModel: FollowsViewModel by sharedViewModel()
+    override val viewModel: FollowsViewModel by sharedViewModel()
     private val args: FollowsFragmentArgs by navArgs()
     private var _binding: FragmentFollowsBinding? = null
     private val binding get() = _binding!!
-    private val disposables = CompositeDisposable()
-    private var positionToGoTo: Int = 0
     private var isJustCreated = false
-    private lateinit var delayedTransitionTriggerDisposable: Disposable
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        logcat {
-            "onCreate\n  Current nav backstack: ${
-                findNavController().backQueue
-                    .map { it.destination }
-                    .joinToString("\n ", "\n ")
-            }"
-        }
-
-        isJustCreated = true
-        super.onCreate(savedInstanceState)
+    override fun setUpBinding(inflater: LayoutInflater, container: ViewGroup?): ViewBinding {
+        logcat { "setUpBinding" }
+        _binding = FragmentFollowsBinding.inflate(inflater, container, false)
+        return binding
     }
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
-        logcat { "onCreateView" }
-
-        _binding = FragmentFollowsBinding.inflate(inflater, container, false)
-
-        with(findNavController().currentBackStackEntry) {
-            val recoveredPosition = this?.savedStateHandle?.get<Int>(PostViewerFragment.SAVED_STATE_POSITION_KEY)
-            recoveredPosition?.let {
-                this?.savedStateHandle?.remove<Int>(PostViewerFragment.SAVED_STATE_POSITION_KEY)
-                logcat(LogPriority.INFO) { "Recovered position from PostViewerFragment. positionToGoTo = $it" }
-                positionToGoTo = recoveredPosition
-            }
-        }
-
-        logcat(LogPriority.INFO) { "postponeEnterTransition()" }
-        postponeEnterTransition()
-
-        // If, for some reason, the transition doesn't get triggered in time (the image is slow to load, etc), we force it after a delay.
-        delayedTransitionTriggerDisposable = Observable.timer(500, TimeUnit.MILLISECONDS)
-            .observeOn(AndroidSchedulers.mainThread())
-            .doOnSubscribe { logcat(LogPriority.INFO) { "Starting delayed enter transition timer." } }
-            .subscribe {
-                logcat(LogPriority.INFO) { "Triggering delayed enter transition." }
-                startPostponedEnterTransition()
-            }
-            .addTo(disposables)
-
-        setUpRecyclerView()
+    override fun onViewCreatedDoAlso(view: View, savedInstanceState: Bundle?) {
+        logcat { "onCreateViewDoExtras" }
         setUpLoadingStateAndErrorHandler(binding.rvFollowsPosts.adapter as PostsVerticalRvAdapter)
         if (isJustCreated) {
             setUpBehaviourDisposables()
-        }
-        isJustCreated = false
-
-        return binding.root
-    }
-
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        logcat { "onViewCreated" }
-    }
-
-    override fun onStart() {
-        logcat { "onStart" }
-        super.onStart()
-        (activity as MainActivity).apply {
-            setUpFollowsDrawer(this@FollowsFragment.viewModel)
-            setUpFollowsDrawerSearchView(this@FollowsFragment.viewModel)
+            isJustCreated = false
         }
     }
 
-    override fun onResume() {
-        logcat { "onResume" }
-        setUpOptionsMenu()
+    override fun setUpActionBarAndRelated() {
+        logcat { "setUpActionBarAndRelated" }
+        // Every time the Fragment is recreated, we need to change the support action bar title.
+        viewModel.feedChangedBehaviorSubject
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe { (activity as MainActivity).supportActionBar?.title = it.name }
+            .addTo(disposables)
+    }
 
-        super.onResume()
+    override fun setUpDrawer() {
+        logcat { "setUpDrawer" }
+        (activity as MainActivity).also {
+            it.setUpFollowsDrawer(viewModel)
+            it.setUpFollowsDrawerSearchView(viewModel)
+        }
     }
 
     private fun setUpBehaviourDisposables() {
-        // This subscription is for refreshing the feed. Does not need to immediately execute upon subscription,
+        // This subscription is for refreshing the feed. Does NOT need to immediately execute upon subscription,
         // hence the distinct until changed.
         viewModel.feedChangedBehaviorSubject
             .observeOn(AndroidSchedulers.mainThread())
@@ -153,7 +108,6 @@ class FollowsFragment : Fragment() {
             .addTo(disposables)
 
         // If we got here from another fragment, we need to recover the navigation argument and go to the specified user's feed.
-//        if ((binding.rvFollowsPosts.adapter as PostsVerticalRvAdapter).itemCount <= 1) {
         val userNameFromNavigation = args.userName
         if (viewModel.currentUserFeed.name != userNameFromNavigation) {
             userNameFromNavigation?.let { userName ->
@@ -171,7 +125,10 @@ class FollowsFragment : Fragment() {
                     ).addTo(disposables)
             }
         }
+    }
 
+    override fun setUpUiStatesBehaviour() {
+        logcat { "setUpUiStatesBehaviour" }
         viewModel.uiStateBehaviorSubject
             .observeOn(AndroidSchedulers.mainThread())
             .filter { _binding != null }
@@ -179,17 +136,17 @@ class FollowsFragment : Fragment() {
             .subscribe { uiState ->
                 with(binding) {
                     when (uiState) {
-                        FollowsUiStates.NORMAL -> {
+                        UiState.NORMAL -> {
                             rvFollowsPosts.isVisible = true
                             linearLayoutFollowsErrorContainer.isVisible = false
                             progressBarFollowsLarge.isVisible = false
                         }
-                        FollowsUiStates.LOADING -> {
+                        UiState.LOADING -> {
                             rvFollowsPosts.isVisible = false
                             linearLayoutFollowsErrorContainer.isVisible = false
                             progressBarFollowsLarge.isVisible = true
                         }
-                        FollowsUiStates.ERROR_404 -> {
+                        UiState.ERROR_404 -> {
                             val errorMessage = getString(R.string.string_follows_http_404_error_message)
                             val errorImageId = R.drawable.im_error_404_resized
                             linearLayoutFollowsErrorContainer.isVisible = true
@@ -198,7 +155,7 @@ class FollowsFragment : Fragment() {
                             progressBarFollowsLarge.isVisible = false
                             rvFollowsPosts.isVisible = false
                         }
-                        FollowsUiStates.ERROR_GENERIC -> {
+                        UiState.ERROR_GENERIC -> {
                             val errorMessage = getString(R.string.string_common_network_error_message)
                             val errorImageId = R.drawable.im_error_network
                             linearLayoutFollowsErrorContainer.isVisible = true
@@ -207,7 +164,7 @@ class FollowsFragment : Fragment() {
                             progressBarFollowsLarge.isVisible = false
                             rvFollowsPosts.isVisible = false
                         }
-                        FollowsUiStates.NO_CONTENT -> {
+                        UiState.NO_CONTENT -> {
                             val errorMessage = getString(R.string.string_follows_no_posts_for_user)
                             val errorImageId = R.drawable.im_error_no_content_cat
                             linearLayoutFollowsErrorContainer.isVisible = true
@@ -216,7 +173,7 @@ class FollowsFragment : Fragment() {
                             progressBarFollowsLarge.isVisible = false
                             rvFollowsPosts.isVisible = false
                         }
-                        FollowsUiStates.NO_CONTENT_AGGREGATE -> {
+                        UiState.NO_CONTENT_AGGREGATE -> {
                             val errorMessage = getString(R.string.string_follows_no_posts_aggregate)
                             val errorImageId = R.drawable.im_error_no_content_cat
                             linearLayoutFollowsErrorContainer.isVisible = true
@@ -228,10 +185,10 @@ class FollowsFragment : Fragment() {
                     }
 
                     if (uiState in setOf(
-                            FollowsUiStates.ERROR_GENERIC,
-                            FollowsUiStates.ERROR_404,
-                            FollowsUiStates.NO_CONTENT,
-                            FollowsUiStates.NO_CONTENT_AGGREGATE
+                            UiState.ERROR_GENERIC,
+                            UiState.ERROR_404,
+                            UiState.NO_CONTENT,
+                            UiState.NO_CONTENT_AGGREGATE
                         )) {
                         (activity as MainActivity).expandAppBar()
                         (activity as MainActivity).expandBottomNavBar()
@@ -240,14 +197,7 @@ class FollowsFragment : Fragment() {
             }.addTo(disposables)
     }
 
-    private fun goToNewPostViewerFragment(position: Int, sharedView: View) {
-        logcat { "goToNewPostViewerFragment" }
-        val sharedElementExtras = FragmentNavigatorExtras(sharedView to sharedView.transitionName)
-        val action = FollowsFragmentDirections.actionFollowsToPostViewer(position, viewModel::class.simpleName!!)
-        findNavController().navigate(action, sharedElementExtras)
-    }
-
-    private fun setUpRecyclerView() {
+    override fun setUpRecyclerView() {
         logcat { "setUpRecyclerView" }
         val mainActivity = activity as MainActivity
 
@@ -271,7 +221,7 @@ class FollowsFragment : Fragment() {
                 rvFollowsPosts.adapter = PostsVerticalRvAdapter(
                     mainActivity,
                     shouldDisableTransformations,
-                    null
+                    viewModel
                 )
             }
             val postsFollowsAdapter = rvFollowsPosts.adapter as PostsVerticalRvAdapter
@@ -280,8 +230,7 @@ class FollowsFragment : Fragment() {
                 .subscribe { pagingData ->
                     try {
                         postsFollowsAdapter.submitData(viewLifecycleOwner.lifecycle, pagingData)
-                    }
-                    catch (e: Exception) {
+                    } catch (e: Exception) {
                         // There might be a weird NullPointerException happening sometimes that doesn't really seem to affect anything
                         logcat(LogPriority.ERROR) { e.stackTrace.toString() }
                     }
@@ -317,8 +266,7 @@ class FollowsFragment : Fragment() {
                                             .transitionName
                                     logcat(LogPriority.INFO) { "Transition name = $transitionName" }
                                 }
-                        }
-                        catch (e: Exception) {
+                        } catch (e: Exception) {
                             logcat(LogPriority.WARN) { e.message.toString() }
                         }
                     }
@@ -341,18 +289,14 @@ class FollowsFragment : Fragment() {
                 .observeOn(AndroidSchedulers.mainThread())
                 .doOnNext { logcat(LogPriority.INFO) { "postClickedSubject.onNext: post = ${it.first}" } }
                 .subscribe { (position, view) ->
-                    goToNewPostViewerFragment(position, view)
+                    createNewPostViewerFragment(position, view)
                     (rvFollowsPosts.layoutManager as CustomLinearLayoutManager).canScrollVertically = false
                     postsFollowsAdapter.disposables.dispose()
                 }.addTo(disposables)
 
-            postsFollowsAdapter.addLoadStateListener { combinedLoadStates ->
-                progressBarFollowsLarge.isVisible = combinedLoadStates.refresh is LoadState.Loading
-            }
-
             srlFollows.isEnabled = true
             srlFollows.setOnRefreshListener {
-                viewModel.uiStateBehaviorSubject.onNext(FollowsUiStates.LOADING)
+                viewModel.uiStateBehaviorSubject.onNext(UiState.LOADING)
                 postsFollowsAdapter.refresh()
                 rvFollowsPosts.scrollToPosition(0)
                 srlFollows.isRefreshing = false
@@ -369,12 +313,12 @@ class FollowsFragment : Fragment() {
                     logcat(LogPriority.WARN) { "LoadState.Error detected." }
                     val error = ((loadStates.refresh as LoadState.Error).error)
                     if (error is HttpException && error.code() == 404)
-                        viewModel.uiStateBehaviorSubject.onNext(FollowsUiStates.ERROR_404)
+                        viewModel.uiStateBehaviorSubject.onNext(UiState.ERROR_404)
                     else
-                        viewModel.uiStateBehaviorSubject.onNext(FollowsUiStates.ERROR_GENERIC)
+                        viewModel.uiStateBehaviorSubject.onNext(UiState.ERROR_GENERIC)
                 }
                 else if (loadStates.refresh is LoadState.Loading) {
-                    viewModel.uiStateBehaviorSubject.onNext(FollowsUiStates.LOADING)
+                    viewModel.uiStateBehaviorSubject.onNext(UiState.LOADING)
                 }
                 loadStates
             }
@@ -382,7 +326,7 @@ class FollowsFragment : Fragment() {
             .onEach {
                 logcat(LogPriority.INFO) { "postFollowsAdapter.loadStateFlow.onEach loadStates.refresh == LoadState.NotLoading" }
                 if (adapter.itemCount > 1) {
-                    viewModel.uiStateBehaviorSubject.onNext(FollowsUiStates.NORMAL)
+                    viewModel.uiStateBehaviorSubject.onNext(UiState.NORMAL)
 
                     positionToGoTo?.let { pos ->
                         logcat(LogPriority.INFO) { "Scrolling to position: $pos" }
@@ -391,14 +335,14 @@ class FollowsFragment : Fragment() {
                 }
                 else {
                     if (viewModel.currentUserFeed.status == UserFeed.Status.AGGREGATE)
-                        viewModel.uiStateBehaviorSubject.onNext(FollowsUiStates.NO_CONTENT_AGGREGATE)
+                        viewModel.uiStateBehaviorSubject.onNext(UiState.NO_CONTENT_AGGREGATE)
                     else
-                        viewModel.uiStateBehaviorSubject.onNext(FollowsUiStates.NO_CONTENT)
+                        viewModel.uiStateBehaviorSubject.onNext(UiState.NO_CONTENT)
                 }
             }.launchIn(MainScope())
     }
 
-    private fun setUpOptionsMenu() {
+    override fun setUpOptionsMenu() {
         logcat { "setUpOptionsMenu" }
 
         val mergedFeedUpdateObservable = Observable.merge(   // See setUpOptionsMenu() in HomeFragment.kt
@@ -529,7 +473,7 @@ class FollowsFragment : Fragment() {
 
         Observable.interval(250, TimeUnit.MILLISECONDS)
             .filter { (activity as MainActivity).menu != null }
-            .take(1)    // Wait until the menu is ready.
+            .take(1)    // Try until the menu is ready, then do once.
             .observeOn(AndroidSchedulers.mainThread())
             .doOnNext { logcat { "menu is ready .onNext" } }
             .subscribe { _ ->
@@ -550,16 +494,15 @@ class FollowsFragment : Fragment() {
             .addTo(disposables)
     }
 
-    override fun onDestroy() {
-        logcat { "onDestroy" }
-        super.onDestroy()
-        logcat { "Disposing of disposables." }
-        disposables.dispose()
+    override fun createNewPostViewerFragment(position: Int, sharedView: View) {
+        logcat { "goToNewPostViewerFragment" }
+        val sharedElementExtras = FragmentNavigatorExtras(sharedView to sharedView.transitionName)
+        val action = FollowsFragmentDirections.actionFollowsToPostViewer(position, viewModel::class.simpleName!!)
+        findNavController().navigate(action, sharedElementExtras)
     }
 
-    override fun onDestroyView() {
-        logcat { "onDestroyView" }
-        super.onDestroyView()
-//        _binding = null
+    override fun onDestroyViewRemoveBinding() {
+        logcat { "onDestroyViewRemoveBinding" }
+        _binding = null
     }
 }

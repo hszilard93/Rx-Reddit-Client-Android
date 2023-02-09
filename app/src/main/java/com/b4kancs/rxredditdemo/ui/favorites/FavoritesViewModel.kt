@@ -1,6 +1,5 @@
 package com.b4kancs.rxredditdemo.ui.favorites
 
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
@@ -12,7 +11,8 @@ import com.b4kancs.rxredditdemo.domain.pagination.FavoritesPagingSource
 import com.b4kancs.rxredditdemo.domain.pagination.SubredditJsonPagingSource
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.repository.FavoritePostsRepository
-import com.b4kancs.rxredditdemo.ui.PostPagingDataObservableProvider
+import com.b4kancs.rxredditdemo.ui.shared.PostPagingDataObservableProvider
+import com.b4kancs.rxredditdemo.ui.shared.BaseListingFragmentViewModel
 import io.reactivex.rxjava3.core.Completable
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.CompositeDisposable
@@ -23,14 +23,14 @@ import logcat.logcat
 import org.koin.java.KoinJavaComponent.inject
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class FavoritesViewModel : ViewModel(), PostPagingDataObservableProvider {
+class FavoritesViewModel : BaseListingFragmentViewModel(), PostPagingDataObservableProvider {
 
-    enum class FavoritesUiStates { NORMAL, LOADING, ERROR_GENERIC, NO_CONTENT }
+//    enum class FavoritesUiStates { NORMAL, LOADING, ERROR_GENERIC, NO_CONTENT }
+
+    override val postsCachedPagingObservable: Observable<PagingData<Post>>
 
     private val favoritePostsRepository: FavoritePostsRepository by inject(FavoritePostsRepository::class.java)
     private val disposables = CompositeDisposable()
-    val favoritePostsCachedPagingObservable: Observable<PagingData<Post>>
-    val uiStateBehaviorSubject = BehaviorSubject.createDefault(FavoritesUiStates.LOADING)
 
     init {
         logcat { "init" }
@@ -46,7 +46,7 @@ class FavoritesViewModel : ViewModel(), PostPagingDataObservableProvider {
                 initialLoadSize = SubredditJsonPagingSource.PAGE_SIZE
             )
         ) { FavoritesPagingSource() }
-        favoritePostsCachedPagingObservable = pager.observable
+        postsCachedPagingObservable = pager.observable
             .cachedIn(this.viewModelScope)
     }
 
@@ -56,8 +56,8 @@ class FavoritesViewModel : ViewModel(), PostPagingDataObservableProvider {
     fun getFavoritePostsBehaviorSubject(): BehaviorSubject<List<PostFavoritesDbEntry>> =
         favoritePostsRepository.favoritePostEntriesBehaviorSubject
 
-    override fun cachedPagingObservable(): Observable<PagingData<Post>> =
-        favoritePostsCachedPagingObservable
+    override fun getCachedPagingObservable(): Observable<PagingData<Post>> =
+        postsCachedPagingObservable
 
     override fun onCleared() {
         logcat { "onCleared" }

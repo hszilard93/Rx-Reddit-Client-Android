@@ -19,9 +19,8 @@ import androidx.transition.Transition
 import androidx.viewpager2.widget.ViewPager2
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.databinding.FragmentPostViewerBinding
-import com.b4kancs.rxredditdemo.ui.PostPagingDataObservableProvider
+import com.b4kancs.rxredditdemo.ui.shared.PostPagingDataObservableProvider
 import com.b4kancs.rxredditdemo.ui.favorites.FavoritesViewModel
-import com.b4kancs.rxredditdemo.ui.follows.FollowsFragment
 import com.b4kancs.rxredditdemo.ui.follows.FollowsViewModel
 import com.b4kancs.rxredditdemo.ui.home.HomeViewModel
 import com.b4kancs.rxredditdemo.ui.main.MainActivity

@@ -7,19 +7,18 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.core.view.children
 import androidx.core.view.isVisible
-import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.FragmentNavigatorExtras
 import androidx.navigation.fragment.findNavController
 import androidx.paging.LoadState
 import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.transition.TransitionInflater
+import androidx.viewbinding.ViewBinding
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.databinding.FragmentHomeBinding
 import com.b4kancs.rxredditdemo.domain.pagination.SubredditJsonPagingSource
 import com.b4kancs.rxredditdemo.model.Subreddit.Status
-import com.b4kancs.rxredditdemo.ui.home.HomeViewModel.HomeUiStates
 import com.b4kancs.rxredditdemo.ui.main.MainActivity
-import com.b4kancs.rxredditdemo.ui.postviewer.PostViewerFragment
+import com.b4kancs.rxredditdemo.ui.shared.BaseListingFragment
+import com.b4kancs.rxredditdemo.ui.shared.BaseListingFragmentViewModel.UiState
 import com.b4kancs.rxredditdemo.ui.shared.PostsVerticalRvAdapter
 import com.b4kancs.rxredditdemo.ui.uiutils.CustomLinearLayoutManager
 import com.b4kancs.rxredditdemo.ui.uiutils.SnackType
@@ -28,9 +27,6 @@ import com.jakewharton.rxbinding4.view.clicks
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Maybe
 import io.reactivex.rxjava3.core.Observable
-import io.reactivex.rxjava3.core.Single
-import io.reactivex.rxjava3.disposables.CompositeDisposable
-import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.kotlin.addTo
 import io.reactivex.rxjava3.kotlin.subscribeBy
 import io.reactivex.rxjava3.schedulers.Schedulers
@@ -42,95 +38,49 @@ import org.koin.androidx.viewmodel.ext.android.sharedViewModel
 import retrofit2.HttpException
 import java.util.concurrent.TimeUnit
 
-class HomeFragment : Fragment() {
-    companion object {
-        const val FLICKERING_DELAY = 200L
-    }
+class HomeFragment : BaseListingFragment() {
 
-    private val viewModel: HomeViewModel by sharedViewModel()
+    override val viewModel: HomeViewModel by sharedViewModel()
     private var _binding: FragmentHomeBinding? = null
     private val binding get() = _binding!!
-    private val disposables = CompositeDisposable()
-    private var positionToGoTo: Int? = null
     private var justChangedSubreddits = false
-    private lateinit var delayedTransitionTriggerDisposable: Disposable
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
-        logcat {
-            "onCreateView\n  Current nav backstack: ${
-                findNavController().backQueue
-                    .map { it.destination }
-                    .joinToString("\n ", "\n ")
-            }"
-        }
+    override fun setUpBinding(inflater: LayoutInflater, container: ViewGroup?): ViewBinding {
+        logcat { "setUpBinding" }
+        _binding = FragmentHomeBinding.inflate(inflater, container, false)
+        return binding
+    }
 
-        with(findNavController().currentBackStackEntry) {
-            positionToGoTo = this?.savedStateHandle?.get<Int>(PostViewerFragment.SAVED_STATE_POSITION_KEY)
-            this?.savedStateHandle?.remove<Int>(PostViewerFragment.SAVED_STATE_POSITION_KEY)
-            positionToGoTo?.let { logcat(LogPriority.INFO) { "Recovered position from PostViewerFragment. positionToGoTo = $it" } }
-        }
+    override fun onCreateViewDoAlso(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?) {
+        logcat { "onCreateViewDoExtras" }
 
         if (viewModel.isAppJustStarted) {
             logcat(LogPriority.INFO) { "Condition: the app just started." }
             positionToGoTo = 0
             viewModel.isAppJustStarted = false
         }
-
-        _binding = FragmentHomeBinding.inflate(inflater, container, false)
-
-        if (justChangedSubreddits) positionToGoTo = 0
+        else if (justChangedSubreddits) positionToGoTo = 0
         logcat(LogPriority.INFO) { "positionToGoTo = $positionToGoTo" }
-
-        return binding.root
     }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        logcat { "onViewCreated" }
-
+    override fun setUpActionBarAndRelated() {
+        logcat { "setUpActionBarAndRelated" }
         // Every time the Fragment is recreated, we need to change the support action bar title.
         viewModel.selectedSubredditReplayObservable
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe { (activity as MainActivity).supportActionBar?.title = it.name }
             .addTo(disposables)
-
-        setUpSharedElementTransition()
-        setUpRecyclerView()
-        setUpUiStatesBehaviour()
     }
 
-    override fun onStart() {
-        super.onStart()
+    override fun setUpDrawer() {
+        logcat { "setUpDrawer" }
         (activity as MainActivity).also {
             it.setUpSubredditDrawer(viewModel)
-            it.setUpHomeDrawerSearchView(viewModel)
+            it.setUpSubredditDrawerSearchView(viewModel)
         }
     }
 
-    override fun onResume() {
-        super.onResume()
-        setUpOptionsMenu()
-    }
-
-    private fun setUpSharedElementTransition() {
-        logcat { "setUpSharedElementTransition" }
-        sharedElementEnterTransition = TransitionInflater
-            .from(requireContext())
-            .inflateTransition(R.transition.shared_element_transition)
-
-        postponeEnterTransition()
-
-        // If, for some reason, the transition doesn't get triggered in time (the image is slow to load etc.), we force the transition.
-        delayedTransitionTriggerDisposable = Observable.timer(500, TimeUnit.MILLISECONDS)
-            .observeOn(AndroidSchedulers.mainThread())
-            .doOnSubscribe { logcat { "Starting delayed enter transition timer." } }
-            .subscribe {
-                logcat(LogPriority.INFO) { "Triggering delayed enter transition." }
-                startPostponedEnterTransition()
-            }
-            .addTo(disposables)
-    }
-
-    private fun setUpRecyclerView() {
+    override fun setUpRecyclerView() {
         logcat { "setUpRecyclerView" }
         val mainActivity = activity as MainActivity
         binding.apply {
@@ -153,7 +103,7 @@ class HomeFragment : Fragment() {
             }
             val postsHomeAdapter = rvHomePosts.adapter as PostsVerticalRvAdapter
 
-            viewModel.subredditPostsCachedPagingObservable
+            viewModel.postsCachedPagingObservable
                 .subscribe { pagingData ->
                     try {
                         postsHomeAdapter.submitData(viewLifecycleOwner.lifecycle, pagingData)
@@ -165,10 +115,10 @@ class HomeFragment : Fragment() {
                                 logcat { "loadStateFlow.onEach" }
                                 // If the subreddit feed contains no displayable posts (images etc.), display a textview
                                 if (postsHomeAdapter.itemCount <= 1) {   // The 1 is because of the always-present bottom loading indicator
-                                    viewModel.uiStateBehaviorSubject.onNext(HomeUiStates.NO_CONTENT)
+                                    viewModel.uiStateBehaviorSubject.onNext(UiState.NO_CONTENT)
                                 }
                                 else {
-                                    viewModel.uiStateBehaviorSubject.onNext(HomeUiStates.NORMAL)
+                                    viewModel.uiStateBehaviorSubject.onNext(UiState.NORMAL)
                                     positionToGoTo?.let { pos ->
                                         logcat(LogPriority.INFO) { "Scrolling to position: $pos" }
                                         rvHomePosts.scrollToPosition(pos)
@@ -189,8 +139,7 @@ class HomeFragment : Fragment() {
                                 }
                             }
                             .launchIn(MainScope())
-                    }
-                    catch (e: Exception) {
+                    } catch (e: Exception) {
                         // There might be a weird NullPointerException happening sometimes that doesn't really seem to affect anything
                         logcat(LogPriority.ERROR) { e.stackTrace.toString() }
                     }
@@ -204,12 +153,12 @@ class HomeFragment : Fragment() {
                         val e = ((loadStates.refresh as LoadState.Error).error)
                         if ((e is HttpException && e.code() == 404)
                             || e is SubredditJsonPagingSource.NoSuchSubredditException)
-                            viewModel.uiStateBehaviorSubject.onNext(HomeUiStates.ERROR_404)
+                            viewModel.uiStateBehaviorSubject.onNext(UiState.ERROR_404)
                         else
-                            viewModel.uiStateBehaviorSubject.onNext(HomeUiStates.ERROR_GENERIC)
+                            viewModel.uiStateBehaviorSubject.onNext(UiState.ERROR_GENERIC)
                     }
                     else if (loadStates.refresh is LoadState.Loading) {
-                        viewModel.uiStateBehaviorSubject.onNext(HomeUiStates.LOADING)
+                        viewModel.uiStateBehaviorSubject.onNext(UiState.LOADING)
                     }
                     loadStates
                 }
@@ -217,7 +166,7 @@ class HomeFragment : Fragment() {
                 .onEach {
                     logcat(LogPriority.INFO) { "postsHomeAdapter.loadStateFlow.onEach loadStates.refresh == LoadState.NotLoading" }
                     if (postsHomeAdapter.itemCount != 1) {
-                        viewModel.uiStateBehaviorSubject.onNext(HomeUiStates.NORMAL)
+                        viewModel.uiStateBehaviorSubject.onNext(UiState.NORMAL)
 
                         positionToGoTo?.let { pos ->
                             logcat(LogPriority.INFO) { "Scrolling to position: $pos" }
@@ -225,7 +174,7 @@ class HomeFragment : Fragment() {
                         }
                     }
                     else {
-                        viewModel.uiStateBehaviorSubject.onNext(HomeUiStates.NO_CONTENT)
+                        viewModel.uiStateBehaviorSubject.onNext(UiState.NO_CONTENT)
                     }
                 }.launchIn(MainScope())
 
@@ -234,14 +183,14 @@ class HomeFragment : Fragment() {
                 .observeOn(AndroidSchedulers.mainThread())
                 .doOnNext { logcat(LogPriority.INFO) { "selectedSubredditChangedSubject.doOnNext: ${it.name}" } }
                 .subscribe { _ ->
-                    viewModel.uiStateBehaviorSubject.onNext(HomeUiStates.LOADING)
+                    viewModel.uiStateBehaviorSubject.onNext(UiState.LOADING)
                     justChangedSubreddits = true
                     postsHomeAdapter.refresh()
                 }
                 .addTo(disposables)
 
             srlHome.setOnRefreshListener {
-                viewModel.uiStateBehaviorSubject.onNext(HomeUiStates.LOADING)
+                viewModel.uiStateBehaviorSubject.onNext(UiState.LOADING)
                 postsHomeAdapter.refresh()
                 rvHomePosts.scrollToPosition(0)
                 srlHome.isRefreshing = false
@@ -301,7 +250,7 @@ class HomeFragment : Fragment() {
         }
     }
 
-    private fun setUpUiStatesBehaviour() {
+    override fun setUpUiStatesBehaviour() {
         logcat { "setUpUiStatesBehaviour" }
         viewModel.uiStateBehaviorSubject
             .observeOn(AndroidSchedulers.mainThread())
@@ -311,17 +260,17 @@ class HomeFragment : Fragment() {
                 logcat { "uiState = $uiState" }
                 with(binding) {
                     when (uiState) {
-                        HomeUiStates.NORMAL -> {
+                        UiState.NORMAL -> {
                             rvHomePosts.isVisible = true
                             linearLayoutHomeErrorContainer.isVisible = false
                             progressBarHomeLarge.isVisible = false
                         }
-                        HomeUiStates.LOADING -> {
+                        UiState.LOADING -> {
                             rvHomePosts.isVisible = false
                             linearLayoutHomeErrorContainer.isVisible = false
                             progressBarHomeLarge.isVisible = true
                         }
-                        HomeUiStates.ERROR_404 -> {
+                        UiState.ERROR_404 -> {
                             val errorMessage = getString(R.string.string_home_http_404_error_message)
                             val errorImageId = R.drawable.im_error_404_resized
                             linearLayoutHomeErrorContainer.isVisible = true
@@ -330,7 +279,7 @@ class HomeFragment : Fragment() {
                             progressBarHomeLarge.isVisible = false
                             rvHomePosts.isVisible = false
                         }
-                        HomeUiStates.ERROR_GENERIC -> {
+                        UiState.ERROR_GENERIC -> {
                             val errorMessage = getString(R.string.string_common_network_error_message)
                             val errorImageId = R.drawable.im_error_network
                             linearLayoutHomeErrorContainer.isVisible = true
@@ -339,7 +288,7 @@ class HomeFragment : Fragment() {
                             progressBarHomeLarge.isVisible = false
                             rvHomePosts.isVisible = false
                         }
-                        HomeUiStates.NO_CONTENT -> {
+                        UiState.NO_CONTENT -> {
                             val errorMessage = getString(R.string.string_home_no_posts_in_sub)
                             val errorImageId = R.drawable.im_error_no_content_dog
                             linearLayoutHomeErrorContainer.isVisible = true
@@ -348,12 +297,16 @@ class HomeFragment : Fragment() {
                             progressBarHomeLarge.isVisible = false
                             rvHomePosts.isVisible = false
                         }
+                        else -> {
+                            logcat(LogPriority.ERROR) { "uiState error: state $uiState is illegal in HomeFragment." }
+                            throw IllegalStateException("State $uiState is illegal in HomeFragment.")
+                        }
                     }
 
                     if (uiState in setOf(
-                            HomeUiStates.ERROR_404,
-                            HomeUiStates.ERROR_GENERIC,
-                            HomeUiStates.NO_CONTENT
+                            UiState.ERROR_404,
+                            UiState.ERROR_GENERIC,
+                            UiState.NO_CONTENT
                         )) {
                         (activity as MainActivity).expandAppBar()
                         (activity as MainActivity).expandBottomNavBar()
@@ -362,7 +315,7 @@ class HomeFragment : Fragment() {
             }.addTo(disposables)
     }
 
-    private fun setUpOptionsMenu() {
+    override fun setUpOptionsMenu() {
         logcat { "setUpOptionsMenu" }
 
         val mergedCurrentSubUpdateObservable = Observable.merge(    // We want to refresh the visibility of the menu item not only when the
@@ -614,22 +567,15 @@ class HomeFragment : Fragment() {
             }.addTo(disposables)
     }
 
-    private fun createNewPostViewerFragment(position: Int, sharedView: View) {
+    override fun createNewPostViewerFragment(position: Int, sharedView: View) {
         logcat { "createNewPostViewerFragment" }
         val sharedElementExtras = FragmentNavigatorExtras(sharedView to sharedView.transitionName)
         val action = HomeFragmentDirections.actionHomeToPostViewer(position, viewModel.javaClass.simpleName)
         findNavController().navigate(action, sharedElementExtras)
     }
 
-    override fun onDestroyView() {
-        logcat { "onDestroyView" }
-        super.onDestroyView()
+    override fun onDestroyViewRemoveBinding() {
+        logcat { "onDestroyViewRemoveBinding" }
         _binding = null
-    }
-
-    override fun onDestroy() {
-        logcat { "onDestroy" }
-        super.onDestroy()
-        disposables.dispose()
     }
 }

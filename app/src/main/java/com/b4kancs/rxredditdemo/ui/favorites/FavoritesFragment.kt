@@ -7,16 +7,17 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.core.view.children
 import androidx.core.view.isVisible
-import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.FragmentNavigatorExtras
 import androidx.navigation.fragment.findNavController
 import androidx.paging.LoadState
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.viewbinding.ViewBinding
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.databinding.FragmentFavoritesBinding
-import com.b4kancs.rxredditdemo.ui.favorites.FavoritesViewModel.FavoritesUiStates
 import com.b4kancs.rxredditdemo.ui.main.MainActivity
 import com.b4kancs.rxredditdemo.ui.postviewer.PostViewerFragment
+import com.b4kancs.rxredditdemo.ui.shared.BaseListingFragment
+import com.b4kancs.rxredditdemo.ui.shared.BaseListingFragmentViewModel.UiState
 import com.b4kancs.rxredditdemo.ui.shared.PostsVerticalRvAdapter
 import com.b4kancs.rxredditdemo.ui.uiutils.CustomLinearLayoutManager
 import com.b4kancs.rxredditdemo.ui.uiutils.SnackType
@@ -25,8 +26,6 @@ import com.b4kancs.rxredditdemo.ui.uiutils.makeSnackBar
 import com.jakewharton.rxbinding4.view.clicks
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Observable
-import io.reactivex.rxjava3.disposables.CompositeDisposable
-import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.kotlin.addTo
 import io.reactivex.rxjava3.kotlin.subscribeBy
 import kotlinx.coroutines.MainScope
@@ -36,54 +35,22 @@ import logcat.logcat
 import org.koin.androidx.viewmodel.ext.android.sharedViewModel
 import java.util.concurrent.TimeUnit
 
-class FavoritesFragment : Fragment() {
+class FavoritesFragment : BaseListingFragment() {
 
-    private val viewModel: FavoritesViewModel by sharedViewModel()
+    override val viewModel: FavoritesViewModel by sharedViewModel()
     private var _binding: FragmentFavoritesBinding? = null
     private val binding get() = _binding!!
-    private val disposables = CompositeDisposable()
-    private var positionToGoTo: Int? = null
-    private var isBeingReconstructed = false
-    private lateinit var delayedTransitionTriggerDisposable: Disposable
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
-        logcat {
-            "onCreateView\n  Current nav backstack: ${
-                findNavController().backQueue
-                    .map { it.destination }
-                    .joinToString("\n ", "\n ")
-            }"
-        }
-
+    override fun setUpBinding(inflater: LayoutInflater, container: ViewGroup?): ViewBinding {
+        logcat { "setUpBinding" }
         _binding = FragmentFavoritesBinding.inflate(inflater, container, false)
+        return binding
+    }
 
-        with(findNavController().currentBackStackEntry) {
-            positionToGoTo = this?.savedStateHandle?.get<Int>(PostViewerFragment.SAVED_STATE_POSITION_KEY)
-            this?.savedStateHandle?.remove<Int>(PostViewerFragment.SAVED_STATE_POSITION_KEY)
-            positionToGoTo?.let { logcat(LogPriority.INFO) { "Recovered position from PostViewerFragment. positionToGoTo = $it" } }
-        }
 
-        isBeingReconstructed = savedInstanceState != null
-        logcat { "isBeingReconstructed = $isBeingReconstructed" }
-        // If not returning from PVF and not recovering from rotation etc. positionToGoTo remains null, else 0.
-        // When positionToGoTo is null, we should let the RecyclerView recover its previous position.
-        if (positionToGoTo == null && !isBeingReconstructed) positionToGoTo = 0
+    override fun onViewCreatedDoAlso(view: View, savedInstanceState: Bundle?) {
+        logcat { "onCreateViewDoExtras" }
 
-        logcat(LogPriority.INFO) { "postponeEnterTransition()" }
-        postponeEnterTransition()
-
-        // If, for some reason, the transition doesn't get triggered in time (the image is slow to load, etc), we force it after a delay.
-        delayedTransitionTriggerDisposable = Observable.timer(500, TimeUnit.MILLISECONDS)
-            .observeOn(AndroidSchedulers.mainThread())
-            .doOnSubscribe { logcat(LogPriority.INFO) { "Starting delayed enter transition timer." } }
-            .subscribe {
-                logcat(LogPriority.INFO) { "Triggering delayed enter transition." }
-                startPostponedEnterTransition()
-            }
-            .addTo(disposables)
-
-        setUpRecyclerView()
-        setUpStateBehaviour()
         setUpLoadingStateAndErrorHandler(binding.rvFavoritesPosts.adapter as PostsVerticalRvAdapter)
 
         viewModel.getFavoritePostsBehaviorSubject()
@@ -98,32 +65,18 @@ class FavoritesFragment : Fragment() {
                     if (adapter.itemCount <= 1 && !isEmpty) adapter.refresh()
                 }
             }.addTo(disposables)
-
-        return binding.root
     }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        logcat { "onViewCreated" }
+    override fun setUpActionBarAndRelated() {
+        //
     }
 
-    override fun onResume() {
-        logcat { "onResume" }
-        super.onResume()
-
-        setUpOptionsMenu()
+    override fun setUpDrawer() {
+        (activity as MainActivity).lockDrawerClosed()
     }
 
-    override fun onStart() {
-        logcat { "onStart" }
-        super.onStart()
-
-        (activity as MainActivity).apply {
-            lockDrawerClosed()
-        }
-    }
-
-    private fun setUpStateBehaviour() {
-        logcat { "setUpStateBehaviour" }
+    override fun setUpUiStatesBehaviour() {
+        logcat { "setUpUiStatesBehaviour" }
         viewModel.uiStateBehaviorSubject
             .observeOn(AndroidSchedulers.mainThread())
             .filter { _binding != null }
@@ -132,17 +85,17 @@ class FavoritesFragment : Fragment() {
             .subscribe { uiState ->
                 with(binding) {
                     when (uiState) {
-                        FavoritesUiStates.NORMAL -> {
+                        UiState.NORMAL -> {
                             rvFavoritesPosts.isVisible = true
                             linearLayoutFavoritesErrorContainer.isVisible = false
                             progressBarFavoritesLarge.isVisible = false
                         }
-                        FavoritesUiStates.LOADING -> {
+                        UiState.LOADING -> {
                             rvFavoritesPosts.isVisible = false
                             linearLayoutFavoritesErrorContainer.isVisible = false
                             progressBarFavoritesLarge.isVisible = true
                         }
-                        FavoritesUiStates.ERROR_GENERIC -> {
+                        UiState.ERROR_GENERIC -> {
                             val errorMessage = getString(R.string.string_common_network_error_message)
                             val errorImageId = R.drawable.im_error_network
                             textViewFavoritesError.text = errorMessage
@@ -151,7 +104,7 @@ class FavoritesFragment : Fragment() {
                             linearLayoutFavoritesErrorContainer.isVisible = true
                             progressBarFavoritesLarge.isVisible = false
                         }
-                        FavoritesUiStates.NO_CONTENT -> {
+                        UiState.NO_CONTENT -> {
                             val errorMessage = getString(R.string.favorites_no_media)
                             val errorImageId = R.drawable.im_error_no_content_bird
                             textViewFavoritesError.text = errorMessage
@@ -160,13 +113,17 @@ class FavoritesFragment : Fragment() {
                             linearLayoutFavoritesErrorContainer.isVisible = true
                             progressBarFavoritesLarge.isVisible = false
                         }
+                        else -> {
+                            logcat(LogPriority.ERROR) { "uiState error: state $uiState is illegal in FavoritesFragment." }
+                            throw IllegalStateException("State $uiState is illegal in FavoritesFragment.")
+                        }
                     }
                 }
             }
             .addTo(disposables)
     }
 
-    private fun setUpRecyclerView() {
+    override fun setUpRecyclerView() {
         logcat { "setUpRecyclerView" }
         val mainActivity = (activity as MainActivity).also {
             it.animateShowActionBar()
@@ -190,12 +147,12 @@ class FavoritesFragment : Fragment() {
                 rvFavoritesPosts.adapter = PostsVerticalRvAdapter(
                     mainActivity,
                     shouldDisableTransformations,
-                    null
+                    viewModel
                 )
             }
             val postsFavoritesAdapter = rvFavoritesPosts.adapter as PostsVerticalRvAdapter
 
-            viewModel.favoritePostsCachedPagingObservable
+            viewModel.postsCachedPagingObservable
                 .subscribe { pagingData ->
                     try {
                         postsFavoritesAdapter.submitData(viewLifecycleOwner.lifecycle, pagingData)
@@ -259,7 +216,7 @@ class FavoritesFragment : Fragment() {
                 .observeOn(AndroidSchedulers.mainThread())
                 .doOnNext { logcat(LogPriority.INFO) { "postClickedSubject.onNext: post = ${it.first}" } }
                 .subscribe { (position, view) ->
-                    goToNewPostViewerFragment(position, view)
+                    createNewPostViewerFragment(position, view)
                     (rvFavoritesPosts.layoutManager as CustomLinearLayoutManager).canScrollVertically = false
                     postsFavoritesAdapter.disposables.dispose()
                 }.addTo(disposables)
@@ -270,7 +227,7 @@ class FavoritesFragment : Fragment() {
 
             srlFavorites.isEnabled = true
             srlFavorites.setOnRefreshListener {
-                viewModel.uiStateBehaviorSubject.onNext(FavoritesUiStates.LOADING)
+                viewModel.uiStateBehaviorSubject.onNext(UiState.LOADING)
                 postsFavoritesAdapter.refresh()
                 rvFavoritesPosts.scrollToPosition(0)
                 srlFavorites.isRefreshing = false
@@ -285,10 +242,10 @@ class FavoritesFragment : Fragment() {
             .map { loadStates ->
                 if (loadStates.refresh is LoadState.Error) {
                     logcat(LogPriority.WARN) { "LoadState.Error detected." }
-                    viewModel.uiStateBehaviorSubject.onNext(FavoritesUiStates.ERROR_GENERIC)
+                    viewModel.uiStateBehaviorSubject.onNext(UiState.ERROR_GENERIC)
                 }
                 else if (loadStates.refresh is LoadState.Loading) {
-                    viewModel.uiStateBehaviorSubject.onNext(FavoritesUiStates.LOADING)
+                    viewModel.uiStateBehaviorSubject.onNext(UiState.LOADING)
                 }
                 loadStates
             }
@@ -296,7 +253,7 @@ class FavoritesFragment : Fragment() {
             .onEach {
                 logcat(LogPriority.VERBOSE) { "postsFavoritesAdapter.loadStateFlow.onEach loadStates.refresh == LoadState.NotLoading" }
                 if (adapter.itemCount > 1) {
-                    viewModel.uiStateBehaviorSubject.onNext(FavoritesUiStates.NORMAL)
+                    viewModel.uiStateBehaviorSubject.onNext(UiState.NORMAL)
 
                     positionToGoTo?.let { pos ->
                         logcat(LogPriority.INFO) { "Scrolling to position: $pos" }
@@ -305,13 +262,13 @@ class FavoritesFragment : Fragment() {
                     }
                 }
                 else {
-                    viewModel.uiStateBehaviorSubject.onNext(FavoritesUiStates.NO_CONTENT)
+                    viewModel.uiStateBehaviorSubject.onNext(UiState.NO_CONTENT)
                 }
             }
             .launchIn(MainScope())
     }
 
-    private fun setUpOptionsMenu() {
+    override fun setUpOptionsMenu() {
         logcat { "setUpOptionsMenu" }
 
         fun setUpClearAllFavoritesMenuItem(menuItems: Sequence<MenuItem>) {
@@ -377,24 +334,20 @@ class FavoritesFragment : Fragment() {
             .addTo(disposables)
     }
 
-    private fun goToNewPostViewerFragment(position: Int, sharedView: View) {
+    override fun createNewPostViewerFragment(position: Int, sharedView: View) {
         logcat { "goToNewPostViewerFragment" }
         val sharedElementExtras = FragmentNavigatorExtras(sharedView to sharedView.transitionName)
         val action = FavoritesFragmentDirections.actionFavoritesToPostViewer(position, viewModel::class.simpleName!!)
         findNavController().navigate(action, sharedElementExtras)
     }
 
-    override fun onDestroyView() {
-        logcat { "onDestroyView" }
+    override fun onDestroyViewRemoveBinding() {
+        logcat { "onDestroyViewRemoveBinding" }
         _binding = null
-        (activity as MainActivity).unlockDrawer()
-        logcat { "Disposing of disposables." }
-        disposables.dispose()
-        super.onDestroyView()
     }
 
-    override fun onDestroy() {
-        logcat { "onDestroy" }
-        super.onDestroy()
+    override fun onDestroyViewDoAlso() {
+        logcat { "onDestroyViewDoAlso" }
+        (activity as MainActivity).unlockDrawer()
     }
 }

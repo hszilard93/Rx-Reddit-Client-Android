@@ -1,9 +1,9 @@
-package com.b4kancs.rxredditdemo.ui
+package com.b4kancs.rxredditdemo.ui.shared
 
 import androidx.paging.PagingData
 import com.b4kancs.rxredditdemo.model.Post
 import io.reactivex.rxjava3.core.Observable
 
 interface PostPagingDataObservableProvider {
-    fun cachedPagingObservable(): Observable<PagingData<Post>>
+    fun getCachedPagingObservable(): Observable<PagingData<Post>>
 }

@@ -1,20 +1,16 @@
 package com.b4kancs.rxredditdemo.ui.home
 
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.rxjava3.cachedIn
 import androidx.paging.rxjava3.observable
-import com.b4kancs.rxredditdemo.data.database.PostFavoritesDbEntry
 import com.b4kancs.rxredditdemo.domain.pagination.SubredditJsonPagingSource
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.model.Subreddit
-import com.b4kancs.rxredditdemo.repository.FavoritePostsRepository
 import com.b4kancs.rxredditdemo.repository.SubredditRepository
-import com.b4kancs.rxredditdemo.ui.PostPagingDataObservableProvider
-import com.b4kancs.rxredditdemo.ui.shared.FavoritesProvider
+import com.b4kancs.rxredditdemo.ui.shared.BaseListingFragmentViewModel
 import io.reactivex.rxjava3.core.Completable
 import io.reactivex.rxjava3.core.Maybe
 import io.reactivex.rxjava3.core.Observable
@@ -23,7 +19,6 @@ import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.addTo
 import io.reactivex.rxjava3.kotlin.subscribeBy
 import io.reactivex.rxjava3.observables.ConnectableObservable
-import io.reactivex.rxjava3.subjects.BehaviorSubject
 import io.reactivex.rxjava3.subjects.PublishSubject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import logcat.LogPriority
@@ -31,11 +26,12 @@ import logcat.logcat
 import org.koin.java.KoinJavaComponent.inject
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class HomeViewModel : ViewModel(), PostPagingDataObservableProvider, FavoritesProvider {
+class HomeViewModel : BaseListingFragmentViewModel() {
 
-    enum class HomeUiStates { NORMAL, LOADING, ERROR_404, ERROR_GENERIC, NO_CONTENT }
+//    enum class HomeUiStates { NORMAL, LOADING, ERROR_404, ERROR_GENERIC, NO_CONTENT }
 
-    private val favoritePostsRepository: FavoritePostsRepository by inject(FavoritePostsRepository::class.java)
+    override val postsCachedPagingObservable: Observable<PagingData<Post>>
+
     private val subredditRepository: SubredditRepository by inject(SubredditRepository::class.java)
     private lateinit var subredditAddress: String
     val disposables = CompositeDisposable()
@@ -43,9 +39,6 @@ class HomeViewModel : ViewModel(), PostPagingDataObservableProvider, FavoritesPr
     val selectedSubredditChangedPublishSubject: PublishSubject<Subreddit> = PublishSubject.create()
     val selectedSubredditReplayObservable: ConnectableObservable<Subreddit> = selectedSubredditChangedPublishSubject.replay(1)
     val subredditSearchResultsChangedSubject: PublishSubject<List<Subreddit>> = PublishSubject.create()
-    val uiStateBehaviorSubject: BehaviorSubject<HomeUiStates> = BehaviorSubject.createDefault(HomeUiStates.LOADING)
-
-    val subredditPostsCachedPagingObservable: Observable<PagingData<Post>>
     var isAppJustStarted = true
 
     init {
@@ -72,18 +65,11 @@ class HomeViewModel : ViewModel(), PostPagingDataObservableProvider, FavoritesPr
         ) {
             SubredditJsonPagingSource(subredditAddress)
         }
-        subredditPostsCachedPagingObservable = pager.observable
+        postsCachedPagingObservable = pager.observable
             .cachedIn(viewModelScope)
     }
 
-
-
-    override fun getFavoritePosts(): Single<List<PostFavoritesDbEntry>> =
-        favoritePostsRepository.getAllFavoritePostsFromDb()
-
     fun getDefaultSubreddit() = subredditRepository.defaultSubreddit
-
-    override fun cachedPagingObservable(): Observable<PagingData<Post>> = subredditPostsCachedPagingObservable
 
     fun getAllSubreddits(): Single<List<Subreddit>> =
         subredditRepository.getAllSubredditsFromDb()
@@ -173,4 +159,7 @@ class HomeViewModel : ViewModel(), PostPagingDataObservableProvider, FavoritesPr
         disposables.dispose()
         super.onCleared()
     }
+
+    override fun getCachedPagingObservable(): Observable<PagingData<Post>> =
+        postsCachedPagingObservable
 }

@@ -1,6 +1,5 @@
 package com.b4kancs.rxredditdemo.ui.follows
 
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
@@ -11,7 +10,8 @@ import com.b4kancs.rxredditdemo.domain.pagination.UserPostsJsonPagingSource
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.model.UserFeed
 import com.b4kancs.rxredditdemo.repository.FollowsRepository
-import com.b4kancs.rxredditdemo.ui.PostPagingDataObservableProvider
+import com.b4kancs.rxredditdemo.ui.shared.PostPagingDataObservableProvider
+import com.b4kancs.rxredditdemo.ui.shared.BaseListingFragmentViewModel
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Completable
 import io.reactivex.rxjava3.core.Maybe
@@ -26,16 +26,15 @@ import logcat.LogPriority
 import logcat.logcat
 import org.koin.java.KoinJavaComponent.inject
 
-class FollowsViewModel : ViewModel(), PostPagingDataObservableProvider {
+class FollowsViewModel : BaseListingFragmentViewModel() {
 
-    enum class FollowsUiStates { NORMAL, LOADING, ERROR_404, ERROR_GENERIC, NO_CONTENT, NO_CONTENT_AGGREGATE }
+//    enum class FollowsUiStates { NORMAL, LOADING, ERROR_404, ERROR_GENERIC, NO_CONTENT, NO_CONTENT_AGGREGATE }
 
     private val followsRepository: FollowsRepository by inject(FollowsRepository::class.java)
 
-    val postsCachedPagingObservable: Observable<PagingData<Post>>
+    override val postsCachedPagingObservable: Observable<PagingData<Post>>
     val feedChangedBehaviorSubject: BehaviorSubject<UserFeed> = BehaviorSubject.create()
     val followsSearchResultsChangedSubject: PublishSubject<List<UserFeed>> = PublishSubject.create()
-    val uiStateBehaviorSubject: BehaviorSubject<FollowsUiStates> = BehaviorSubject.createDefault(FollowsUiStates.LOADING)
 
     val currentUserFeed: UserFeed
         get() = feedChangedBehaviorSubject
@@ -145,7 +144,7 @@ class FollowsViewModel : ViewModel(), PostPagingDataObservableProvider {
 
     fun getDefaultUserFeed() = FollowsRepository.defaultUserFeed
 
-    override fun cachedPagingObservable(): Observable<PagingData<Post>> =
+    override fun getCachedPagingObservable(): Observable<PagingData<Post>> =
         postsCachedPagingObservable
 
     override fun onCleared() {

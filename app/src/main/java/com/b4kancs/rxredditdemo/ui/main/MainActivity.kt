@@ -199,7 +199,7 @@ class MainActivity : AppCompatActivity() {
     }
 
 
-    fun setUpHomeDrawerSearchView(homeViewModel: HomeViewModel) {
+    fun setUpSubredditDrawerSearchView(homeViewModel: HomeViewModel) {
         logcat { "setUpHomeDrawerSearchView" }
 
         val queryTextChangeEventHandlerDisposable: Observable<SearchViewQueryTextEvent>.() -> Disposable = {
