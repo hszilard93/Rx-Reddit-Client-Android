@@ -15,7 +15,6 @@ import androidx.viewbinding.ViewBinding
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.databinding.FragmentFavoritesBinding
 import com.b4kancs.rxredditdemo.ui.main.MainActivity
-import com.b4kancs.rxredditdemo.ui.postviewer.PostViewerFragment
 import com.b4kancs.rxredditdemo.ui.shared.BaseListingFragment
 import com.b4kancs.rxredditdemo.ui.shared.BaseListingFragmentViewModel.UiState
 import com.b4kancs.rxredditdemo.ui.shared.PostsVerticalRvAdapter
@@ -51,8 +50,6 @@ class FavoritesFragment : BaseListingFragment() {
     override fun onViewCreatedDoAlso(view: View, savedInstanceState: Bundle?) {
         logcat { "onCreateViewDoExtras" }
 
-        setUpLoadingStateAndErrorHandler(binding.rvFavoritesPosts.adapter as PostsVerticalRvAdapter)
-
         viewModel.getFavoritePostsBehaviorSubject()
             .observeOn(AndroidSchedulers.mainThread())
             .doOnNext { logcat { "favoritesViewModel.favoritePostsBehaviorSubject.onNext" } }
@@ -68,7 +65,10 @@ class FavoritesFragment : BaseListingFragment() {
     }
 
     override fun setUpActionBarAndRelated() {
-        //
+        (activity as MainActivity).also {
+            it.animateShowActionBar()
+            it.animateShowBottomNavBar()
+        }
     }
 
     override fun setUpDrawer() {
@@ -125,10 +125,6 @@ class FavoritesFragment : BaseListingFragment() {
 
     override fun setUpRecyclerView() {
         logcat { "setUpRecyclerView" }
-        val mainActivity = (activity as MainActivity).also {
-            it.animateShowActionBar()
-            it.animateShowBottomNavBar()
-        }
 
         with(binding) {
             rvFavoritesPosts.layoutManager = CustomLinearLayoutManager(requireContext(), LinearLayoutManager.VERTICAL)
@@ -145,7 +141,7 @@ class FavoritesFragment : BaseListingFragment() {
                     else false
 
                 rvFavoritesPosts.adapter = PostsVerticalRvAdapter(
-                    mainActivity,
+                    activity as MainActivity,
                     shouldDisableTransformations,
                     viewModel
                 )
@@ -163,7 +159,7 @@ class FavoritesFragment : BaseListingFragment() {
                 }
                 .addTo(disposables)
 
-            postsFavoritesAdapter.readyToBeDrawnSubject
+            postsFavoritesAdapter.readyForTransitionSubject
                 .delay(200, TimeUnit.MILLISECONDS)
                 .observeOn(AndroidSchedulers.mainThread())
                 .filter {
@@ -235,8 +231,9 @@ class FavoritesFragment : BaseListingFragment() {
         }
     }
 
-    private fun setUpLoadingStateAndErrorHandler(adapter: PostsVerticalRvAdapter) {
+    override fun setUpLoadingStateAndErrorHandler() {
         logcat { "setUpLoadingStateAndErrorHandler" }
+        val adapter = binding.rvFavoritesPosts.adapter as PostsVerticalRvAdapter
         adapter.loadStateFlow
             .distinctUntilChanged()
             .map { loadStates ->
@@ -336,9 +333,17 @@ class FavoritesFragment : BaseListingFragment() {
 
     override fun createNewPostViewerFragment(position: Int, sharedView: View) {
         logcat { "goToNewPostViewerFragment" }
+
+        savePositionFromRv(binding.rvFavoritesPosts)
+
         val sharedElementExtras = FragmentNavigatorExtras(sharedView to sharedView.transitionName)
         val action = FavoritesFragmentDirections.actionFavoritesToPostViewer(position, viewModel::class.simpleName!!)
         findNavController().navigate(action, sharedElementExtras)
+    }
+
+    override fun onPauseSavePosition() {
+        logcat { "onPauseSavePosition" }
+        savePositionFromRv(binding.rvFavoritesPosts)
     }
 
     override fun onDestroyViewRemoveBinding() {

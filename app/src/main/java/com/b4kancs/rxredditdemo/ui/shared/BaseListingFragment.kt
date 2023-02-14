@@ -6,10 +6,16 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import androidx.transition.TransitionInflater
 import androidx.viewbinding.ViewBinding
 import com.b4kancs.rxredditdemo.R
+import com.b4kancs.rxredditdemo.ui.main.MainActivity
 import com.b4kancs.rxredditdemo.ui.postviewer.PostViewerFragment
+import com.b4kancs.rxredditdemo.ui.shared.BaseListingFragmentViewModel.UiState
+import com.b4kancs.rxredditdemo.ui.uiutils.CustomLinearLayoutManager
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.CompositeDisposable
@@ -45,13 +51,18 @@ abstract class BaseListingFragment : Fragment() {
 
         val genericBinding = setUpBinding(inflater, container)
 
-        with(findNavController().currentBackStackEntry) {
-            positionToGoTo = this?.savedStateHandle?.get<Int>(PostViewerFragment.SAVED_STATE_POSITION_KEY)
-            this?.savedStateHandle?.remove<Int>(PostViewerFragment.SAVED_STATE_POSITION_KEY)
+        // Recover position from PostViewerFragment, if applicable
+        findNavController().currentBackStackEntry?.let { backStackEntry ->
+            positionToGoTo = backStackEntry.savedStateHandle.get<Int>(PostViewerFragment.SAVED_STATE_POSITION_KEY)
+            backStackEntry.savedStateHandle.remove<Int>(PostViewerFragment.SAVED_STATE_POSITION_KEY)
             positionToGoTo?.let { logcat(LogPriority.INFO) { "Recovered position from PostViewerFragment. positionToGoTo = $it" } }
         }
 
-        if (positionToGoTo == null) positionToGoTo = 0
+        // Else, recover position after config change or when coming from another Home|Favorites|Follows fragment, if applicable
+        if (positionToGoTo == null) {
+            positionToGoTo = viewModel.savedPosition ?: 0
+        }
+
         logcat(LogPriority.INFO) { "positionToGoTo = $positionToGoTo" }
 
         // TODO move stuff here?
@@ -73,6 +84,7 @@ abstract class BaseListingFragment : Fragment() {
         setUpSharedElementTransition()
         setUpRecyclerView()
         setUpUiStatesBehaviour()
+        setUpLoadingStateAndErrorHandler()
         onViewCreatedDoAlso(view, savedInstanceState)
     }
 
@@ -104,6 +116,8 @@ abstract class BaseListingFragment : Fragment() {
 
     abstract fun setUpUiStatesBehaviour()
 
+    abstract fun setUpLoadingStateAndErrorHandler()
+
 
     override fun onStart() {
         logcat { "onStart" }
@@ -125,6 +139,29 @@ abstract class BaseListingFragment : Fragment() {
     }
 
     abstract fun setUpOptionsMenu()
+
+
+    override fun onPause() {
+        logcat { "onPause" }
+        onPauseSavePosition()
+        onPauseDoAlso()
+        super.onPause()
+    }
+
+    abstract fun onPauseSavePosition()
+
+    protected fun savePositionFromRv(recyclerView: RecyclerView) {
+        logcat { "onSaveInstanceStateSavePositionForRv" }
+        (recyclerView.layoutManager as CustomLinearLayoutManager).let {
+            var currentPosition = it.findFirstCompletelyVisibleItemPosition()
+            if (currentPosition == RecyclerView.NO_POSITION)
+                currentPosition = it.findFirstVisibleItemPosition()
+            if (currentPosition != RecyclerView.NO_POSITION)
+                viewModel.updateSavedPosition(currentPosition)
+        }
+    }
+
+    open fun onPauseDoAlso() {}
 
 
     override fun onDestroyView() {
@@ -149,4 +186,109 @@ abstract class BaseListingFragment : Fragment() {
     open fun onDestroyDoAlso() {}
 
     abstract fun createNewPostViewerFragment(position: Int, sharedView: View)
+
+    protected fun setUpBaseRecyclerView(recyclerView: RecyclerView, viewModel: BaseListingFragmentViewModel) {
+        logcat { "setUpBaseRecyclerView: owner = $" }
+
+        val mainActivity = activity as MainActivity
+        recyclerView.layoutManager = CustomLinearLayoutManager(requireContext(), LinearLayoutManager.VERTICAL)
+            .apply { canScrollHorizontally = false }
+
+        if (recyclerView.adapter == null) {
+            // If positionToGoTo is not null, we need to disable glide transformations and some other stuff for the
+            // shared element transition to work properly
+            val shouldDisableTransformations = if (positionToGoTo != null) {
+                logcat { "Disabling glide transformations" }
+                true
+            }
+            else
+                false
+
+            recyclerView.adapter = PostsVerticalRvAdapter(
+                mainActivity,
+                shouldDisableTransformations,
+                viewModel
+            )
+        }
+        val postsAdapter = recyclerView.adapter as PostsVerticalRvAdapter
+
+        viewModel.postsCachedPagingObservable
+            .subscribe { pagingData ->
+                try {
+                    postsAdapter.submitData(viewLifecycleOwner.lifecycle, pagingData)
+                } catch (e: Exception) {
+                    // There might be a weird NullPointerException happening sometimes that doesn't really seem to affect anything
+                    logcat(LogPriority.ERROR) { e.stackTrace.toString() }
+                }
+            }.addTo(disposables)
+
+        val swipeRefreshLayout = recyclerView.parent as SwipeRefreshLayout
+        swipeRefreshLayout.setOnRefreshListener {
+            viewModel.uiStateBehaviorSubject.onNext(UiState.LOADING)
+            postsAdapter.refresh()
+            recyclerView.scrollToPosition(0)
+            swipeRefreshLayout.isRefreshing = false
+        }
+
+        postsAdapter.postClickedSubject
+            .observeOn(AndroidSchedulers.mainThread())
+            .doOnNext { logcat(LogPriority.INFO) { "postClickedSubject.onNext: post = ${it.first}" } }
+            .subscribe { (position, view) ->
+                createNewPostViewerFragment(position, view)
+                (recyclerView.layoutManager as CustomLinearLayoutManager).canScrollVertically = false
+                // By disposing of the subscriptions here, we stop the user from accidentally clicking on a post
+                // while the transition takes place.
+                postsAdapter.disposables.dispose()
+            }
+            .addTo(disposables)
+
+        // This is only useful when returning from a PostViewerFragment, to trigger the delayed transition
+        postsAdapter.readyForTransitionSubject
+            .observeOn(AndroidSchedulers.mainThread())
+            .filter { pos ->
+                if (positionToGoTo != null)
+                    pos == positionToGoTo
+                else
+                    true
+            }
+//            .take(1)
+            .doOnNext { logcat(LogPriority.INFO) { "readyToBeDrawnSubject.onNext: pos = $it" } }
+            .subscribe { _ ->
+                // Fine scroll to better position the imageview
+                val toScrollY = recyclerView
+                    .findViewHolderForLayoutPosition(positionToGoTo ?: 0)
+                    ?.itemView
+                    ?.y
+                    ?.minus(20f)
+                    ?: 0f
+                logcat { "Scrolling by y = $toScrollY" }
+                recyclerView.scrollBy(0, toScrollY.toInt())
+
+                // We put these reveals here so that they will be synced with the SharedElementTransition.
+//                mainActivity.animateShowActionBar()
+//                mainActivity.animateShowBottomNavBar()
+
+                Observable.timer(50, TimeUnit.MILLISECONDS)
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe {
+                        recyclerView.findViewHolderForLayoutPosition(positionToGoTo ?: 0)
+                            ?.let { viewHolderAtPosition ->
+                                val transitionName =
+                                    (viewHolderAtPosition as PostsVerticalRvAdapter.PostViewHolder)
+                                        .binding
+                                        .postImageView
+                                        .transitionName
+                                logcat(LogPriority.INFO) { "Transition name = $transitionName" }
+                                logcat { "startPostponedEnterTransition()" }
+                            }
+                        logcat { "Disposing of delayedTransitionTriggerDisposable" }
+                        delayedTransitionTriggerDisposable.dispose()
+                        postsAdapter.disableTransformations = false
+                        logcat { "startPostponedEnterTransition()" }
+                        startPostponedEnterTransition()
+                        viewModel.uiStateBehaviorSubject.onNext(UiState.NORMAL)
+                    }
+                    .addTo(disposables)
+            }.addTo(disposables)
+    }
 }

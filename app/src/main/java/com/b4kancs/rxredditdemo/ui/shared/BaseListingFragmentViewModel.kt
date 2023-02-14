@@ -22,6 +22,8 @@ abstract class BaseListingFragmentViewModel : ViewModel(), PostPagingDataObserva
      */
 
     val uiStateBehaviorSubject: BehaviorSubject<UiState> = BehaviorSubject.createDefault(UiState.LOADING)
+    var _savedPosition: Int? = null
+    val savedPosition get() = _savedPosition
 
     abstract val postsCachedPagingObservable: Observable<PagingData<Post>>
 
@@ -30,5 +32,10 @@ abstract class BaseListingFragmentViewModel : ViewModel(), PostPagingDataObserva
     fun getFavoritePosts(): Single<List<PostFavoritesDbEntry>> {
         logcat { "getFavoritePosts" }
         return favoritePostsRepository.getAllFavoritePostsFromDb()
+    }
+
+    fun updateSavedPosition(newPos: Int) {
+        logcat { "updateSavedPosition: newPos = $newPos" }
+        _savedPosition = newPos
     }
 }

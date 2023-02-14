@@ -53,7 +53,7 @@ class PostsVerticalRvAdapter(
     }
 
     val postClickedSubject: PublishSubject<Pair<Int, View>> = PublishSubject.create()
-    val readyToBeDrawnSubject: PublishSubject<Int> = PublishSubject.create()
+    val readyForTransitionSubject: PublishSubject<Int> = PublishSubject.create()
     val disposables = CompositeDisposable()
     private lateinit var orientation: Orientation
     private lateinit var postView: View
@@ -290,7 +290,7 @@ class PostsVerticalRvAdapter(
                                 animateViewHeightChange(imageView, oldImageViewHeight, newImageViewHeight, 150)
                         }
 
-                        readyToBeDrawnSubject.onNext(layoutPosition)
+                        readyForTransitionSubject.onNext(layoutPosition)
                         return false
                     }
                 }).apply {

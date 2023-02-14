@@ -10,7 +10,6 @@ import androidx.core.view.isVisible
 import androidx.navigation.fragment.FragmentNavigatorExtras
 import androidx.navigation.fragment.findNavController
 import androidx.paging.LoadState
-import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.viewbinding.ViewBinding
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.databinding.FragmentHomeBinding
@@ -20,7 +19,6 @@ import com.b4kancs.rxredditdemo.ui.main.MainActivity
 import com.b4kancs.rxredditdemo.ui.shared.BaseListingFragment
 import com.b4kancs.rxredditdemo.ui.shared.BaseListingFragmentViewModel.UiState
 import com.b4kancs.rxredditdemo.ui.shared.PostsVerticalRvAdapter
-import com.b4kancs.rxredditdemo.ui.uiutils.CustomLinearLayoutManager
 import com.b4kancs.rxredditdemo.ui.uiutils.SnackType
 import com.b4kancs.rxredditdemo.ui.uiutils.makeSnackBar
 import com.jakewharton.rxbinding4.view.clicks
@@ -31,7 +29,10 @@ import io.reactivex.rxjava3.kotlin.addTo
 import io.reactivex.rxjava3.kotlin.subscribeBy
 import io.reactivex.rxjava3.schedulers.Schedulers
 import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import logcat.LogPriority
 import logcat.logcat
 import org.koin.androidx.viewmodel.ext.android.sharedViewModel
@@ -65,10 +66,14 @@ class HomeFragment : BaseListingFragment() {
 
     override fun setUpActionBarAndRelated() {
         logcat { "setUpActionBarAndRelated" }
+        val mainActivity = (activity as MainActivity)
+        mainActivity.animateShowActionBar()
+        mainActivity.animateShowBottomNavBar()
+
         // Every time the Fragment is recreated, we need to change the support action bar title.
         viewModel.selectedSubredditReplayObservable
             .observeOn(AndroidSchedulers.mainThread())
-            .subscribe { (activity as MainActivity).supportActionBar?.title = it.name }
+            .subscribe { mainActivity.supportActionBar?.title = it.name }
             .addTo(disposables)
     }
 
@@ -82,172 +87,21 @@ class HomeFragment : BaseListingFragment() {
 
     override fun setUpRecyclerView() {
         logcat { "setUpRecyclerView" }
-        val mainActivity = activity as MainActivity
-        binding.apply {
-            rvHomePosts.layoutManager = CustomLinearLayoutManager(requireContext(), LinearLayoutManager.VERTICAL)
-                .apply { canScrollHorizontally = false }
 
-            if (rvHomePosts.adapter == null) {
-                // If positionToGoTo is not null, we need to disable glide transformations and some other stuff for the
-                // shared element transition to work properly
-                val shouldDisableTransformations = if (positionToGoTo != null) {
-                    logcat { "Disabling glide transformations" }
-                    true
-                }
-                else false
-                rvHomePosts.adapter = PostsVerticalRvAdapter(
-                    mainActivity,
-                    shouldDisableTransformations,
-                    viewModel
-                )
-            }
-            val postsHomeAdapter = rvHomePosts.adapter as PostsVerticalRvAdapter
+        setUpBaseRecyclerView(binding.rvHomePosts, viewModel)
 
-            viewModel.postsCachedPagingObservable
-                .subscribe { pagingData ->
-                    try {
-                        postsHomeAdapter.submitData(viewLifecycleOwner.lifecycle, pagingData)
-                        // Make the RecyclerView visible and scroll to the top only when the new data has been loaded!
-                        postsHomeAdapter.loadStateFlow
-                            .filter { loadStates -> loadStates.refresh is LoadState.NotLoading }
-                            .take(1)
-                            .onEach {
-                                logcat { "loadStateFlow.onEach" }
-                                // If the subreddit feed contains no displayable posts (images etc.), display a textview
-                                if (postsHomeAdapter.itemCount <= 1) {   // The 1 is because of the always-present bottom loading indicator
-                                    viewModel.uiStateBehaviorSubject.onNext(UiState.NO_CONTENT)
-                                }
-                                else {
-                                    viewModel.uiStateBehaviorSubject.onNext(UiState.NORMAL)
-                                    positionToGoTo?.let { pos ->
-                                        logcat(LogPriority.INFO) { "Scrolling to position: $pos" }
-                                        rvHomePosts.scrollToPosition(pos)
-                                    }
+        viewModel.selectedSubredditChangedPublishSubject
+            .throttleFirst(1, TimeUnit.SECONDS)
+            .observeOn(AndroidSchedulers.mainThread())
+            .doOnNext { logcat(LogPriority.INFO) { "selectedSubredditChangedSubject.doOnNext: ${it.name}" } }
+            .subscribe { _ ->
+                val adapter = binding.rvHomePosts.adapter as PostsVerticalRvAdapter
 
-                                    if (justChangedSubreddits) {
-                                        logcat(LogPriority.INFO) { "justChangedSubreddits = true; scrolling to position 0" }
-                                        rvHomePosts.scrollToPosition(0)
-                                        rvHomePosts.visibility = View.INVISIBLE
-                                        // This delay eliminates the flickering of the RV after a subreddit change
-                                        Observable.timer(FLICKERING_DELAY, TimeUnit.MILLISECONDS)
-                                            .observeOn(AndroidSchedulers.mainThread())
-                                            .subscribe {
-                                                rvHomePosts.isVisible = true
-                                                justChangedSubreddits = false
-                                            }.addTo(disposables)
-                                    }
-                                }
-                            }
-                            .launchIn(MainScope())
-                    } catch (e: Exception) {
-                        // There might be a weird NullPointerException happening sometimes that doesn't really seem to affect anything
-                        logcat(LogPriority.ERROR) { e.stackTrace.toString() }
-                    }
-                }
-                .addTo(disposables)
-
-            postsHomeAdapter.loadStateFlow
-                .map { loadStates ->
-                    if (loadStates.refresh is LoadState.Error) {
-                        logcat(LogPriority.WARN) { "LoadState.Error detected." }
-                        val e = ((loadStates.refresh as LoadState.Error).error)
-                        if ((e is HttpException && e.code() == 404)
-                            || e is SubredditJsonPagingSource.NoSuchSubredditException)
-                            viewModel.uiStateBehaviorSubject.onNext(UiState.ERROR_404)
-                        else
-                            viewModel.uiStateBehaviorSubject.onNext(UiState.ERROR_GENERIC)
-                    }
-                    else if (loadStates.refresh is LoadState.Loading) {
-                        viewModel.uiStateBehaviorSubject.onNext(UiState.LOADING)
-                    }
-                    loadStates
-                }
-                .filter { loadStates -> loadStates.refresh is LoadState.NotLoading }
-                .onEach {
-                    logcat(LogPriority.INFO) { "postsHomeAdapter.loadStateFlow.onEach loadStates.refresh == LoadState.NotLoading" }
-                    if (postsHomeAdapter.itemCount != 1) {
-                        viewModel.uiStateBehaviorSubject.onNext(UiState.NORMAL)
-
-                        positionToGoTo?.let { pos ->
-                            logcat(LogPriority.INFO) { "Scrolling to position: $pos" }
-                            rvHomePosts.scrollToPosition(pos)
-                        }
-                    }
-                    else {
-                        viewModel.uiStateBehaviorSubject.onNext(UiState.NO_CONTENT)
-                    }
-                }.launchIn(MainScope())
-
-            viewModel.selectedSubredditChangedPublishSubject
-                .throttleFirst(1, TimeUnit.SECONDS)
-                .observeOn(AndroidSchedulers.mainThread())
-                .doOnNext { logcat(LogPriority.INFO) { "selectedSubredditChangedSubject.doOnNext: ${it.name}" } }
-                .subscribe { _ ->
-                    viewModel.uiStateBehaviorSubject.onNext(UiState.LOADING)
-                    justChangedSubreddits = true
-                    postsHomeAdapter.refresh()
-                }
-                .addTo(disposables)
-
-            srlHome.setOnRefreshListener {
                 viewModel.uiStateBehaviorSubject.onNext(UiState.LOADING)
-                postsHomeAdapter.refresh()
-                rvHomePosts.scrollToPosition(0)
-                srlHome.isRefreshing = false
+                justChangedSubreddits = true
+                adapter.refresh()
             }
-
-            postsHomeAdapter.postClickedSubject
-                .observeOn(AndroidSchedulers.mainThread())
-                .doOnNext { logcat(LogPriority.INFO) { "postClickedSubject.doOnNext: pos = ${it.first}" } }
-                .subscribe { (position, view) ->
-                    createNewPostViewerFragment(position, view)
-                    (rvHomePosts.layoutManager as CustomLinearLayoutManager).canScrollVertically = false
-                    // By disposing of the subscriptions here, we stop the user from accidentally clicking on a post
-                    // while the transition takes place.
-                    postsHomeAdapter.disposables.dispose()
-                }.addTo(disposables)
-
-            postsHomeAdapter.readyToBeDrawnSubject
-                .observeOn(AndroidSchedulers.mainThread())
-                .filter { if (positionToGoTo != null) it == positionToGoTo else true }
-                .take(1)
-                .doOnNext { logcat(LogPriority.INFO) { "readyToBeDrawnSubject.onNext: pos = $it" } }
-                .subscribe {
-                    // Fine scroll to better position the imageview
-                    val toScrollY = binding.rvHomePosts
-                        .findViewHolderForLayoutPosition(positionToGoTo ?: 0)
-                        ?.itemView
-                        ?.y
-                        ?.minus(20f)
-                        ?: 0f
-                    logcat { "Scrolling by y = $toScrollY" }
-                    binding.rvHomePosts.scrollBy(0, toScrollY.toInt())
-
-                    // We put these reveals here so that they will be synced with the SharedElementTransition.
-                    mainActivity.animateShowActionBar()
-                    mainActivity.animateShowBottomNavBar()
-
-                    Observable.timer(50, TimeUnit.MILLISECONDS)
-                        .observeOn(AndroidSchedulers.mainThread())
-                        .subscribe {
-                            rvHomePosts.findViewHolderForLayoutPosition(positionToGoTo ?: 0)
-                                ?.let { viewHolderAtPosition ->
-                                    val transitionName =
-                                        (viewHolderAtPosition as PostsVerticalRvAdapter.PostViewHolder)
-                                            .binding
-                                            .postImageView
-                                            .transitionName
-                                    logcat(LogPriority.INFO) { "Transition name = $transitionName" }
-                                    logcat { "startPostponedEnterTransition()" }
-                                }
-                            logcat { "startPostponedEnterTransition()" }
-                            startPostponedEnterTransition()
-                            logcat { "Disposing of delayedTransitionTriggerDisposable" }
-                            delayedTransitionTriggerDisposable.dispose()
-                            postsHomeAdapter.disableTransformations = false
-                        }.addTo(disposables)
-                }.addTo(disposables)
-        }
+            .addTo(disposables)
     }
 
     override fun setUpUiStatesBehaviour() {
@@ -255,15 +109,29 @@ class HomeFragment : BaseListingFragment() {
         viewModel.uiStateBehaviorSubject
             .observeOn(AndroidSchedulers.mainThread())
             .filter { _binding != null }
+            .distinctUntilChanged()
             .doOnNext { logcat { "viewModel.uiStateBehaviorSubject.onNext" } }
             .subscribe { uiState ->
                 logcat { "uiState = $uiState" }
                 with(binding) {
                     when (uiState) {
                         UiState.NORMAL -> {
-                            rvHomePosts.isVisible = true
-                            linearLayoutHomeErrorContainer.isVisible = false
-                            progressBarHomeLarge.isVisible = false
+                            // This check makes it so that when returning from a PVF, the
+                            if (!rvHomePosts.isVisible) {
+                                rvHomePosts.visibility = View.INVISIBLE
+                                // This timer prevents the RV flickering when changing subs.
+                                Observable.timer(
+                                    FLICKERING_DELAY,
+                                    TimeUnit.MILLISECONDS,
+                                    AndroidSchedulers.mainThread()
+                                )
+                                    .subscribe {
+                                        rvHomePosts.isVisible = true
+                                        linearLayoutHomeErrorContainer.isVisible = false
+                                        progressBarHomeLarge.isVisible = false
+                                    }
+                                    .addTo(disposables)
+                            }
                         }
                         UiState.LOADING -> {
                             rvHomePosts.isVisible = false
@@ -313,6 +181,42 @@ class HomeFragment : BaseListingFragment() {
                     }
                 }
             }.addTo(disposables)
+    }
+
+    override fun setUpLoadingStateAndErrorHandler() {
+        logcat { "setUpLoadingStateAndErrorHandler" }
+
+        val adapter = binding.rvHomePosts.adapter as PostsVerticalRvAdapter
+        adapter.loadStateFlow
+            .map { loadStates ->
+                if (loadStates.refresh is LoadState.Error) {
+                    logcat(LogPriority.WARN) { "LoadState.Error detected." }
+                    val e = ((loadStates.refresh as LoadState.Error).error)
+                    if ((e is HttpException && e.code() == 404)
+                        || e is SubredditJsonPagingSource.NoSuchSubredditException)
+                        viewModel.uiStateBehaviorSubject.onNext(UiState.ERROR_404)
+                    else
+                        viewModel.uiStateBehaviorSubject.onNext(UiState.ERROR_GENERIC)
+                }
+                else if (loadStates.refresh is LoadState.Loading) {
+                    viewModel.uiStateBehaviorSubject.onNext(UiState.LOADING)
+                }
+                loadStates
+            }
+            .filter { loadStates -> loadStates.refresh is LoadState.NotLoading }
+            .onEach {
+                logcat(LogPriority.INFO) { "postsHomeAdapter.loadStateFlow.onEach loadStates.refresh == LoadState.NotLoading" }
+                if (adapter.itemCount > 1) {
+//                    viewModel.uiStateBehaviorSubject.onNext(UiState.NORMAL)
+
+                    positionToGoTo?.let { pos ->
+                        logcat(LogPriority.INFO) { "Scrolling to position: $pos" }
+                        binding.rvHomePosts.scrollToPosition(pos)
+                    }
+                }
+                else
+                    viewModel.uiStateBehaviorSubject.onNext(UiState.NO_CONTENT)
+            }.launchIn(MainScope())
     }
 
     override fun setUpOptionsMenu() {
@@ -572,6 +476,11 @@ class HomeFragment : BaseListingFragment() {
         val sharedElementExtras = FragmentNavigatorExtras(sharedView to sharedView.transitionName)
         val action = HomeFragmentDirections.actionHomeToPostViewer(position, viewModel.javaClass.simpleName)
         findNavController().navigate(action, sharedElementExtras)
+    }
+
+    override fun onPauseSavePosition() {
+        logcat { "onPauseSavePosition" }
+        savePositionFromRv(binding.rvHomePosts)
     }
 
     override fun onDestroyViewRemoveBinding() {

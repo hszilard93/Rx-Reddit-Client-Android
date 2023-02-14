@@ -56,7 +56,6 @@ class FollowsFragment : BaseListingFragment() {
 
     override fun onViewCreatedDoAlso(view: View, savedInstanceState: Bundle?) {
         logcat { "onCreateViewDoExtras" }
-        setUpLoadingStateAndErrorHandler(binding.rvFollowsPosts.adapter as PostsVerticalRvAdapter)
         if (isJustCreated) {
             setUpBehaviourDisposables()
             isJustCreated = false
@@ -236,7 +235,7 @@ class FollowsFragment : BaseListingFragment() {
                     }
                 }.addTo(disposables)
 
-            postsFollowsAdapter.readyToBeDrawnSubject
+            postsFollowsAdapter.readyForTransitionSubject
                 .delay(200, TimeUnit.MILLISECONDS)
                 .observeOn(AndroidSchedulers.mainThread())
                 .filter {
@@ -305,8 +304,10 @@ class FollowsFragment : BaseListingFragment() {
     }
 
     // This where we handle the errors coming from the feed and set the uiState.
-    private fun setUpLoadingStateAndErrorHandler(adapter: PostsVerticalRvAdapter) {
+    override fun setUpLoadingStateAndErrorHandler() {
         logcat { "setUpLoadingStateAndErrorHandler" }
+
+        val adapter = binding.rvFollowsPosts.adapter as PostsVerticalRvAdapter
         adapter.loadStateFlow
             .map { loadStates ->
                 if (loadStates.refresh is LoadState.Error) {
@@ -496,9 +497,17 @@ class FollowsFragment : BaseListingFragment() {
 
     override fun createNewPostViewerFragment(position: Int, sharedView: View) {
         logcat { "goToNewPostViewerFragment" }
+
+        savePositionFromRv(binding.rvFollowsPosts)
+
         val sharedElementExtras = FragmentNavigatorExtras(sharedView to sharedView.transitionName)
         val action = FollowsFragmentDirections.actionFollowsToPostViewer(position, viewModel::class.simpleName!!)
         findNavController().navigate(action, sharedElementExtras)
+    }
+
+    override fun onPauseSavePosition() {
+        logcat { "onPauseSavePosition" }
+        savePositionFromRv(binding.rvFollowsPosts)
     }
 
     override fun onDestroyViewRemoveBinding() {
