@@ -46,7 +46,7 @@ class FollowsFragment : BaseListingFragment() {
     private val args: FollowsFragmentArgs by navArgs()
     private var _binding: FragmentFollowsBinding? = null
     private val binding get() = _binding!!
-    private var isJustCreated = false
+    private var isJustCreated = true
 
     override fun setUpBinding(inflater: LayoutInflater, container: ViewGroup?): ViewBinding {
         logcat { "setUpBinding" }
@@ -64,6 +64,12 @@ class FollowsFragment : BaseListingFragment() {
 
     override fun setUpActionBarAndRelated() {
         logcat { "setUpActionBarAndRelated" }
+
+        (activity as MainActivity).apply {
+            animateShowActionBar()
+            animateShowBottomNavBar()
+        }
+
         // Every time the Fragment is recreated, we need to change the support action bar title.
         viewModel.feedChangedBehaviorSubject
             .observeOn(AndroidSchedulers.mainThread())
@@ -80,11 +86,12 @@ class FollowsFragment : BaseListingFragment() {
     }
 
     private fun setUpBehaviourDisposables() {
+        logcat { "setUpBehaviourDisposables" }
         // This subscription is for refreshing the feed. Does NOT need to immediately execute upon subscription,
         // hence the distinct until changed.
         viewModel.feedChangedBehaviorSubject
             .observeOn(AndroidSchedulers.mainThread())
-            .filter { _binding != null && !isJustCreated }
+            .filter { _binding != null }
             .distinctUntilChanged()
             .doOnNext { logcat { "followsViewModel.feedChangedBehaviorSubject.onNext" } }
             .subscribe { _ ->
@@ -198,109 +205,7 @@ class FollowsFragment : BaseListingFragment() {
 
     override fun setUpRecyclerView() {
         logcat { "setUpRecyclerView" }
-        val mainActivity = activity as MainActivity
-
-        mainActivity.animateShowActionBar()
-        mainActivity.animateShowBottomNavBar()
-
-        with(binding) {
-            rvFollowsPosts.layoutManager = CustomLinearLayoutManager(requireContext(), LinearLayoutManager.VERTICAL)
-                .apply { canScrollHorizontally = false }
-
-            if (rvFollowsPosts.adapter == null) {
-                // If positionToGoTo is not null, we need to disable glide transformations and some other stuff for the
-                // shared element transition to work properly
-                val shouldDisableTransformations =
-                    if (positionToGoTo != null) {
-                        logcat { "Disabling glide transformations" }
-                        true
-                    }
-                    else false
-
-                rvFollowsPosts.adapter = PostsVerticalRvAdapter(
-                    mainActivity,
-                    shouldDisableTransformations,
-                    viewModel
-                )
-            }
-            val postsFollowsAdapter = rvFollowsPosts.adapter as PostsVerticalRvAdapter
-
-            viewModel.postsCachedPagingObservable
-                .subscribe { pagingData ->
-                    try {
-                        postsFollowsAdapter.submitData(viewLifecycleOwner.lifecycle, pagingData)
-                    } catch (e: Exception) {
-                        // There might be a weird NullPointerException happening sometimes that doesn't really seem to affect anything
-                        logcat(LogPriority.ERROR) { e.stackTrace.toString() }
-                    }
-                }.addTo(disposables)
-
-            postsFollowsAdapter.readyForTransitionSubject
-                .delay(200, TimeUnit.MILLISECONDS)
-                .observeOn(AndroidSchedulers.mainThread())
-                .filter {
-                    if (positionToGoTo != null) it == positionToGoTo else true
-                }
-                .take(1)
-                .doOnNext { logcat { "readyToBeDrawnSubject.onNext: pos = $it" } }
-                .subscribe {
-                    // Fine scroll to better position the imageview
-                    positionToGoTo?.let { position ->
-                        val toScrollY = binding.rvFollowsPosts
-                            .findViewHolderForLayoutPosition(position)
-                            ?.itemView
-                            ?.y
-                            ?.minus(20f)
-                            ?: 0f
-                        logcat { "Scrolling by y = $toScrollY" }
-                        binding.rvFollowsPosts.scrollBy(0, toScrollY.toInt())
-
-                        try {   // FindViewHolderForLayoutPosition doesn't always return the correct ViewHolder, and the cast fails...
-                            rvFollowsPosts.findViewHolderForLayoutPosition(position)
-                                ?.let { viewHolderAtPosition ->
-                                    val transitionName =
-                                        (viewHolderAtPosition as PostsVerticalRvAdapter.PostViewHolder)
-                                            .binding
-                                            .postImageView
-                                            .transitionName
-                                    logcat(LogPriority.INFO) { "Transition name = $transitionName" }
-                                }
-                        } catch (e: Exception) {
-                            logcat(LogPriority.WARN) { e.message.toString() }
-                        }
-                    }
-
-                    // Getting these timings right is important for the UI to not glitch.
-                    Observable.timer(50, TimeUnit.MILLISECONDS)
-                        .observeOn(AndroidSchedulers.mainThread())
-                        .subscribe {
-                            logcat { "startPostponedEnterTransition()" }
-                            startPostponedEnterTransition()
-                            logcat { "Disposing of delayedTransitionTriggerDisposable" }
-                            delayedTransitionTriggerDisposable.dispose()
-                        }.addTo(disposables)
-
-                    postsFollowsAdapter.disableTransformations = false
-                }
-                .addTo(disposables)
-
-            postsFollowsAdapter.postClickedSubject
-                .observeOn(AndroidSchedulers.mainThread())
-                .doOnNext { logcat(LogPriority.INFO) { "postClickedSubject.onNext: post = ${it.first}" } }
-                .subscribe { (position, view) ->
-                    createNewPostViewerFragment(position, view)
-                    (rvFollowsPosts.layoutManager as CustomLinearLayoutManager).canScrollVertically = false
-                    postsFollowsAdapter.disposables.dispose()
-                }.addTo(disposables)
-
-            srlFollows.isEnabled = true
-            srlFollows.setOnRefreshListener {
-                viewModel.uiStateBehaviorSubject.onNext(UiState.LOADING)
-                postsFollowsAdapter.refresh()
-                rvFollowsPosts.scrollToPosition(0)
-                srlFollows.isRefreshing = false
-            }
-        }
+        setUpBaseRecyclerView(binding.rvFollowsPosts, viewModel)
     }
 
     // This where we handle the errors coming from the feed and set the uiState.
@@ -327,8 +232,6 @@ class FollowsFragment : BaseListingFragment() {
             .onEach {
                 logcat(LogPriority.INFO) { "postFollowsAdapter.loadStateFlow.onEach loadStates.refresh == LoadState.NotLoading" }
                 if (adapter.itemCount > 1) {
-                    viewModel.uiStateBehaviorSubject.onNext(UiState.NORMAL)
-
                     positionToGoTo?.let { pos ->
                         logcat(LogPriority.INFO) { "Scrolling to position: $pos" }
                         binding.rvFollowsPosts.scrollToPosition(pos)

@@ -132,8 +132,8 @@ class PostsVerticalRvAdapter(
                 scoreTextView.text = "${post.score}"
 
                 viewModel.getFavoritePosts()
-                    .let {   // This is a nullable because it doesn't make sense to have it in the FavoritesFragment
-                        it
+                    .let { favorites ->   // This is a nullable because it doesn't make sense to have it in the FavoritesFragment
+                        favorites
                             .observeOn(AndroidSchedulers.mainThread())
                             .doOnSubscribe { logcat { "getFavorites.onSubscribe" } }
                             .subscribe { favorites ->

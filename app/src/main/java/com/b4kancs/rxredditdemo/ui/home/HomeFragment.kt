@@ -62,6 +62,8 @@ class HomeFragment : BaseListingFragment() {
         }
         else if (justChangedSubreddits) positionToGoTo = 0
         logcat(LogPriority.INFO) { "positionToGoTo = $positionToGoTo" }
+
+        setUpBehaviourDisposables()
     }
 
     override fun setUpActionBarAndRelated() {
@@ -85,20 +87,19 @@ class HomeFragment : BaseListingFragment() {
         }
     }
 
-    override fun setUpRecyclerView() {
-        logcat { "setUpRecyclerView" }
-
-        setUpBaseRecyclerView(binding.rvHomePosts, viewModel)
+    private fun setUpBehaviourDisposables() {
+        logcat { "setUpBehaviourDisposables" }
 
         viewModel.selectedSubredditChangedPublishSubject
             .throttleFirst(1, TimeUnit.SECONDS)
             .observeOn(AndroidSchedulers.mainThread())
             .doOnNext { logcat(LogPriority.INFO) { "selectedSubredditChangedSubject.doOnNext: ${it.name}" } }
             .subscribe { _ ->
-                val adapter = binding.rvHomePosts.adapter as PostsVerticalRvAdapter
-
                 viewModel.uiStateBehaviorSubject.onNext(UiState.LOADING)
+                positionToGoTo = 0
                 justChangedSubreddits = true
+
+                val adapter = binding.rvHomePosts.adapter as PostsVerticalRvAdapter
                 adapter.refresh()
             }
             .addTo(disposables)
@@ -116,22 +117,23 @@ class HomeFragment : BaseListingFragment() {
                 with(binding) {
                     when (uiState) {
                         UiState.NORMAL -> {
-                            // This check makes it so that when returning from a PVF, the
-                            if (!rvHomePosts.isVisible) {
-                                rvHomePosts.visibility = View.INVISIBLE
+                            /* Not sure if I need this part anymore. Let's leave it here for now. */
+                            // This check makes it so that when returning from a PVF
+//                            if (!rvHomePosts.isVisible) {
+//                                rvHomePosts.visibility = View.INVISIBLE
                                 // This timer prevents the RV flickering when changing subs.
-                                Observable.timer(
-                                    FLICKERING_DELAY,
-                                    TimeUnit.MILLISECONDS,
-                                    AndroidSchedulers.mainThread()
-                                )
-                                    .subscribe {
+//                                Observable.timer(
+//                                    FLICKERING_DELAY,
+//                                    TimeUnit.MILLISECONDS,
+//                                    AndroidSchedulers.mainThread()
+//                                )
+//                                    .subscribe {
                                         rvHomePosts.isVisible = true
                                         linearLayoutHomeErrorContainer.isVisible = false
                                         progressBarHomeLarge.isVisible = false
-                                    }
-                                    .addTo(disposables)
-                            }
+//                                    }
+//                                    .addTo(disposables)
+//                            }
                         }
                         UiState.LOADING -> {
                             rvHomePosts.isVisible = false
@@ -183,6 +185,12 @@ class HomeFragment : BaseListingFragment() {
             }.addTo(disposables)
     }
 
+    override fun setUpRecyclerView() {
+        logcat { "setUpRecyclerView" }
+
+        setUpBaseRecyclerView(binding.rvHomePosts, viewModel)
+    }
+
     override fun setUpLoadingStateAndErrorHandler() {
         logcat { "setUpLoadingStateAndErrorHandler" }
 
@@ -207,8 +215,6 @@ class HomeFragment : BaseListingFragment() {
             .onEach {
                 logcat(LogPriority.INFO) { "postsHomeAdapter.loadStateFlow.onEach loadStates.refresh == LoadState.NotLoading" }
                 if (adapter.itemCount > 1) {
-//                    viewModel.uiStateBehaviorSubject.onNext(UiState.NORMAL)
-
                     positionToGoTo?.let { pos ->
                         logcat(LogPriority.INFO) { "Scrolling to position: $pos" }
                         binding.rvHomePosts.scrollToPosition(pos)

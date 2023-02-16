@@ -72,7 +72,6 @@ class PostViewerFragment : Fragment() {
         logcat { "currentPosition = $currentPosition" }
 
         setUpViewModel()
-//        currentPosition = viewModel.savedPosition ?: 0
 
         setUpOnBackPressedCallback()
         setUpNavigationToFollows()

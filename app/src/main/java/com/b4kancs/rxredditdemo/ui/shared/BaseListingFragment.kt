@@ -222,14 +222,6 @@ abstract class BaseListingFragment : Fragment() {
                 }
             }.addTo(disposables)
 
-        val swipeRefreshLayout = recyclerView.parent as SwipeRefreshLayout
-        swipeRefreshLayout.setOnRefreshListener {
-            viewModel.uiStateBehaviorSubject.onNext(UiState.LOADING)
-            postsAdapter.refresh()
-            recyclerView.scrollToPosition(0)
-            swipeRefreshLayout.isRefreshing = false
-        }
-
         postsAdapter.postClickedSubject
             .observeOn(AndroidSchedulers.mainThread())
             .doOnNext { logcat(LogPriority.INFO) { "postClickedSubject.onNext: post = ${it.first}" } }
@@ -249,14 +241,14 @@ abstract class BaseListingFragment : Fragment() {
                 if (positionToGoTo != null)
                     pos == positionToGoTo
                 else
-                    true
+                    pos == 0
             }
 //            .take(1)
             .doOnNext { logcat(LogPriority.INFO) { "readyToBeDrawnSubject.onNext: pos = $it" } }
-            .subscribe { _ ->
+            .subscribe { pos ->
                 // Fine scroll to better position the imageview
                 val toScrollY = recyclerView
-                    .findViewHolderForLayoutPosition(positionToGoTo ?: 0)
+                    .findViewHolderForLayoutPosition(pos)
                     ?.itemView
                     ?.y
                     ?.minus(20f)
@@ -264,14 +256,10 @@ abstract class BaseListingFragment : Fragment() {
                 logcat { "Scrolling by y = $toScrollY" }
                 recyclerView.scrollBy(0, toScrollY.toInt())
 
-                // We put these reveals here so that they will be synced with the SharedElementTransition.
-//                mainActivity.animateShowActionBar()
-//                mainActivity.animateShowBottomNavBar()
-
                 Observable.timer(50, TimeUnit.MILLISECONDS)
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe {
-                        recyclerView.findViewHolderForLayoutPosition(positionToGoTo ?: 0)
+                        recyclerView.findViewHolderForLayoutPosition(pos)
                             ?.let { viewHolderAtPosition ->
                                 val transitionName =
                                     (viewHolderAtPosition as PostsVerticalRvAdapter.PostViewHolder)
@@ -290,5 +278,14 @@ abstract class BaseListingFragment : Fragment() {
                     }
                     .addTo(disposables)
             }.addTo(disposables)
+
+        val swipeRefreshLayout = recyclerView.parent as SwipeRefreshLayout
+        swipeRefreshLayout.setOnRefreshListener {
+            viewModel.uiStateBehaviorSubject.onNext(UiState.LOADING)
+            postsAdapter.refresh()
+            recyclerView.scrollToPosition(0)
+            swipeRefreshLayout.isRefreshing = false
+        }
+
     }
 }

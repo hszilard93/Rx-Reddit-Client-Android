@@ -14,19 +14,27 @@ import org.koin.java.KoinJavaComponent.inject
 class FavoritePostsRepository {
 
     private val favoritesDatabase: FavoritesDatabase by inject(FavoritesDatabase::class.java)
-    val favoritePostEntriesBehaviorSubject = BehaviorSubject.createDefault<List<PostFavoritesDbEntry>>(emptyList())
+    val favoritePostEntriesBehaviorSubject = BehaviorSubject.create<List<PostFavoritesDbEntry>>()
 
     fun getAllFavoritePostsFromDb(): Single<List<PostFavoritesDbEntry>> {
         logcat { "getAllFavoritePostsFromDb" }
-        return favoritesDatabase.favoritesDao().getFavorites()
-            .subscribeOn(Schedulers.io())
-            .retry(1)
-            .doOnSuccess { favoriteDbEntries ->
-                favoritePostEntriesBehaviorSubject.onNext(favoriteDbEntries)
-            }
-            .doOnError { e ->
-                logcat(LogPriority.ERROR) { "Could not get favorite posts from DB! Message: ${e.message}" }
-            }
+
+        // The favoritePostEntriesBehaviorSubject always maintains an up to date version of the Favorites;
+        // Only perform db query if the Favorites have not yet been loaded.
+        return if (favoritePostEntriesBehaviorSubject.hasValue()) {
+            Single.just(favoritePostEntriesBehaviorSubject.value!!)
+        }
+        else {
+            favoritesDatabase.favoritesDao().getFavorites()
+                .subscribeOn(Schedulers.io())
+                .retry(1)
+                .doOnSuccess { favoriteDbEntries ->
+                    favoritePostEntriesBehaviorSubject.onNext(favoriteDbEntries)
+                }
+                .doOnError { e ->
+                    logcat(LogPriority.ERROR) { "Could not get favorite posts from DB! Message: ${e.message}" }
+                }
+        }
     }
 
     fun getFavoritesFromDbLimitedAndOffset(limit: Int, offset: Int): Single<List<PostFavoritesDbEntry>> {

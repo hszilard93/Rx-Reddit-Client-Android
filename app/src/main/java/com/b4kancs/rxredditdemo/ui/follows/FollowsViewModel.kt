@@ -45,7 +45,7 @@ class FollowsViewModel : BaseListingFragmentViewModel() {
         logcat { "init" }
 
         feedChangedBehaviorSubject
-            .subscribe { logcat(LogPriority.INFO) { "feedChangedPublishSubject.onNext" } }
+            .subscribe { feed -> logcat(LogPriority.INFO) { "feedChangedBehaviorSubject.onNext feed = ${feed.name}" } }
             .addTo(disposables)
 
         val pager = Pager(
@@ -55,7 +55,7 @@ class FollowsViewModel : BaseListingFragmentViewModel() {
                 initialLoadSize = UserPostsJsonPagingSource.PAGE_SIZE
             )
         ) {
-            logcat { "Follows pager pagingSourceFactory method called." }
+            logcat { "Follows pager pagingSourceFactory method called. currentUserFeed = $currentUserFeed" }
             UserPostsJsonPagingSource(currentUserFeed)
         }
         postsCachedPagingObservable = pager.observable

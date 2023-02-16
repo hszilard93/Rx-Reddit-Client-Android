@@ -56,6 +56,7 @@ class FavoritesFragment : BaseListingFragment() {
             .filter { _binding != null }
             .distinctUntilChanged()
             .subscribe { postDbEntries ->
+                // TODO check this over
                 val isEmpty = postDbEntries.isEmpty()
                 (binding.rvFavoritesPosts.adapter as PostsVerticalRvAdapter).let { adapter ->
                     if (adapter.itemCount > 1 && isEmpty) adapter.refresh()
@@ -125,110 +126,7 @@ class FavoritesFragment : BaseListingFragment() {
 
     override fun setUpRecyclerView() {
         logcat { "setUpRecyclerView" }
-
-        with(binding) {
-            rvFavoritesPosts.layoutManager = CustomLinearLayoutManager(requireContext(), LinearLayoutManager.VERTICAL)
-                .apply { canScrollHorizontally = false }
-
-            if (rvFavoritesPosts.adapter == null) {
-                // If positionToGoTo is not null, we need to disable glide transformations and some other stuff for the
-                // shared element transition to work properly.
-                val shouldDisableTransformations =
-                    if (positionToGoTo != null) {
-                        logcat { "Disabling glide transformations" }
-                        true
-                    }
-                    else false
-
-                rvFavoritesPosts.adapter = PostsVerticalRvAdapter(
-                    activity as MainActivity,
-                    shouldDisableTransformations,
-                    viewModel
-                )
-            }
-            val postsFavoritesAdapter = rvFavoritesPosts.adapter as PostsVerticalRvAdapter
-
-            viewModel.postsCachedPagingObservable
-                .subscribe { pagingData ->
-                    try {
-                        postsFavoritesAdapter.submitData(viewLifecycleOwner.lifecycle, pagingData)
-                    } catch (e: Exception) {
-                        // There might be a weird NullPointerException happening sometimes that doesn't really seem to affect anything
-                        logcat(LogPriority.ERROR) { e.stackTrace.toString() }
-                    }
-                }
-                .addTo(disposables)
-
-            postsFavoritesAdapter.readyForTransitionSubject
-                .delay(200, TimeUnit.MILLISECONDS)
-                .observeOn(AndroidSchedulers.mainThread())
-                .filter {
-                    if (positionToGoTo != null) it == positionToGoTo else true
-                }      // When the target of the SharedElementTransition or any element is ready
-                .take(1)
-                .doOnNext { logcat { "readyToBeDrawnSubject.onNext: pos = $it" } }
-                .subscribe {
-                    // Fine scroll to better position the imageview
-                    positionToGoTo?.let { position ->
-                        val toScrollY = binding.rvFavoritesPosts
-                            .findViewHolderForLayoutPosition(position)
-                            ?.itemView
-                            ?.y
-                            ?.minus(20f)
-                            ?: 0f
-                        logcat { "Scrolling by y = $toScrollY" }
-                        binding.rvFavoritesPosts.scrollBy(0, toScrollY.toInt())
-
-                        try {   // FindViewHolderForLayoutPosition doesn't always return the correct ViewHolder, and the cast fails...
-                            rvFavoritesPosts.findViewHolderForLayoutPosition(position)
-                                ?.let { viewHolderAtPosition ->
-                                    val transitionName =
-                                        (viewHolderAtPosition as PostsVerticalRvAdapter.PostViewHolder)
-                                            .binding
-                                            .postImageView
-                                            .transitionName
-                                    logcat(LogPriority.INFO) { "Transition name = $transitionName" }
-                                }
-                        } catch (e: Exception) {
-                            logcat(LogPriority.WARN) { e.message.toString() }
-                        }
-                    }
-
-                    // Getting these timings right is important for the UI to not glitch.
-                    Observable.timer(50, TimeUnit.MILLISECONDS)
-                        .observeOn(AndroidSchedulers.mainThread())
-                        .subscribe {
-                            logcat { "startPostponedEnterTransition()" }
-                            startPostponedEnterTransition()
-                            logcat { "Disposing of delayedTransitionTriggerDisposable" }
-                            delayedTransitionTriggerDisposable.dispose()
-                        }.addTo(disposables)
-
-                    postsFavoritesAdapter.disableTransformations = false
-                }
-                .addTo(disposables)
-
-            postsFavoritesAdapter.postClickedSubject
-                .observeOn(AndroidSchedulers.mainThread())
-                .doOnNext { logcat(LogPriority.INFO) { "postClickedSubject.onNext: post = ${it.first}" } }
-                .subscribe { (position, view) ->
-                    createNewPostViewerFragment(position, view)
-                    (rvFavoritesPosts.layoutManager as CustomLinearLayoutManager).canScrollVertically = false
-                    postsFavoritesAdapter.disposables.dispose()
-                }.addTo(disposables)
-
-            postsFavoritesAdapter.addLoadStateListener { combinedLoadStates ->
-                progressBarFavoritesLarge.isVisible = combinedLoadStates.refresh is LoadState.Loading
-            }
-
-            srlFavorites.isEnabled = true
-            srlFavorites.setOnRefreshListener {
-                viewModel.uiStateBehaviorSubject.onNext(UiState.LOADING)
-                postsFavoritesAdapter.refresh()
-                rvFavoritesPosts.scrollToPosition(0)
-                srlFavorites.isRefreshing = false
-            }
-        }
+        setUpBaseRecyclerView(binding.rvFavoritesPosts, viewModel)
     }
 
     override fun setUpLoadingStateAndErrorHandler() {
