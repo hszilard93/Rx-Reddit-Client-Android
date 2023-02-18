@@ -3,7 +3,6 @@ package com.b4kancs.rxredditdemo.ui.main
 import android.os.Bundle
 import android.view.Menu
 import android.view.View
-import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AppCompatActivity
@@ -25,10 +24,11 @@ import com.b4kancs.rxredditdemo.ui.follows.FollowsViewModel
 import com.b4kancs.rxredditdemo.ui.home.HomeViewModel
 import com.b4kancs.rxredditdemo.ui.home.SubredditsDrawerListAdapter
 import com.b4kancs.rxredditdemo.ui.home.SubredditsDrawerSearchListAdapter
-import com.b4kancs.rxredditdemo.ui.uiutils.ANIMATION_DURATION_LONG
 import com.b4kancs.rxredditdemo.ui.uiutils.ANIMATION_DURATION_SHORT
 import com.b4kancs.rxredditdemo.ui.uiutils.animateViewHeightChange
 import com.b4kancs.rxredditdemo.ui.uiutils.dpToPixel
+import com.b4kancs.rxredditdemo.utils.executeTimedDisposable
+import com.google.android.material.appbar.AppBarLayout
 import com.google.android.material.behavior.HideBottomViewOnScrollBehavior
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.jakewharton.rxbinding4.widget.SearchViewQueryTextEvent
@@ -174,11 +174,7 @@ class MainActivity : AppCompatActivity() {
             .subscribe {
                 // I think this small delay before triggering the closing animation of the drawer
                 // gives a better "feel" that something is happening.
-                Observable.timer(300, TimeUnit.MILLISECONDS)
-                    .subscribe {
-                        binding.drawerMain.closeDrawer(GravityCompat.START)
-                    }
-                    .addTo(disposables)
+                executeTimedDisposable(300) { binding.drawerMain.closeDrawer(GravityCompat.START) }
             }.addTo(disposables)
     }
 
@@ -190,11 +186,7 @@ class MainActivity : AppCompatActivity() {
         followsViewModel.feedChangedBehaviorSubject
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe {
-                Observable.timer(300, TimeUnit.MILLISECONDS)
-                    .subscribe {
-                        binding.drawerMain.closeDrawer(GravityCompat.START)
-                    }
-                    .addTo(disposables)
+                executeTimedDisposable(300) { binding.drawerMain.closeDrawer(GravityCompat.START) }
             }.addTo(disposables)
     }
 
@@ -329,20 +321,21 @@ class MainActivity : AppCompatActivity() {
                     }
                     redrawSearchResultsList()
                     // Keyboard layout animation listener
-                    ViewCompat.setWindowInsetsAnimationCallback(listViewDrawerSearchResults,
-                                                                object : WindowInsetsAnimationCompat.Callback(DISPATCH_MODE_STOP) {
-                                                                    override fun onProgress(
-                                                                        insets: WindowInsetsCompat,
-                                                                        runningAnimations: MutableList<WindowInsetsAnimationCompat>
-                                                                    ): WindowInsetsCompat = insets
+                    ViewCompat
+                        .setWindowInsetsAnimationCallback(
+                            listViewDrawerSearchResults,
+                            object : WindowInsetsAnimationCompat.Callback(DISPATCH_MODE_STOP) {
+                                override fun onProgress(
+                                    insets: WindowInsetsCompat,
+                                    runningAnimations: MutableList<WindowInsetsAnimationCompat>
+                                ): WindowInsetsCompat = insets
 
-                                                                    override fun onEnd(animation: WindowInsetsAnimationCompat) {
-                                                                        super.onEnd(animation)
-                                                                        if (drawerMain.isDrawerVisible(linearMainDrawerOuter)) redrawSearchResultsList()
-                                                                    }
-                                                                })
-                }
-                .addTo(disposables)
+                                override fun onEnd(animation: WindowInsetsAnimationCompat) {
+                                    super.onEnd(animation)
+                                    if (drawerMain.isDrawerVisible(linearMainDrawerOuter)) redrawSearchResultsList()
+                                }
+                            })
+                }.addTo(disposables)
 
             listViewDrawerSearchResults.adapter = searchListAdapter
 
@@ -367,7 +360,7 @@ class MainActivity : AppCompatActivity() {
     }
 
 
-    fun animateHideActionBar(viewToSynchronizeWith: View? = null) {
+    fun animateHideActionBar() {
         logcat { "animateHideActionBar" }
         if (!viewModel.isActionBarShowing) return
 
@@ -377,25 +370,14 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        binding.toolbarMain.animate()
-            .translationY(actionBar.height * -1f)
-            .setDuration(ANIMATION_DURATION_LONG)
-            .withEndAction {
-                actionBar.hide()
-                viewModel.isActionBarShowing = false
-            }.start()
+        // Make the action bar collapse, then disappear it when the animation is over.
+        (binding.toolbarMain.parent as AppBarLayout).apply {
+            setExpanded(false)
 
-        // We also animate the position of the view below the ActionBar so that the whole thing doesn't jerk upwards suddenly
-        // when the ActionBar's visibility is gone
-        viewToSynchronizeWith?.let {
-            it.animate()
-                .translationY(actionBar.height * -1f)
-                .setDuration(ANIMATION_DURATION_LONG)
-                .withEndAction {
-                    it.y = 0f
-                }
-                .start()
+            executeTimedDisposable(200) { visibility = View.GONE }
         }
+
+        viewModel.isActionBarShowing = false
     }
 
     fun animateShowActionBar() {
@@ -408,57 +390,27 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        if (!viewModel.isActionBarShowing) {
-            actionBar.show()
-            viewModel.isActionBarShowing = true
-            binding.toolbarMain.animate()
-                .translationY(0f)
-                .setDuration(ANIMATION_DURATION_LONG)
-                .start()
+        // Make the action bar visible and then make it expand.
+        (binding.toolbarMain.parent as AppBarLayout).apply {
+            visibility = View.VISIBLE
+            setExpanded(true)
         }
+        viewModel.isActionBarShowing = true
     }
 
 
     fun animateHideBottomNavBar(viewToSynchronizeWith: View? = null) {
         logcat { "animateHideBottomNavBar" }
         if (!viewModel.isNavBarShowing) return
-
-        binding.bottomNavViewMain.let {
-            it.animate()
-                .translationYBy(it.height.toFloat())
-                .setDuration(ANIMATION_DURATION_LONG)
-                .withEndAction {
-                    it.isVisible = false
-                    viewModel.isNavBarShowing = false
-                }
-                .start()
-        }
-
-        viewToSynchronizeWith?.let {
-            animateViewHeightChange(
-                it,
-                it.height,
-                it.height + binding.bottomNavViewMain.height,
-                ANIMATION_DURATION_LONG,
-                endWithThis = {
-                    it.layoutParams.height = ViewGroup.LayoutParams.MATCH_PARENT
-                }
-            )
-        }
+        binding.bottomNavViewMain.isVisible = false
+        viewModel.isNavBarShowing = false
     }
 
     fun animateShowBottomNavBar() {
         logcat { "animateShowBottomNavBar" }
         if (viewModel.isNavBarShowing) return
-
-        binding.bottomNavViewMain.let {
-            it.isVisible = true
-            viewModel.isNavBarShowing = true
-            it.animate()
-                .translationYBy(it.height * -1f)
-                .setDuration(ANIMATION_DURATION_LONG)
-                .start()
-        }
+        binding.bottomNavViewMain.isVisible = true
+        viewModel.isNavBarShowing = true
     }
 
 

@@ -3,6 +3,7 @@
     android:id="@+id/scroll_view_post_outer"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    app:layout_behavior="@string"
     android:orientation="vertical">
 
     <androidx.constraintlayout.widget.ConstraintLayout
@@ -13,7 +14,7 @@
         <com.jsibbold.zoomage.ZoomageView
             android:id="@+id/image_view_post_main_image"
             android:layout_width="0dp"
-            android:layout_height="4000dp"
+            android:layout_height="0dp"
             android:background="?attr/colorImageBackground"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"

@@ -3,6 +3,7 @@ package com.b4kancs.rxredditdemo.ui.postviewer
 import android.animation.Animator
 import android.animation.TimeInterpolator
 import android.animation.ValueAnimator
+import android.graphics.Point
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -158,6 +159,16 @@ class PostViewerFragment : Fragment() {
     private fun setUpViewPager(isSlideShowOnGoing: Boolean = false) {
         logcat { "setUpViewPager" }
 
+//        val display = requireActivity().windowManager.defaultDisplay
+//        val size = Point()
+//        display.getSize(size)
+//        binding.viewPagerPostViewer.apply {
+//            logcat(LogPriority.INFO) { "viewPager before width = ${layoutParams.width}, viewPager height = ${layoutParams.height}" }
+//            layoutParams.width = size.x
+//            layoutParams.height = size.y
+//            logcat(LogPriority.INFO) { "viewPager after width = ${layoutParams.width}, viewPager height = ${layoutParams.height}" }
+//        }
+
         val onPositionChangedCallback = { nextPosition: Int ->
             logcat { "onPositionChangedCallback: nextPosition = $nextPosition" }
             binding.viewPagerPostViewer.customSetCurrentItem(nextPosition, ANIMATION_DURATION_SHORT)
@@ -210,7 +221,7 @@ class PostViewerFragment : Fragment() {
                 .doOnNext { logcat { "postViewerAdapter.readyToBeDrawnSubject.onNext: position = $it" } }
                 .subscribe {
                     (activity as MainActivity).apply {
-                        animateHideActionBar(root)
+                        animateHideActionBar()
                         animateHideBottomNavBar(root)
                     }
                     logcat(LogPriority.INFO) { "startPostponedEnterTransition()" }

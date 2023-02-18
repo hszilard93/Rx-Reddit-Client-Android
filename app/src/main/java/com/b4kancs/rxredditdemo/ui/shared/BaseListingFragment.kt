@@ -16,6 +16,7 @@ import com.b4kancs.rxredditdemo.ui.main.MainActivity
 import com.b4kancs.rxredditdemo.ui.postviewer.PostViewerFragment
 import com.b4kancs.rxredditdemo.ui.shared.BaseListingFragmentViewModel.UiState
 import com.b4kancs.rxredditdemo.ui.uiutils.CustomLinearLayoutManager
+import com.b4kancs.rxredditdemo.utils.executeTimedDisposable
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.CompositeDisposable
@@ -256,27 +257,25 @@ abstract class BaseListingFragment : Fragment() {
                 logcat { "Scrolling by y = $toScrollY" }
                 recyclerView.scrollBy(0, toScrollY.toInt())
 
-                Observable.timer(50, TimeUnit.MILLISECONDS)
-                    .observeOn(AndroidSchedulers.mainThread())
-                    .subscribe {
-                        recyclerView.findViewHolderForLayoutPosition(pos)
-                            ?.let { viewHolderAtPosition ->
-                                val transitionName =
-                                    (viewHolderAtPosition as PostsVerticalRvAdapter.PostViewHolder)
-                                        .binding
-                                        .postImageView
-                                        .transitionName
-                                logcat(LogPriority.INFO) { "Transition name = $transitionName" }
-                                logcat { "startPostponedEnterTransition()" }
-                            }
-                        logcat { "Disposing of delayedTransitionTriggerDisposable" }
-                        delayedTransitionTriggerDisposable.dispose()
-                        postsAdapter.disableTransformations = false
-                        logcat { "startPostponedEnterTransition()" }
-                        startPostponedEnterTransition()
-                        viewModel.uiStateBehaviorSubject.onNext(UiState.NORMAL)
-                    }
-                    .addTo(disposables)
+                // This delay helps avoid flickering.
+                executeTimedDisposable(50) {
+                    recyclerView.findViewHolderForLayoutPosition(pos)
+                        ?.let { viewHolderAtPosition ->
+                            val transitionName =
+                                (viewHolderAtPosition as PostsVerticalRvAdapter.PostViewHolder)
+                                    .binding
+                                    .postImageView
+                                    .transitionName
+                            logcat(LogPriority.INFO) { "Transition name = $transitionName" }
+                            logcat { "startPostponedEnterTransition()" }
+                        }
+                    logcat { "Disposing of delayedTransitionTriggerDisposable" }
+                    delayedTransitionTriggerDisposable.dispose()
+                    postsAdapter.disableTransformations = false
+                    logcat { "startPostponedEnterTransition()" }
+                    startPostponedEnterTransition()
+                    viewModel.uiStateBehaviorSubject.onNext(UiState.NORMAL)
+                }
             }.addTo(disposables)
 
         val swipeRefreshLayout = recyclerView.parent as SwipeRefreshLayout

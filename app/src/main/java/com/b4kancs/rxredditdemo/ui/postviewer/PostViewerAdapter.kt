@@ -3,7 +3,9 @@ package com.b4kancs.rxredditdemo.ui.postviewer
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
+import android.graphics.Point
 import android.graphics.drawable.Drawable
+import android.os.Build
 import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.View
@@ -14,6 +16,7 @@ import android.widget.EditText
 import android.widget.ImageView
 import android.widget.PopupWindow
 import androidx.core.view.doOnLayout
+import androidx.core.view.doOnPreDraw
 import androidx.core.view.isVisible
 import androidx.fragment.app.FragmentActivity
 import androidx.paging.PagingDataAdapter
@@ -24,6 +27,7 @@ import com.b4kancs.rxredditdemo.databinding.PagerItemPostViewerBinding
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.ui.PostComparator
 import com.b4kancs.rxredditdemo.ui.uiutils.*
+import com.b4kancs.rxredditdemo.utils.executeTimedDisposable
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.DataSource
 import com.bumptech.glide.load.engine.GlideException
@@ -42,6 +46,7 @@ import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.disposables.Disposable
+import io.reactivex.rxjava3.kotlin.Observables
 import io.reactivex.rxjava3.kotlin.addTo
 import io.reactivex.rxjava3.kotlin.subscribeBy
 import io.reactivex.rxjava3.subjects.BehaviorSubject
@@ -79,6 +84,7 @@ class PostViewerAdapter(
     private var isRecentlyDisplayed = true
     private var isHudVisible = !isRecentlyDisplayed
     private var currentLayoutPosition: Int? = null
+    private var resetScrollPosition = true
 
     override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
         logcat { "onAttachedToRecyclerView" }
@@ -224,18 +230,34 @@ class PostViewerAdapter(
         init {
             logcat { "PostViewerViewHolder.init" }
 
-            // For the imageview to fill the screen, I make it's height equal to the window's height minus the status bar's height.
-            val statusBarId = context.resources.getIdentifier("status_bar_height", "dimen", "android")
-            val statusBarHeight = context.resources.getDimensionPixelSize(statusBarId)
-            val navBarId = context.resources.getIdentifier("navigation_bar_height", "dimen", "android")
-            val navBarHeight = context.resources.getDimension(navBarId)
-            logcat { "status bar height: $statusBarHeight; nav bar height: $navBarHeight" }
-            val imageViewNewHeight =
-                context.resources.displayMetrics.heightPixels -
-                        statusBarHeight +
-                        if (navBarHeight > 0) 0 else 100
-            logcat { "The imageview's height will be set to: $imageViewNewHeight" }
-            binding.imageViewPostMainImage.layoutParams.height = imageViewNewHeight
+//             For the imageview to fill the screen, I make it's height equal to the window's height minus the status bar's height.
+//            val statusBarId = context.resources.getIdentifier("status_bar_height", "dimen", "android")
+//            val statusBarHeight = context.resources.getDimensionPixelSize(statusBarId)
+//            val navBarId = context.resources.getIdentifier("navigation_bar_height", "dimen", "android")
+//            val navBarHeight = context.resources.getDimension(navBarId)
+//            logcat { "status bar height: $statusBarHeight; nav bar height: $navBarHeight" }
+//            val imageViewNewHeight =
+//                context.resources.displayMetrics.heightPixels -
+//                        statusBarHeight +
+//                        if (navBarHeight > 0) 0 else 100
+//            logcat { "The imageview's height will be set to: $imageViewNewHeight" }
+//            binding.imageViewPostMainImage.layoutParams.height = imageViewNewHeight
+
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                val display = context.display
+                val size = Point()
+                display?.getSize(size)
+                binding.imageViewPostMainImage.apply {
+                    layoutParams.width = size.x
+                    layoutParams.height = size.y
+                    logcat { "The imageview's height will be set to: ${size.y}" }
+                }
+                (binding.imageViewPostMainImage.parent as View).apply {
+                    layoutParams.width = size.x
+                    layoutParams.height = size.y
+                }
+            }
         }
 
         fun bind(post_: Post) {
@@ -252,8 +274,18 @@ class PostViewerAdapter(
                 setUpFavoritesAction()
                 setUpOptionsAction()
                 // Always start with the ScrollView scrolled to the top.
-                scrollViewPostOuter.doOnLayout {
-                    scrollViewPostOuter.fling(-20000)
+                scrollViewPostOuter.doOnPreDraw {
+                    if (resetScrollPosition) {
+                        // Let's disable the overscroll animation to get rid of the janky ripple effect on draw first.
+                        scrollViewPostOuter.overScrollMode = View.OVER_SCROLL_NEVER
+
+                        scrollViewPostOuter.fling(-20000)
+
+                        // Reenable the overscroll animation after a short delay.
+                        executeTimedDisposable(250) { scrollViewPostOuter.overScrollMode = View.OVER_SCROLL_IF_CONTENT_SCROLLS }
+
+                        resetScrollPosition = false
+                    }
                 }
 
                 textViewPostLowerTitle.text = post.title
@@ -321,6 +353,7 @@ class PostViewerAdapter(
             logcat(LogPriority.INFO) { "New gallery position: $position" }
             loadImageWithGlide(binding.imageViewPostMainImage, post.links!![position], updateExisting = true, toBlur = false)
             currentGalleryPosition = position
+            resetScrollPosition = true
         }
 
         private fun startAutoHideHudTimer(delayInSeconds: Long = 3L) {
