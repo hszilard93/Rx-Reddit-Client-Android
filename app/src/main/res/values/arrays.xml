@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="preference_theme_entries">
+        <item>@string/preference_theme_entry_auto</item>
+        <item>@string/preference_theme_entry_day</item>
+        <item>@string/preference_theme_entry_night</item>
+    </string-array>
+
+    <string-array name="preference_theme_values">
+        <item>auto</item>
+        <item>light</item>
+        <item>dark</item>
+    </string-array>
+
+    <string-array name="preference_hud_entries">
+        <item>@string/preference_hud_3_sec</item>
+        <item>@string/preference_hud_5_sec</item>
+        <item>@string/preference_hud_10_sec</item>
+        <item>@string/preference_hud_stay_on</item>
+    </string-array>
+
+    <string-array name="preference_hud_values">
+        <item>3</item>
+        <item>5</item>
+        <item>10</item>
+        <item>stay_on</item>
+    </string-array>
+
+    <string-array name="preference_notifications_entries">
+        <item>@string/preference_notifications_twice_day</item>
+        <item>@string/preference_notifications_once_day</item>
+        <item>@string/preference_notifications_twice_week</item>
+        <item>@string/preference_notifications_once_week</item>
+        <item>@string/preference_notifications_never</item>
+    </string-array>
+
+    <string-array name="preference_notifications_values">
+        <item>twice_day</item>
+        <item>once_day</item>
+        <item>twice_week</item>
+        <item>once_week</item>
+        <item>never</item>
+    </string-array>
+</resources>

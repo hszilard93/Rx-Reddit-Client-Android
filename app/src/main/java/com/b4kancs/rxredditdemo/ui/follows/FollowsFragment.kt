@@ -7,11 +7,8 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.core.view.children
 import androidx.core.view.isVisible
-import androidx.navigation.fragment.FragmentNavigatorExtras
-import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import androidx.paging.LoadState
-import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.viewbinding.ViewBinding
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.databinding.FragmentFollowsBinding
@@ -20,7 +17,6 @@ import com.b4kancs.rxredditdemo.ui.main.MainActivity
 import com.b4kancs.rxredditdemo.ui.shared.BaseListingFragment
 import com.b4kancs.rxredditdemo.ui.shared.BaseListingFragmentViewModel.UiState
 import com.b4kancs.rxredditdemo.ui.shared.PostsVerticalRvAdapter
-import com.b4kancs.rxredditdemo.ui.uiutils.CustomLinearLayoutManager
 import com.b4kancs.rxredditdemo.ui.uiutils.SnackType
 import com.b4kancs.rxredditdemo.ui.uiutils.makeSnackBar
 import com.jakewharton.rxbinding4.view.clicks
@@ -284,9 +280,9 @@ class FollowsFragment : BaseListingFragment() {
                                             SnackType.ERROR
                                         ).show()
                                     }
-                                ).addTo(disposables)
-                        }?.addTo(disposables)
-                }.addTo(disposables)
+                                ).addTo(transientDisposables)
+                        }?.addTo(transientDisposables)
+                }.addTo(transientDisposables)
         }
 
         fun setUpDeleteFromYourFollowsMenuItem(menuItems: Sequence<MenuItem>) {
@@ -313,9 +309,9 @@ class FollowsFragment : BaseListingFragment() {
                                             type = SnackType.ERROR
                                         ).show()
                                     }
-                                ).addTo(disposables)
-                        }?.addTo(disposables)
-                }.addTo(disposables)
+                                ).addTo(transientDisposables)
+                        }?.addTo(transientDisposables)
+                }.addTo(transientDisposables)
         }
 
         fun subscribeToUserFeedMenuItem(menuItems: Sequence<MenuItem>) {
@@ -342,9 +338,9 @@ class FollowsFragment : BaseListingFragment() {
                                             type = SnackType.ERROR
                                         ).show()
                                     }
-                                ).addTo(disposables)
-                        }?.addTo(disposables)
-                }.addTo(disposables)
+                                ).addTo(transientDisposables)
+                        }?.addTo(transientDisposables)
+                }.addTo(transientDisposables)
         }
 
         fun unsubscribeFromUserFeedMenuItem(menuItems: Sequence<MenuItem>) {
@@ -370,18 +366,21 @@ class FollowsFragment : BaseListingFragment() {
                                             type = SnackType.ERROR
                                         ).show()
                                     }
-                                ).addTo(disposables)
-                        }?.addTo(disposables)
-                }.addTo(disposables)
+                                ).addTo(transientDisposables)
+                        }?.addTo(transientDisposables)
+                }.addTo(transientDisposables)
         }
 
-        Observable.interval(250, TimeUnit.MILLISECONDS)
-            .filter { (activity as MainActivity).menu != null }
+        val mainActivity = (activity as MainActivity)
+        mainActivity.invalidateOptionsMenu()
+
+        Observable.interval(100, TimeUnit.MILLISECONDS)
+            .filter { mainActivity.menu != null && !enterAnimationInProgress }
             .take(1)    // Try until the menu is ready, then do once.
             .observeOn(AndroidSchedulers.mainThread())
             .doOnNext { logcat { "menu is ready .onNext" } }
             .subscribe { _ ->
-                val menu = (activity as MainActivity).menu!!
+                val menu = mainActivity.menu!!
                 val menuItems = menu.children
                 for (item in menuItems) {
                     when (item.groupId) {
@@ -394,18 +393,9 @@ class FollowsFragment : BaseListingFragment() {
                 setUpDeleteFromYourFollowsMenuItem(menuItems)
                 subscribeToUserFeedMenuItem(menuItems)
                 unsubscribeFromUserFeedMenuItem(menuItems)
+                setUpGoToSettingsMenuItem(menuItems, mergedFeedUpdateObservable.flatMap { Observable.just(Unit) })
             }
-            .addTo(disposables)
-    }
-
-    override fun createNewPostViewerFragment(position: Int, sharedView: View) {
-        logcat { "goToNewPostViewerFragment" }
-
-        savePositionFromRv(binding.rvFollowsPosts)
-
-        val sharedElementExtras = FragmentNavigatorExtras(sharedView to sharedView.transitionName)
-        val action = FollowsFragmentDirections.actionFollowsToPostViewer(position, viewModel::class.simpleName!!)
-        findNavController().navigate(action, sharedElementExtras)
+            .addTo(transientDisposables)
     }
 
     override fun onPauseSavePosition() {

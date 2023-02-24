@@ -1,6 +1,7 @@
 package com.b4kancs.rxredditdemo
 
 import android.app.Application
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.preference.PreferenceManager
 import com.b4kancs.rxredditdemo.data.database.FavoritesRoomDatabase
 import com.b4kancs.rxredditdemo.data.database.FollowsRoomDatabase
@@ -12,18 +13,23 @@ import com.b4kancs.rxredditdemo.repository.FavoritePostsRepository
 import com.b4kancs.rxredditdemo.repository.FollowsRepository
 import com.b4kancs.rxredditdemo.repository.SubredditRepository
 import com.b4kancs.rxredditdemo.ui.favorites.FavoritesViewModel
+import com.b4kancs.rxredditdemo.ui.follows.FollowsViewModel
 import com.b4kancs.rxredditdemo.ui.home.HomeViewModel
 import com.b4kancs.rxredditdemo.ui.main.MainViewModel
 import com.b4kancs.rxredditdemo.ui.postviewer.PostViewerViewModel
-import com.b4kancs.rxredditdemo.ui.follows.FollowsViewModel
+import com.b4kancs.rxredditdemo.utils.toV3Observable
 import com.f2prateek.rx.preferences2.RxSharedPreferences
 import com.google.gson.FieldNamingPolicy
 import com.google.gson.GsonBuilder
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
+import io.reactivex.rxjava3.disposables.CompositeDisposable
+import io.reactivex.rxjava3.kotlin.addTo
 import logcat.AndroidLogcatLogger
 import logcat.LogPriority
 import logcat.logcat
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
+import org.koin.android.ext.android.inject
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 import org.koin.androidx.viewmodel.dsl.viewModel
@@ -34,6 +40,8 @@ import retrofit2.adapter.rxjava3.RxJava3CallAdapterFactory
 import retrofit2.converter.gson.GsonConverterFactory
 
 class App : Application() {
+
+    private val disposables = CompositeDisposable()
 
     private val appModule = module {
         single {
@@ -119,6 +127,8 @@ class App : Application() {
             androidContext(this@App)
             modules(appModule)
         }
+
+        setUpAppReactiveTheme()
     }
 
     private fun createRedditJsonServiceInstance(): RedditJsonService {
@@ -146,5 +156,35 @@ class App : Application() {
             .build()
 
         return retrofit.create(RedditJsonService::class.java)
+    }
+
+    private fun setUpAppReactiveTheme() {
+        logcat { "setUpAppReactiveTheme" }
+        val rxPreferences: RxSharedPreferences by inject()
+
+        rxPreferences.getString("pref_list_theme", "auto").asObservable().toV3Observable()
+            .observeOn(AndroidSchedulers.mainThread())
+            .doOnNext { logcat(LogPriority.INFO) { "Device theme preference set to: $it" } }
+            .subscribe { themePreference ->
+                AppCompatDelegate.setDefaultNightMode(
+                    when (themePreference) {
+                        "auto" -> {
+                            AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+                        }
+                        "light" -> {
+                            AppCompatDelegate.MODE_NIGHT_NO
+                        }
+                        "dark" -> {
+                            AppCompatDelegate.MODE_NIGHT_YES
+                        }
+                        else -> {
+                            logcat(LogPriority.ERROR) {
+                                "$themePreference is not a valid argument for the theme preference! Setting preference to 'follow system'."
+                            }
+                            AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+                        }
+                    }
+                )
+            }.addTo(disposables)
     }
 }

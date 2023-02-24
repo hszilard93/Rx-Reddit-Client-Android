@@ -50,14 +50,15 @@ class MainActivity : AppCompatActivity() {
     val viewModel: MainViewModel by viewModel()
     private val disposables = CompositeDisposable()
     var menu: Menu? = null
-    private lateinit var binding: ActivityMainBinding
+    private var _binding: ActivityMainBinding? = null
+    private val binding get() = _binding!!
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
         logcat { "onCreate viewModel = $viewModel" }
         super.onCreate(savedInstanceState)
 
-        binding = ActivityMainBinding.inflate(layoutInflater)
+        _binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
         val navController = findNavController(R.id.fragment_main_nav_host)
@@ -439,4 +440,12 @@ class MainActivity : AppCompatActivity() {
             (behavior as HideBottomViewOnScrollBehavior<BottomNavigationView>).slideUp(binding.bottomNavViewMain)
         }
     }
+
+    fun disableMenu() {
+        logcat { "disableMenu" }
+
+        binding.toolbarMain.menu.forEach { it.isVisible = false }
+    }
+
+    fun isBindingAvailable(): Boolean = _binding != null
 }

@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <PreferenceCategory
+        android:key="pref_category_generic_settings"
+        android:title="@string/preference_category_generic_title">
+
+        <ListPreference
+            android:defaultValue="auto"
+            android:entries="@array/preference_theme_entries"
+            android:entryValues="@array/preference_theme_values"
+            android:key="pref_list_theme"
+            app:useSimpleSummaryProvider="true"
+            android:summary="@string/preference_theme_summary"
+            android:title="@string/preference_theme_title" />
+
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            android:key="pref_switch_unblur_nsfw"
+            android:summary="@string/preference_switch_unblur_nsfw_summary"
+            android:title="@string/preference_switch_unblur_nsfw_title" />
+
+        <ListPreference
+            android:defaultValue="5"
+            android:entries="@array/preference_hud_entries"
+            android:entryValues="@array/preference_hud_values"
+            android:key="pref_list_hud"
+            android:summary="@string/preference_list_hud_summary"
+            android:title="@string/preference_list_hud_title" />
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:key="pref_category_notifications"
+        android:title="@string/preference_category_notifications_title">
+
+        <ListPreference
+            android:defaultValue="once_day"
+            android:entries="@array/preference_notifications_entries"
+            android:entryValues="@array/preference_notifications_values"
+            android:key="pref_list_notifications"
+            android:summary="@string/preference_list_notifications_summary"
+            android:title="@string/preference_list_notifications_title" />
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:key="pref_category_about"
+        android:title="@string/preference_category_about_title">
+
+        <Preference
+            android:key="preference_about"
+            android:summary="@string/preference_about_summary"
+            android:title="@string/preference_about_title" />
+
+        <Preference
+            android:key="preference_author"
+            android:title="@string/preference_author_title"
+            app:summary="@string/preference_author_summary" />
+    </PreferenceCategory>
+</PreferenceScreen>

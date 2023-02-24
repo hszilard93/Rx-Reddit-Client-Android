@@ -3,12 +3,9 @@ package com.b4kancs.rxredditdemo.ui.home
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.MenuItem
-import android.view.View
 import android.view.ViewGroup
 import androidx.core.view.children
 import androidx.core.view.isVisible
-import androidx.navigation.fragment.FragmentNavigatorExtras
-import androidx.navigation.fragment.findNavController
 import androidx.paging.LoadState
 import androidx.viewbinding.ViewBinding
 import com.b4kancs.rxredditdemo.R
@@ -121,16 +118,16 @@ class HomeFragment : BaseListingFragment() {
                             // This check makes it so that when returning from a PVF
 //                            if (!rvHomePosts.isVisible) {
 //                                rvHomePosts.visibility = View.INVISIBLE
-                                // This timer prevents the RV flickering when changing subs.
+                            // This timer prevents the RV flickering when changing subs.
 //                                Observable.timer(
 //                                    FLICKERING_DELAY,
 //                                    TimeUnit.MILLISECONDS,
 //                                    AndroidSchedulers.mainThread()
 //                                )
 //                                    .subscribe {
-                                        rvHomePosts.isVisible = true
-                                        linearLayoutHomeErrorContainer.isVisible = false
-                                        progressBarHomeLarge.isVisible = false
+                            rvHomePosts.isVisible = true
+                            linearLayoutHomeErrorContainer.isVisible = false
+                            progressBarHomeLarge.isVisible = false
 //                                    }
 //                                    .addTo(disposables)
 //                            }
@@ -228,9 +225,10 @@ class HomeFragment : BaseListingFragment() {
     override fun setUpOptionsMenu() {
         logcat { "setUpOptionsMenu" }
 
-        val mergedCurrentSubUpdateObservable = Observable.merge(    // We want to refresh the visibility of the menu item not only when the
+        val mergedCurrentSubUpdateObservable = Observable.merge(
+            // We want to refresh the visibility of the menu item not only when the
             viewModel.getSubredditsChangedSubject(),         // subreddit is changed, but also when there is a modification of the subreddits
-            viewModel.selectedSubredditReplayObservable // (e.g. a sub is set as default, so the option should no longer be visible)
+            viewModel.selectedSubredditReplayObservable, // (e.g. a sub is set as default, so the option should no longer be visible)
         )
             .subscribeOn(Schedulers.io())
             .map { viewModel.selectedSubredditReplayObservable.blockingLatest().first() }
@@ -263,9 +261,9 @@ class HomeFragment : BaseListingFragment() {
                                             type = SnackType.ERROR
                                         ).show()
                                     }
-                                ).addTo(disposables)
-                        }?.addTo(disposables)
-                }.addTo(disposables)
+                                ).addTo(transientDisposables)
+                        }?.addTo(transientDisposables)
+                }.addTo(transientDisposables)
         }
 
         fun setUpRemoveFromYourSubsMenuItem(menuItems: Sequence<MenuItem>) {
@@ -297,11 +295,11 @@ class HomeFragment : BaseListingFragment() {
                                                     type = SnackType.ERROR
                                                 ).show()
                                             }
-                                        ).addTo(disposables)
+                                        ).addTo(transientDisposables)
                                 }
-                                ?.addTo(disposables)
-                        }.addTo(disposables)
-                }.addTo(disposables)
+                                ?.addTo(transientDisposables)
+                        }.addTo(transientDisposables)
+                }.addTo(transientDisposables)
         }
 
         fun setUpDeleteFromSubsMenuItem(menuItems: Sequence<MenuItem>) {
@@ -335,11 +333,11 @@ class HomeFragment : BaseListingFragment() {
                                                 ).show()
                                             }
                                         )
-                                        .addTo(disposables)
+                                        .addTo(transientDisposables)
                                 }
-                                ?.addTo(disposables)
-                        }.addTo(disposables)
-                }.addTo(disposables)
+                                ?.addTo(transientDisposables)
+                        }.addTo(transientDisposables)
+                }.addTo(transientDisposables)
         }
 
         fun setUpAddToYourSubsMenuItem(menuItems: Sequence<MenuItem>) {
@@ -371,11 +369,11 @@ class HomeFragment : BaseListingFragment() {
                                                 ).show()
                                             }
                                         )
-                                        .addTo(disposables)
+                                        .addTo(transientDisposables)
                                 }
-                                ?.addTo(disposables)
-                        }.addTo(disposables)
-                }.addTo(disposables)
+                                ?.addTo(transientDisposables)
+                        }.addTo(transientDisposables)
+                }.addTo(transientDisposables)
         }
 
         fun setUpAddToFavorites(menuItems: Sequence<MenuItem>) {
@@ -408,11 +406,11 @@ class HomeFragment : BaseListingFragment() {
                                                 ).show()
                                             }
                                         )
-                                        .addTo(disposables)
+                                        .addTo(transientDisposables)
                                 }
-                                ?.addTo(disposables)
-                        }.addTo(disposables)
-                }.addTo(disposables)
+                                ?.addTo(transientDisposables)
+                        }.addTo(transientDisposables)
+                }.addTo(transientDisposables)
         }
 
         fun setUpRemoveFromFavorites(menuItems: Sequence<MenuItem>) {
@@ -446,20 +444,26 @@ class HomeFragment : BaseListingFragment() {
                                                 ).show()
                                             }
                                         )
-                                        .addTo(disposables)
+                                        .addTo(transientDisposables)
                                 }
-                                ?.addTo(disposables)
-                        }.addTo(disposables)
-                }.addTo(disposables)
+                                ?.addTo(transientDisposables)
+                        }.addTo(transientDisposables)
+                }.addTo(transientDisposables)
         }
 
-        Observable.interval(250, TimeUnit.MILLISECONDS)
-            .filter { (activity as MainActivity).menu != null }
+        val mainActivity = (activity as MainActivity)
+        mainActivity.invalidateOptionsMenu()
+
+        // The menu is usually not ready to be used right away. We might get a wrong reference to the menu, which leads to bugs,
+        // or no reference at all, which would lead to a crash. Therefore the initial delay, the filters and the repeated tries.
+        // How can such a supposedly simple thing lead to so much wasted time and frustration...
+        Observable.interval(250, 100, TimeUnit.MILLISECONDS)
+            .filter { mainActivity.menu != null && !enterAnimationInProgress }
             .take(1)    // Wait until the menu is ready.
             .observeOn(AndroidSchedulers.mainThread())
             .doOnNext { logcat { "menu is ready .onNext" } }
             .subscribe { _ ->
-                val menu = (activity as MainActivity).menu!!
+                val menu = mainActivity.menu!!
                 val menuItems = menu.children
                 for (item in menuItems) {
                     when (item.groupId) {
@@ -474,14 +478,8 @@ class HomeFragment : BaseListingFragment() {
                 setUpAddToYourSubsMenuItem(menuItems)
                 setUpAddToFavorites(menuItems)
                 setUpRemoveFromFavorites(menuItems)
-            }.addTo(disposables)
-    }
-
-    override fun createNewPostViewerFragment(position: Int, sharedView: View) {
-        logcat { "createNewPostViewerFragment" }
-        val sharedElementExtras = FragmentNavigatorExtras(sharedView to sharedView.transitionName)
-        val action = HomeFragmentDirections.actionHomeToPostViewer(position, viewModel.javaClass.simpleName)
-        findNavController().navigate(action, sharedElementExtras)
+                setUpGoToSettingsMenuItem(menuItems, mergedCurrentSubUpdateObservable.flatMap { Observable.just(Unit) })
+            }.addTo(transientDisposables)
     }
 
     override fun onPauseSavePosition() {

@@ -2,9 +2,13 @@ package com.b4kancs.rxredditdemo.ui.shared
 
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
+import android.view.animation.Animation
+import android.view.animation.AnimationUtils
 import androidx.fragment.app.Fragment
+import androidx.navigation.fragment.FragmentNavigatorExtras
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -12,11 +16,18 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import androidx.transition.TransitionInflater
 import androidx.viewbinding.ViewBinding
 import com.b4kancs.rxredditdemo.R
+import com.b4kancs.rxredditdemo.ui.favorites.FavoritesFragment
+import com.b4kancs.rxredditdemo.ui.favorites.FavoritesFragmentDirections
+import com.b4kancs.rxredditdemo.ui.follows.FollowsFragment
+import com.b4kancs.rxredditdemo.ui.follows.FollowsFragmentDirections
+import com.b4kancs.rxredditdemo.ui.home.HomeFragment
+import com.b4kancs.rxredditdemo.ui.home.HomeFragmentDirections
 import com.b4kancs.rxredditdemo.ui.main.MainActivity
 import com.b4kancs.rxredditdemo.ui.postviewer.PostViewerFragment
 import com.b4kancs.rxredditdemo.ui.shared.BaseListingFragmentViewModel.UiState
 import com.b4kancs.rxredditdemo.ui.uiutils.CustomLinearLayoutManager
 import com.b4kancs.rxredditdemo.utils.executeTimedDisposable
+import com.jakewharton.rxbinding4.view.clicks
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.CompositeDisposable
@@ -37,9 +48,37 @@ abstract class BaseListingFragment : Fragment() {
     }
 
     abstract val viewModel: BaseListingFragmentViewModel
-    val disposables = CompositeDisposable()
-    var positionToGoTo: Int? = null
-    lateinit var delayedTransitionTriggerDisposable: Disposable
+    protected val disposables = CompositeDisposable()
+    protected val transientDisposables = CompositeDisposable()
+    protected var positionToGoTo: Int? = null
+    protected var enterAnimationInProgress = false
+    protected lateinit var delayedTransitionTriggerDisposable: Disposable
+
+    override fun onCreateAnimation(transit: Int, enter: Boolean, nextAnim: Int): Animation? {
+        logcat { "onCreateAnimation" }
+        if (enter) {
+            try {
+                val anim = AnimationUtils.loadAnimation(activity, nextAnim)
+                anim.setAnimationListener(object : Animation.AnimationListener {
+                    override fun onAnimationStart(animation: Animation?) {
+                        enterAnimationInProgress = true
+                    }
+
+                    override fun onAnimationEnd(animation: Animation?) {
+                        enterAnimationInProgress = false
+                    }
+
+                    override fun onAnimationRepeat(animation: Animation?) {
+                        enterAnimationInProgress = false
+                    }
+                })
+                return anim
+            } catch (e: java.lang.Exception) {
+                logcat(LogPriority.WARN) { "Enter animation exception: message = ${e.message}" }
+            }
+        }
+        return super.onCreateAnimation(transit, enter, nextAnim)
+    }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         logcat {
@@ -141,11 +180,28 @@ abstract class BaseListingFragment : Fragment() {
 
     abstract fun setUpOptionsMenu()
 
+    open fun setUpGoToSettingsMenuItem(menuItems: Sequence<MenuItem>, triggerObservable: Observable<Unit>) {
+        triggerObservable
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe {
+                menuItems
+                    .find { it.itemId == R.id.menu_item_toolbar_settings }
+                    ?.clicks()
+                    ?.observeOn(AndroidSchedulers.mainThread())
+                    ?.doOnNext { logcat(LogPriority.INFO) { "Settings menu item clicked." } }
+                    ?.subscribe {
+                        goToNewSettingsFragment()
+                    }
+                    ?.addTo(disposables)
+            }.addTo(disposables)
+    }
+
 
     override fun onPause() {
         logcat { "onPause" }
         onPauseSavePosition()
         onPauseDoAlso()
+        transientDisposables.clear()
         super.onPause()
     }
 
@@ -186,7 +242,32 @@ abstract class BaseListingFragment : Fragment() {
 
     open fun onDestroyDoAlso() {}
 
-    abstract fun createNewPostViewerFragment(position: Int, sharedView: View)
+    open fun goToNewPostViewerFragment(position: Int, sharedView: View) {
+        logcat { "goToNewPostViewerFragment" }
+        val sharedElementExtras = FragmentNavigatorExtras(sharedView to sharedView.transitionName)
+        val action = when (this) {
+            is HomeFragment -> HomeFragmentDirections.actionHomeToPostViewer(position, viewModel::class.simpleName)
+            is FavoritesFragment -> FavoritesFragmentDirections.actionFavoritesToPostViewer(position, viewModel::class.simpleName)
+            is FollowsFragment -> FollowsFragmentDirections.actionFollowsToPostViewer(position, viewModel::class.simpleName)
+            else -> {
+                throw IllegalStateException("WTF error: can't go to Settings from here: $this.")
+            }
+        }
+        findNavController().navigate(action, sharedElementExtras)
+    }
+
+    open fun goToNewSettingsFragment() {
+        logcat { "goToNewSettingsFragment" }
+        val action = when (this) {
+            is HomeFragment -> HomeFragmentDirections.actionHomeToSettings()
+            is FavoritesFragment -> FavoritesFragmentDirections.actionFavoritesToSettings()
+            is FollowsFragment -> FollowsFragmentDirections.actionFollowsToSettings()
+            else -> {
+                throw IllegalStateException("WTF error: can't go to Settings from here: $this.")
+            }
+        }
+        findNavController().navigate(action)
+    }
 
     protected fun setUpBaseRecyclerView(recyclerView: RecyclerView, viewModel: BaseListingFragmentViewModel) {
         logcat { "setUpBaseRecyclerView: owner = $" }
@@ -227,7 +308,7 @@ abstract class BaseListingFragment : Fragment() {
             .observeOn(AndroidSchedulers.mainThread())
             .doOnNext { logcat(LogPriority.INFO) { "postClickedSubject.onNext: post = ${it.first}" } }
             .subscribe { (position, view) ->
-                createNewPostViewerFragment(position, view)
+                goToNewPostViewerFragment(position, view)
                 (recyclerView.layoutManager as CustomLinearLayoutManager).canScrollVertically = false
                 // By disposing of the subscriptions here, we stop the user from accidentally clicking on a post
                 // while the transition takes place.
@@ -285,6 +366,5 @@ abstract class BaseListingFragment : Fragment() {
             recyclerView.scrollToPosition(0)
             swipeRefreshLayout.isRefreshing = false
         }
-
     }
 }

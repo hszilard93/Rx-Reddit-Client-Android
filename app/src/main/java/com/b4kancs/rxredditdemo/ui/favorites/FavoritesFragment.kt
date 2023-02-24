@@ -7,10 +7,7 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.core.view.children
 import androidx.core.view.isVisible
-import androidx.navigation.fragment.FragmentNavigatorExtras
-import androidx.navigation.fragment.findNavController
 import androidx.paging.LoadState
-import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.viewbinding.ViewBinding
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.databinding.FragmentFavoritesBinding
@@ -18,7 +15,6 @@ import com.b4kancs.rxredditdemo.ui.main.MainActivity
 import com.b4kancs.rxredditdemo.ui.shared.BaseListingFragment
 import com.b4kancs.rxredditdemo.ui.shared.BaseListingFragmentViewModel.UiState
 import com.b4kancs.rxredditdemo.ui.shared.PostsVerticalRvAdapter
-import com.b4kancs.rxredditdemo.ui.uiutils.CustomLinearLayoutManager
 import com.b4kancs.rxredditdemo.ui.uiutils.SnackType
 import com.b4kancs.rxredditdemo.ui.uiutils.makeConfirmationDialog
 import com.b4kancs.rxredditdemo.ui.uiutils.makeSnackBar
@@ -201,21 +197,24 @@ class FavoritesFragment : BaseListingFragment() {
                                                 SnackType.ERROR
                                             ).show()
                                         }
-                                    ).addTo(disposables)
+                                    ).addTo(transientDisposables)
                             }
                                 .show()
-                        }?.addTo(disposables)
-                }.addTo(disposables)
+                        }?.addTo(transientDisposables)
+                }.addTo(transientDisposables)
         }
 
-        // If we don't wait an adequate amount, we might get a wrong reference to the options menu, or no reference at all.
-        Observable.interval(250, TimeUnit.MILLISECONDS)
-            .filter { (activity as MainActivity).menu != null }     // Wait until the menu is ready.
+        val mainActivity = (activity as MainActivity)
+        mainActivity.invalidateOptionsMenu()
+
+        // If we don't wait an adequate amount, we might not get a reference to the options menu.
+        Observable.interval(100, TimeUnit.MILLISECONDS)
+            .filter { mainActivity.menu != null && !enterAnimationInProgress }     // Wait until the menu is ready.
             .take(1)
             .observeOn(AndroidSchedulers.mainThread())
             .doOnNext { logcat { "menu is ready .onNext" } }
             .subscribe {
-                val menu = (activity as MainActivity).menu!!
+                val menu = mainActivity.menu!!
                 val menuItems = menu.children
                 for (item in menuItems) {
                     when (item.groupId) {
@@ -225,18 +224,9 @@ class FavoritesFragment : BaseListingFragment() {
                     }
                 }
                 setUpClearAllFavoritesMenuItem(menuItems)
+                setUpGoToSettingsMenuItem(menuItems, viewModel.getFavoritePostsBehaviorSubject().flatMap { Observable.just(Unit) })
             }
-            .addTo(disposables)
-    }
-
-    override fun createNewPostViewerFragment(position: Int, sharedView: View) {
-        logcat { "goToNewPostViewerFragment" }
-
-        savePositionFromRv(binding.rvFavoritesPosts)
-
-        val sharedElementExtras = FragmentNavigatorExtras(sharedView to sharedView.transitionName)
-        val action = FavoritesFragmentDirections.actionFavoritesToPostViewer(position, viewModel::class.simpleName!!)
-        findNavController().navigate(action, sharedElementExtras)
+            .addTo(transientDisposables)
     }
 
     override fun onPauseSavePosition() {

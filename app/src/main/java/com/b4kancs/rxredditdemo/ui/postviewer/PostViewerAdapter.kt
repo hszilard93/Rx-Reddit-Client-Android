@@ -3,9 +3,8 @@ package com.b4kancs.rxredditdemo.ui.postviewer
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
-import android.graphics.Point
+import android.graphics.Rect
 import android.graphics.drawable.Drawable
-import android.os.Build
 import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.View
@@ -15,7 +14,6 @@ import android.view.inputmethod.EditorInfo
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.PopupWindow
-import androidx.core.view.doOnLayout
 import androidx.core.view.doOnPreDraw
 import androidx.core.view.isVisible
 import androidx.fragment.app.FragmentActivity
@@ -46,7 +44,6 @@ import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.disposables.Disposable
-import io.reactivex.rxjava3.kotlin.Observables
 import io.reactivex.rxjava3.kotlin.addTo
 import io.reactivex.rxjava3.kotlin.subscribeBy
 import io.reactivex.rxjava3.subjects.BehaviorSubject
@@ -66,7 +63,7 @@ class PostViewerAdapter(
     private val shouldShowNavigationToFollowsOption: Boolean = true
 ) : PagingDataAdapter<Post, PostViewerAdapter.PostViewerViewHolder>(PostComparator) {
     companion object {
-        private const val SLIDESHOW_INTERVAL_KEY = "slideshowInterval"
+        private const val SLIDESHOW_INTERVAL_KEY = "slideshow_interval"
     }
 
     val disposables = CompositeDisposable()
@@ -230,34 +227,13 @@ class PostViewerAdapter(
         init {
             logcat { "PostViewerViewHolder.init" }
 
-//             For the imageview to fill the screen, I make it's height equal to the window's height minus the status bar's height.
-//            val statusBarId = context.resources.getIdentifier("status_bar_height", "dimen", "android")
-//            val statusBarHeight = context.resources.getDimensionPixelSize(statusBarId)
-//            val navBarId = context.resources.getIdentifier("navigation_bar_height", "dimen", "android")
-//            val navBarHeight = context.resources.getDimension(navBarId)
-//            logcat { "status bar height: $statusBarHeight; nav bar height: $navBarHeight" }
-//            val imageViewNewHeight =
-//                context.resources.displayMetrics.heightPixels -
-//                        statusBarHeight +
-//                        if (navBarHeight > 0) 0 else 100
-//            logcat { "The imageview's height will be set to: $imageViewNewHeight" }
-//            binding.imageViewPostMainImage.layoutParams.height = imageViewNewHeight
-
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                val display = context.display
-                val size = Point()
-                display?.getSize(size)
-                binding.imageViewPostMainImage.apply {
-                    layoutParams.width = size.x
-                    layoutParams.height = size.y
-                    logcat { "The imageview's height will be set to: ${size.y}" }
-                }
-                (binding.imageViewPostMainImage.parent as View).apply {
-                    layoutParams.width = size.x
-                    layoutParams.height = size.y
-                }
-            }
+//          For the imageview to fill the screen, we make it's height equal to the window's height.
+            val rectangle = Rect()
+            val window = (context as Activity).window
+            window.decorView.getWindowVisibleDisplayFrame(rectangle)
+            val imageViewNewHeight = rectangle.height()
+            logcat { "The imageview's height will be set to: $imageViewNewHeight" }
+            binding.imageViewPostMainImage.layoutParams.height = imageViewNewHeight
         }
 
         fun bind(post_: Post) {
@@ -469,7 +445,7 @@ class PostViewerAdapter(
                             loadImageWithGlide(zoomableImageView, post.links[0], true, post.toBlur)
                         }
                         else {
-                            logcat (LogPriority.VERBOSE) { "isHudVisible = $isHudVisible" }
+                            logcat(LogPriority.VERBOSE) { "isHudVisible = $isHudVisible" }
                             if (!isHudVisible)
                                 showHud()
                             else
@@ -700,7 +676,8 @@ class PostViewerAdapter(
                         popupView,
                         WindowManager.LayoutParams.WRAP_CONTENT,
                         WindowManager.LayoutParams.WRAP_CONTENT,
-                        true)
+                        true
+                    )
 
                     val openLinkTextView = popupView.findViewById<MaterialTextView>(R.id.text_view_post_popup_option_open_link)
                         .apply {
