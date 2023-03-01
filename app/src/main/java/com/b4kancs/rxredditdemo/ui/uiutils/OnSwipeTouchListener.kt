@@ -58,7 +58,7 @@ open class OnSwipeTouchListener(context: Context) : OnTouchListener {
 
     inner class GestureListener : SimpleOnGestureListener() {
 
-        override fun onDown(e: MotionEvent?): Boolean {
+        override fun onDown(e: MotionEvent): Boolean {
             return onDown()
         }
 
@@ -66,7 +66,7 @@ open class OnSwipeTouchListener(context: Context) : OnTouchListener {
             return onSingleTap()
         }
 
-        override fun onDoubleTap(e: MotionEvent?): Boolean {
+        override fun onDoubleTap(e: MotionEvent): Boolean {
             return onDoubleTap()
         }
 

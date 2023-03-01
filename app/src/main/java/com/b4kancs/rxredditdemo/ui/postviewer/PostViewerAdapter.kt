@@ -691,7 +691,7 @@ class PostViewerAdapter(
                                             onError = {
                                                 makeSnackBar(
                                                     view = optionsImageView,
-                                                    stringId = R.string.string_common_error_something_went_wrong,
+                                                    stringId = R.string.common_error_something_went_wrong,
                                                     type = SnackType.ERROR
                                                 ).show()
                                             }
@@ -724,7 +724,7 @@ class PostViewerAdapter(
                                             onError = {
                                                 makeSnackBar(
                                                     view = optionsImageView,
-                                                    stringId = R.string.string_common_error_something_went_wrong,
+                                                    stringId = R.string.common_error_something_went_wrong,
                                                     type = SnackType.ERROR
                                                 ).show()
                                             }
@@ -757,7 +757,7 @@ class PostViewerAdapter(
                                                 workingOnItSnackbar.dismiss()
                                                 makeSnackBar(
                                                     view = optionsImageView,
-                                                    stringId = R.string.string_options_wallpaper_error_something_went_wrong,
+                                                    stringId = R.string.options_wallpaper_error_something_went_wrong,
                                                     type = SnackType.ERROR,
                                                     length = Snackbar.LENGTH_LONG
                                                 ).show()
@@ -769,7 +769,7 @@ class PostViewerAdapter(
 
                     val goToUserSubmissionTextView = popupView.findViewById<MaterialTextView>(R.id.text_view_post_popup_option_go_to_user)
                         .apply {
-                            text = context.getString(R.string.string_post_popup_action_go_to_user, post.author)
+                            text = context.getString(R.string.post_popup_action_go_to_user, post.author)
                             isVisible = this@PostViewerAdapter.shouldShowNavigationToFollowsOption
                             clicks()
                                 .observeOn(AndroidSchedulers.mainThread())
@@ -782,7 +782,7 @@ class PostViewerAdapter(
                                             onError = {
                                                 makeSnackBar(
                                                     view = optionsImageView,
-                                                    stringId = R.string.string_common_error_something_went_wrong,
+                                                    stringId = R.string.common_error_something_went_wrong,
                                                     type = SnackType.ERROR
                                                 ).show()
                                             }

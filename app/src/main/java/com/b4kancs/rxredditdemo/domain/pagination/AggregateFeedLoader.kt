@@ -190,8 +190,8 @@ object AggregateFeedLoader {
         val userNameToOldestPostMap = HashMap<String, Post>()
         newFeedsMap.forEach { (user, posts) ->
             if (!posts.isNullOrEmpty()) {
-                logcat(LogPriority.WARN) { "Evaluating posts from $user on thread ${Thread.currentThread()}" }
-                posts.mapIndexed { i, p -> logcat(LogPriority.WARN) { "\t$i\t${p.name}, ${p.title}}" } }
+                logcat { "Evaluating posts from $user on thread ${Thread.currentThread()}" }
+                posts.mapIndexed { i, p -> logcat { "\t$i\t${p.name}, ${p.title}}" } }
 
                 logcat { "Adding ${posts.size} posts to userNameToPostsMap[$user] (size = ${userNameToPostsMap[user]?.size})." }
                 val usersPreviousPosts = userNameToPostsMap[user] ?: arrayListOf()

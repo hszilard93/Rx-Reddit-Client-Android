@@ -43,7 +43,81 @@ class App : Application() {
 
     private val disposables = CompositeDisposable()
 
-    private val appModule = module {
+    override fun onCreate() {
+        super.onCreate()
+
+        AndroidLogcatLogger.installOnDebuggableApp(this, minPriority = LogPriority.VERBOSE)
+
+        logcat(LogPriority.DEBUG) { "onCreate" }
+
+        startKoin {
+            androidLogger()
+            androidContext(this@App)
+            modules(makeKoinAppModule())
+        }
+
+        setUpReactiveTheme()
+    }
+
+    private fun createRedditJsonServiceInstance(): RedditJsonService {
+        logcat { "createRedditJsonServiceInstance" }
+
+        val loggingInterceptor = HttpLoggingInterceptor()
+        loggingInterceptor.level = HttpLoggingInterceptor.Level.BODY
+
+        val client = OkHttpClient.Builder()
+            .addInterceptor(loggingInterceptor)
+            .followRedirects(true)
+            .build()
+
+        val retrofit = Retrofit.Builder()
+            .baseUrl("https://www.reddit.com")
+            .client(client)
+            .addCallAdapterFactory(RxJava3CallAdapterFactory.create())
+            .addConverterFactory(
+                GsonConverterFactory.create(
+                    GsonBuilder()
+                        .setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES)
+                        .create()
+                )
+            )
+            .build()
+
+        return retrofit.create(RedditJsonService::class.java)
+    }
+
+    private fun setUpReactiveTheme() {
+        logcat { "setUpAppReactiveTheme" }
+        val rxPreferences: RxSharedPreferences by inject()
+
+        rxPreferences.getString("pref_list_theme", "auto").asObservable().toV3Observable()
+            .observeOn(AndroidSchedulers.mainThread())
+            .doOnNext { logcat(LogPriority.INFO) { "Device theme preference set to: $it" } }
+            .subscribe { themePreference ->
+                AppCompatDelegate.setDefaultNightMode(
+                    when (themePreference) {
+                        "auto" -> {
+                            AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+                        }
+                        "light" -> {
+                            AppCompatDelegate.MODE_NIGHT_NO
+                        }
+                        "dark" -> {
+                            AppCompatDelegate.MODE_NIGHT_YES
+                        }
+                        else -> {
+                            logcat(LogPriority.ERROR) {
+                                "$themePreference is not a valid argument for the theme preference! Setting preference to 'follow system'."
+                            }
+                            AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+                        }
+                    }
+                )
+            }.addTo(disposables)
+    }
+
+
+    private fun makeKoinAppModule() = module {
         single {
             logcat { "Koin providing application Context." }
             applicationContext
@@ -113,78 +187,5 @@ class App : Application() {
             logcat { "Koin providing single AssetManager instance." }
             assets
         }
-    }
-
-    override fun onCreate() {
-        super.onCreate()
-
-        AndroidLogcatLogger.installOnDebuggableApp(this, minPriority = LogPriority.VERBOSE)
-
-        logcat(LogPriority.DEBUG) { "onCreate" }
-
-        startKoin {
-            androidLogger()
-            androidContext(this@App)
-            modules(appModule)
-        }
-
-        setUpAppReactiveTheme()
-    }
-
-    private fun createRedditJsonServiceInstance(): RedditJsonService {
-        logcat { "createRedditJsonServiceInstance" }
-
-        val loggingInterceptor = HttpLoggingInterceptor()
-        loggingInterceptor.level = HttpLoggingInterceptor.Level.BODY
-
-        val client = OkHttpClient.Builder()
-            .addInterceptor(loggingInterceptor)
-            .followRedirects(true)
-            .build()
-
-        val retrofit = Retrofit.Builder()
-            .baseUrl("https://www.reddit.com")
-            .client(client)
-            .addCallAdapterFactory(RxJava3CallAdapterFactory.create())
-            .addConverterFactory(
-                GsonConverterFactory.create(
-                    GsonBuilder()
-                        .setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES)
-                        .create()
-                )
-            )
-            .build()
-
-        return retrofit.create(RedditJsonService::class.java)
-    }
-
-    private fun setUpAppReactiveTheme() {
-        logcat { "setUpAppReactiveTheme" }
-        val rxPreferences: RxSharedPreferences by inject()
-
-        rxPreferences.getString("pref_list_theme", "auto").asObservable().toV3Observable()
-            .observeOn(AndroidSchedulers.mainThread())
-            .doOnNext { logcat(LogPriority.INFO) { "Device theme preference set to: $it" } }
-            .subscribe { themePreference ->
-                AppCompatDelegate.setDefaultNightMode(
-                    when (themePreference) {
-                        "auto" -> {
-                            AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
-                        }
-                        "light" -> {
-                            AppCompatDelegate.MODE_NIGHT_NO
-                        }
-                        "dark" -> {
-                            AppCompatDelegate.MODE_NIGHT_YES
-                        }
-                        else -> {
-                            logcat(LogPriority.ERROR) {
-                                "$themePreference is not a valid argument for the theme preference! Setting preference to 'follow system'."
-                            }
-                            AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
-                        }
-                    }
-                )
-            }.addTo(disposables)
     }
 }

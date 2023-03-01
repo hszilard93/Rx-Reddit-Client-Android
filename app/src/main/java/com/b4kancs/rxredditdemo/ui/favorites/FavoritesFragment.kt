@@ -93,7 +93,7 @@ class FavoritesFragment : BaseListingFragment() {
                             progressBarFavoritesLarge.isVisible = true
                         }
                         UiState.ERROR_GENERIC -> {
-                            val errorMessage = getString(R.string.string_common_network_error_message)
+                            val errorMessage = getString(R.string.common_error_message_network)
                             val errorImageId = R.drawable.im_error_network
                             textViewFavoritesError.text = errorMessage
                             imageViewFavoritesError.setImageResource(errorImageId)

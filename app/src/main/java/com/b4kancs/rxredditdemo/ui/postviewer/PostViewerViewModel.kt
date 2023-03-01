@@ -89,6 +89,7 @@ class PostViewerViewModel(pagingDataObservableProvider: PostPagingDataObservable
                     emitter.fromCompletable(completable)
                         .addTo(disposables)
                 }
+                .addTo(disposables)
         }
     }
 

@@ -76,14 +76,13 @@ fun animateViewHeightChange(
     animatorSet.play(slideAnimator)
     animatorSet.interpolator = AccelerateDecelerateInterpolator()
     animatorSet.addListener(object : Animator.AnimatorListener {
-        override fun onAnimationEnd(animation: Animator?) {
+        override fun onAnimationEnd(animation: Animator) {
             endWithThis()
         }
 
-        override fun onAnimationStart(animation: Animator?) {}
-        override fun onAnimationCancel(animation: Animator?) {}
-        override fun onAnimationRepeat(animation: Animator?) {}
-
+        override fun onAnimationStart(animation: Animator) {}
+        override fun onAnimationCancel(animation: Animator) {}
+        override fun onAnimationRepeat(animation: Animator) {}
     })
     animatorSet.start()
 }
@@ -155,10 +154,10 @@ fun makeConfirmationDialog(
     return builder
         .setTitle(title)
         .setMessage(message)
-        .setNegativeButton(R.string.string_common_cancel) { dialog, _ ->
+        .setNegativeButton(R.string.common_message_cancel) { dialog, _ ->
             dialog.dismiss()
         }
-        .setPositiveButton(R.string.string_common_yes) { dialog, _ ->
+        .setPositiveButton(R.string.common_message_yes) { dialog, _ ->
             positiveAction()
             dialog.dismiss()
         }

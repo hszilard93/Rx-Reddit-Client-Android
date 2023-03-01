@@ -34,7 +34,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_margin="24dp"
-            android:text="@string/follows_no_media"
+            android:text="@string/follows_message_no_media"
             android:textAlignment="center"
             android:textColor="?attr/colorPrimary"
             android:textSize="20sp" />

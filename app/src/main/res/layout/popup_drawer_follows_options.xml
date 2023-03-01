@@ -13,7 +13,7 @@
         android:fontFamily="sans-serif-light"
         android:gravity="center"
         android:padding="8dp"
-        android:text="@string/string_follows_action_delete_user"
+        android:text="@string/follows_action_delete_user"
         android:textColor="?attr/colorTertiary"
         android:textSize="15sp" />
 
@@ -24,7 +24,7 @@
         android:fontFamily="sans-serif-light"
         android:gravity="center"
         android:padding="8dp"
-        android:text="@string/string_follows_action_subscribe"
+        android:text="@string/follows_action_subscribe"
         android:textColor="?attr/colorTertiary"
         android:textSize="15sp" />
 
@@ -35,7 +35,7 @@
         android:fontFamily="sans-serif-light"
         android:gravity="center"
         android:padding="8dp"
-        android:text="@string/string_follows_action_unsubscribe"
+        android:text="@string/follows_action_unsubscribe"
         android:textColor="?attr/colorTertiary"
         android:textSize="15sp" />
 </LinearLayout>

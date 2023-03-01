@@ -21,7 +21,7 @@ class FollowsRepository {
 
     companion object {
         private val applicationContext: Context by inject(Context::class.java)
-        private val defaultUserFeedName = applicationContext.getString(R.string.string_follows_default_feed_name)
+        private val defaultUserFeedName = applicationContext.getString(R.string.follows_default_feed_name)
         val defaultUserFeed = UserFeed(defaultUserFeedName, UserFeed.Status.AGGREGATE)
     }
 

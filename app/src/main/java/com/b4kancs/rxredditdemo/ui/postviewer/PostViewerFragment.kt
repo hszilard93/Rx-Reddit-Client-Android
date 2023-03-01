@@ -3,7 +3,6 @@ package com.b4kancs.rxredditdemo.ui.postviewer
 import android.animation.Animator
 import android.animation.TimeInterpolator
 import android.animation.ValueAnimator
-import android.graphics.Point
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -20,11 +19,11 @@ import androidx.transition.Transition
 import androidx.viewpager2.widget.ViewPager2
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.databinding.FragmentPostViewerBinding
-import com.b4kancs.rxredditdemo.ui.shared.PostPagingDataObservableProvider
 import com.b4kancs.rxredditdemo.ui.favorites.FavoritesViewModel
 import com.b4kancs.rxredditdemo.ui.follows.FollowsViewModel
 import com.b4kancs.rxredditdemo.ui.home.HomeViewModel
 import com.b4kancs.rxredditdemo.ui.main.MainActivity
+import com.b4kancs.rxredditdemo.ui.shared.PostPagingDataObservableProvider
 import com.b4kancs.rxredditdemo.ui.uiutils.ANIMATION_DURATION_SHORT
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
@@ -265,8 +264,7 @@ class PostViewerFragment : Fragment() {
                 try {
                     goToFollowsFragment(userName)
                     resultSubject.onNext(Completable.complete())
-                }
-                catch (e: Exception) {
+                } catch (e: Exception) {
                     logcat(LogPriority.ERROR) { "Navigation to FollowsFragment failed! Message = ${e.message}" }
                     resultSubject.onNext(Completable.error(e))
                 }
@@ -336,16 +334,16 @@ class PostViewerFragment : Fragment() {
             previousValue = currentValue
         }
         animator.addListener(object : Animator.AnimatorListener {
-            override fun onAnimationStart(animation: Animator?) {
+            override fun onAnimationStart(animation: Animator) {
                 beginFakeDrag()
             }
 
-            override fun onAnimationEnd(animation: Animator?) {
+            override fun onAnimationEnd(animation: Animator) {
                 endFakeDrag()
             }
 
-            override fun onAnimationCancel(animation: Animator?) {}
-            override fun onAnimationRepeat(animation: Animator?) {}
+            override fun onAnimationCancel(animation: Animator) {}
+            override fun onAnimationRepeat(animation: Animator) {}
         })
         animator.interpolator = interpolator
         animator.duration = duration

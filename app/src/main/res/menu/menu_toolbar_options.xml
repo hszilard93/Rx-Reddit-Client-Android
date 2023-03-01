@@ -5,32 +5,32 @@
 
         <item
             android:id="@+id/menu_item_toolbar_subreddit_set_default"
-            android:title="@string/string_home_action_set_as_default_sub"
+            android:title="@string/home_action_set_as_default_sub"
             android:visible="false" />
 
         <item
             android:id="@+id/menu_item_toolbar_subreddit_remove"
-            android:title="@string/string_home_action_remove_from_your"
+            android:title="@string/home_action_remove_from_your"
             android:visible="false" />
 
         <item
             android:id="@+id/menu_item_toolbar_subreddit_add_to_your"
-            android:title="@string/string_home_action_subreddit_add_to_your"
+            android:title="@string/home_action_subreddit_add_to_your"
             android:visible="false" />
 
         <item
             android:id="@+id/menu_item_toolbar_subreddit_add_to_favorites"
-            android:title="@string/string_home_action_subreddit_add_to_favorites"
+            android:title="@string/home_action_subreddit_add_to_favorites"
             android:visible="false" />
 
         <item
             android:id="@+id/menu_item_toolbar_subreddit_remove_from_favorites"
-            android:title="@string/string_home_action_subreddit_remove_from_favorites"
+            android:title="@string/home_action_subreddit_remove_from_favorites"
             android:visible="false" />
 
         <item
             android:id="@+id/menu_item_toolbar_subreddit_delete"
-            android:title="@string/string_home_action_delete_subreddit"
+            android:title="@string/home_action_delete_subreddit"
             android:visible="false" />
     </group>
 
@@ -38,7 +38,7 @@
 
         <item
             android:id="@+id/menu_item_toolbar_favorites_delete_all"
-            android:title="@string/string_favorites_action_delete_all"
+            android:title="@string/favorites_action_delete_all"
             android:visible="false" />
     </group>
 
@@ -46,22 +46,22 @@
 
         <item
             android:id="@+id/menu_item_toolbar_follows_add"
-            android:title="@string/string_follows_action_add_user"
+            android:title="@string/follows_action_add_user"
             android:visible="false" />
 
         <item
             android:id="@+id/menu_item_toolbar_follows_delete"
-            android:title="@string/string_follows_action_delete_user"
+            android:title="@string/follows_action_delete_user"
             android:visible="false" />
 
         <item
             android:id="@+id/menu_item_toolbar_follows_subscribe"
-            android:title="@string/string_follows_action_subscribe"
+            android:title="@string/follows_action_subscribe"
             android:visible="false" />
 
         <item
             android:id="@+id/menu_item_toolbar_follows_unsubscribe"
-            android:title="@string/string_follows_action_unsubscribe"
+            android:title="@string/follows_action_unsubscribe"
             android:visible="false" />
     </group>
 
@@ -70,7 +70,7 @@
 
         <item
             android:id="@+id/menu_item_toolbar_settings"
-            android:title="@string/string_common_action_settings"
+            android:title="@string/common_action_settings"
             android:visible="false" />
     </group>
 </menu>

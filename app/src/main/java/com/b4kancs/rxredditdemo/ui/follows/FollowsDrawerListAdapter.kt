@@ -167,14 +167,14 @@ class FollowsDrawerListAdapter(
                                         .observeOn(AndroidSchedulers.mainThread())
                                         .subscribeBy(
                                             onComplete = {
-                                                val message = c.getString(R.string.string_follows_snack_deleted, feed.name)
+                                                val message = c.getString(R.string.follows_snack_deleted, feed.name)
                                                 makeSnackBar(parent, null, message).show()
                                                 popupWindow.dismiss()
                                             },
                                             onError = { _ ->
                                                 makeSnackBar(
                                                     parent,
-                                                    R.string.string_common_could_not_perform,
+                                                    R.string.common_message_could_not_perform,
                                                     type = SnackType.ERROR
                                                 ).show()
                                                 popupWindow.dismiss()
@@ -192,14 +192,14 @@ class FollowsDrawerListAdapter(
                                         .observeOn(AndroidSchedulers.mainThread())
                                         .subscribeBy(
                                             onComplete = {
-                                                val message = c.getString(R.string.string_follows_snack_subscribed, feed.name)
+                                                val message = c.getString(R.string.follows_snack_subscribed, feed.name)
                                                 makeSnackBar(parent, null, message).show()
                                                 popupWindow.dismiss()
                                             },
                                             onError = { _ ->
                                                 makeSnackBar(
                                                     parent,
-                                                    R.string.string_common_could_not_perform,
+                                                    R.string.common_message_could_not_perform,
                                                     type = SnackType.ERROR
                                                 ).show()
                                                 popupWindow.dismiss()
@@ -217,14 +217,14 @@ class FollowsDrawerListAdapter(
                                         .observeOn(AndroidSchedulers.mainThread())
                                         .subscribeBy(
                                             onComplete = {
-                                                val message = c.getString(R.string.string_follows_snack_unsubscribed, feed.name)
+                                                val message = c.getString(R.string.follows_snack_unsubscribed, feed.name)
                                                 makeSnackBar(parent, null, message).show()
                                                 popupWindow.dismiss()
                                             },
                                             onError = { _ ->
                                                 makeSnackBar(
                                                     parent,
-                                                    R.string.string_common_could_not_perform,
+                                                    R.string.common_message_could_not_perform,
                                                     type = SnackType.ERROR
                                                 ).show()
                                                 popupWindow.dismiss()

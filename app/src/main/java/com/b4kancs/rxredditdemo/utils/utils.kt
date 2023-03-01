@@ -6,6 +6,7 @@ import hu.akarnokd.rxjava3.bridge.RxJavaBridge
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Completable
 import io.reactivex.rxjava3.core.CompletableEmitter
+import io.reactivex.rxjava3.core.MaybeEmitter
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.core.Scheduler
 import io.reactivex.rxjava3.disposables.CompositeDisposable
@@ -24,6 +25,7 @@ fun CompletableEmitter.fromCompletable(completable: Completable) =
         onComplete = { this.onComplete() },
         onError = { e -> this.onError(e) }
     )
+
 
 fun executeTimedDisposable(
     delayInMillis: Long,

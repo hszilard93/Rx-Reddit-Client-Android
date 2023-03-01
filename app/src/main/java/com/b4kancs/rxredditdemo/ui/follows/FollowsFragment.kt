@@ -105,7 +105,7 @@ class FollowsFragment : BaseListingFragment() {
                     if (userFeed.status == UserFeed.Status.AGGREGATE)
                         userFeed.name
                     else
-                        getString(R.string.string_follows_title_feed_name_template, userFeed.name)
+                        getString(R.string.follows_title_feed_name_template, userFeed.name)
             }
             .addTo(disposables)
 
@@ -120,7 +120,7 @@ class FollowsFragment : BaseListingFragment() {
                             logcat(LogPriority.ERROR) { "Failed to set user feed! Message = ${e.message}" }
                             makeSnackBar(
                                 view = binding.rvFollowsPosts,
-                                stringId = R.string.string_common_error_something_went_wrong,
+                                stringId = R.string.common_error_something_went_wrong,
                                 type = SnackType.ERROR
                             ).show()
                         }
@@ -149,7 +149,7 @@ class FollowsFragment : BaseListingFragment() {
                             progressBarFollowsLarge.isVisible = true
                         }
                         UiState.ERROR_404 -> {
-                            val errorMessage = getString(R.string.string_follows_http_404_error_message)
+                            val errorMessage = getString(R.string.follows_error_message_http_404)
                             val errorImageId = R.drawable.im_error_404_resized
                             linearLayoutFollowsErrorContainer.isVisible = true
                             textViewFollowsError.text = errorMessage
@@ -158,7 +158,7 @@ class FollowsFragment : BaseListingFragment() {
                             rvFollowsPosts.isVisible = false
                         }
                         UiState.ERROR_GENERIC -> {
-                            val errorMessage = getString(R.string.string_common_network_error_message)
+                            val errorMessage = getString(R.string.common_error_message_network)
                             val errorImageId = R.drawable.im_error_network
                             linearLayoutFollowsErrorContainer.isVisible = true
                             textViewFollowsError.text = errorMessage
@@ -167,7 +167,7 @@ class FollowsFragment : BaseListingFragment() {
                             rvFollowsPosts.isVisible = false
                         }
                         UiState.NO_CONTENT -> {
-                            val errorMessage = getString(R.string.string_follows_no_posts_for_user)
+                            val errorMessage = getString(R.string.follows_message_no_posts_for_user)
                             val errorImageId = R.drawable.im_error_no_content_cat
                             linearLayoutFollowsErrorContainer.isVisible = true
                             textViewFollowsError.text = errorMessage
@@ -176,7 +176,7 @@ class FollowsFragment : BaseListingFragment() {
                             rvFollowsPosts.isVisible = false
                         }
                         UiState.NO_CONTENT_AGGREGATE -> {
-                            val errorMessage = getString(R.string.string_follows_no_posts_aggregate)
+                            val errorMessage = getString(R.string.follows_no_posts_aggregate)
                             val errorImageId = R.drawable.im_error_no_content_cat
                             linearLayoutFollowsErrorContainer.isVisible = true
                             textViewFollowsError.text = errorMessage
@@ -270,7 +270,7 @@ class FollowsFragment : BaseListingFragment() {
                                 .observeOn(AndroidSchedulers.mainThread())
                                 .subscribeBy(
                                     onComplete = {
-                                        makeSnackBar(binding.root, R.string.string_common_done).show()
+                                        makeSnackBar(binding.root, R.string.common_message_done).show()
                                     },
                                     onError = { _ ->
                                         makeSnackBar(
@@ -305,7 +305,7 @@ class FollowsFragment : BaseListingFragment() {
                                     onError = { _ ->
                                         makeSnackBar(
                                             binding.root,
-                                            R.string.string_common_could_not_perform,
+                                            R.string.common_message_could_not_perform,
                                             type = SnackType.ERROR
                                         ).show()
                                     }
@@ -334,7 +334,7 @@ class FollowsFragment : BaseListingFragment() {
                                     onError = { _ ->
                                         makeSnackBar(
                                             binding.root,
-                                            R.string.string_common_could_not_perform,
+                                            R.string.common_message_could_not_perform,
                                             type = SnackType.ERROR
                                         ).show()
                                     }
@@ -362,7 +362,7 @@ class FollowsFragment : BaseListingFragment() {
                                     onError = { _ ->
                                         makeSnackBar(
                                             binding.root,
-                                            R.string.string_common_could_not_perform,
+                                            R.string.common_message_could_not_perform,
                                             type = SnackType.ERROR
                                         ).show()
                                     }

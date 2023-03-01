@@ -47,6 +47,12 @@ import kotlin.math.min
 
 
 class MainActivity : AppCompatActivity() {
+
+    companion object {
+        const val INTENT_TYPE_EXTRA = "RxRedditIntentType"
+        const val INTENT_TYPE_SUBSCRIPTION = 1
+    }
+
     val viewModel: MainViewModel by viewModel()
     private val disposables = CompositeDisposable()
     var menu: Menu? = null
@@ -229,7 +235,7 @@ class MainActivity : AppCompatActivity() {
         setUpGenericDrawerSearchView(
             searchListAdapter = SubredditsDrawerSearchListAdapter(this@MainActivity, homeViewModel),
             title = getString(R.string.drawer_title_subreddits),
-            queryHint = getString(R.string.text_view_drawer_query_hint_subreddit),
+            queryHint = getString(R.string.drawer_query_hint_subreddit),
             queryTextChangeEventHandlerDisposable = queryTextChangeEventHandlerDisposable,
             searchResultsChangedObservable = homeViewModel.subredditSearchResultsChangedSubject
         )
@@ -274,7 +280,7 @@ class MainActivity : AppCompatActivity() {
         setUpGenericDrawerSearchView(
             searchListAdapter = FollowsDrawerSearchListAdapter(this@MainActivity, followsViewModel),
             title = getString(R.string.drawer_title_follows),
-            queryHint = getString(R.string.text_view_drawer_query_hint_follows),
+            queryHint = getString(R.string.drawer_query_hint_follows),
             queryTextChangeEventHandlerDisposable = queryTextChangeEventHandlerDisposable,
             searchResultsChangedObservable = followsViewModel.followsSearchResultsChangedSubject
         )

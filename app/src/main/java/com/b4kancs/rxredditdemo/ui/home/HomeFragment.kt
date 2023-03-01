@@ -138,7 +138,7 @@ class HomeFragment : BaseListingFragment() {
                             progressBarHomeLarge.isVisible = true
                         }
                         UiState.ERROR_404 -> {
-                            val errorMessage = getString(R.string.string_home_http_404_error_message)
+                            val errorMessage = getString(R.string.home_error_message_http_404)
                             val errorImageId = R.drawable.im_error_404_resized
                             linearLayoutHomeErrorContainer.isVisible = true
                             textViewHomeError.text = errorMessage
@@ -147,7 +147,7 @@ class HomeFragment : BaseListingFragment() {
                             rvHomePosts.isVisible = false
                         }
                         UiState.ERROR_GENERIC -> {
-                            val errorMessage = getString(R.string.string_common_network_error_message)
+                            val errorMessage = getString(R.string.common_error_message_network)
                             val errorImageId = R.drawable.im_error_network
                             linearLayoutHomeErrorContainer.isVisible = true
                             textViewHomeError.text = errorMessage
@@ -156,7 +156,7 @@ class HomeFragment : BaseListingFragment() {
                             rvHomePosts.isVisible = false
                         }
                         UiState.NO_CONTENT -> {
-                            val errorMessage = getString(R.string.string_home_no_posts_in_sub)
+                            val errorMessage = getString(R.string.home_message_no_posts_in_sub)
                             val errorImageId = R.drawable.im_error_no_content_dog
                             linearLayoutHomeErrorContainer.isVisible = true
                             textViewHomeError.text = errorMessage
@@ -257,7 +257,7 @@ class HomeFragment : BaseListingFragment() {
                                     onError = {
                                         makeSnackBar(
                                             binding.root,
-                                            R.string.string_common_could_not_perform,
+                                            R.string.common_message_could_not_perform,
                                             type = SnackType.ERROR
                                         ).show()
                                     }
@@ -291,7 +291,7 @@ class HomeFragment : BaseListingFragment() {
                                             onError = {
                                                 makeSnackBar(
                                                     binding.root,
-                                                    R.string.string_common_could_not_perform,
+                                                    R.string.common_message_could_not_perform,
                                                     type = SnackType.ERROR
                                                 ).show()
                                             }
@@ -328,7 +328,7 @@ class HomeFragment : BaseListingFragment() {
                                             onError = {
                                                 makeSnackBar(
                                                     binding.root,
-                                                    R.string.string_common_could_not_perform,
+                                                    R.string.common_message_could_not_perform,
                                                     type = SnackType.ERROR
                                                 ).show()
                                             }
@@ -359,12 +359,12 @@ class HomeFragment : BaseListingFragment() {
                                         .observeOn(AndroidSchedulers.mainThread())
                                         .subscribeBy(
                                             onSuccess = { _ ->
-                                                makeSnackBar(binding.root, R.string.string_common_done).show()
+                                                makeSnackBar(binding.root, R.string.common_message_done).show()
                                             },
                                             onError = { _ ->
                                                 makeSnackBar(
                                                     binding.root,
-                                                    R.string.string_common_could_not_perform,
+                                                    R.string.common_message_could_not_perform,
                                                     type = SnackType.ERROR
                                                 ).show()
                                             }

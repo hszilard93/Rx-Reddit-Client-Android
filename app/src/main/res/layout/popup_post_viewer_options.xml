@@ -12,7 +12,7 @@
         android:fontFamily="sans-serif-light"
         android:gravity="center"
         android:padding="8dp"
-        android:text="@string/string_post_popup_action_open_link"
+        android:text="@string/post_popup_action_open_link"
         android:textColor="?attr/colorTertiary"
         android:textSize="16sp"/>
 
@@ -23,7 +23,7 @@
         android:fontFamily="sans-serif-light"
         android:gravity="center"
         android:padding="8dp"
-        android:text="@string/string_post_popup_action_download"
+        android:text="@string/post_popup_action_download"
         android:textColor="?attr/colorTertiary"
         android:textSize="16sp"/>
 
@@ -34,7 +34,7 @@
         android:fontFamily="sans-serif-light"
         android:gravity="center"
         android:padding="8dp"
-        android:text="@string/string_post_popup_action_set_as_background"
+        android:text="@string/post_popup_action_set_as_background"
         android:textColor="?attr/colorTertiary"
         android:textSize="16sp"/>
 
@@ -47,7 +47,7 @@
         android:gravity="center"
         android:padding="8dp"
         android:singleLine="true"
-        android:text="@string/string_post_popup_action_go_to_user"
+        android:text="@string/post_popup_action_go_to_user"
         android:textColor="?attr/colorTertiary"
         android:textSize="16sp"/>
 </LinearLayout>
