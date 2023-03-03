@@ -14,6 +14,9 @@ interface FollowsDao {
     @Query("SELECT * FROM follows ORDER BY name")
     fun getFollowedUsers(): Single<List<UserFeed>>
 
+    @Query("SELECT * FROM follows WHERE status = 'SUBSCRIBED' ORDER BY name")
+    fun getSubscribedUsers(): Single<List<UserFeed>>
+
     @Query("SELECT * FROM follows WHERE LOWER(name) LIKE LOWER('%' || :name || '%')")
     fun getFollowedUsersByNameLike(name: String): Single<List<UserFeed>>
 

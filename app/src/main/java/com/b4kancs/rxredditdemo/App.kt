@@ -9,6 +9,7 @@ import com.b4kancs.rxredditdemo.data.database.SubredditRoomDatabase
 import com.b4kancs.rxredditdemo.data.networking.RedditJsonClient
 import com.b4kancs.rxredditdemo.data.networking.RedditJsonService
 import com.b4kancs.rxredditdemo.domain.pagination.AggregateFeedLoader
+import com.b4kancs.rxredditdemo.domain.pagination.SubscriptionsFeedLoader
 import com.b4kancs.rxredditdemo.repository.FavoritePostsRepository
 import com.b4kancs.rxredditdemo.repository.FollowsRepository
 import com.b4kancs.rxredditdemo.repository.SubredditRepository
@@ -34,6 +35,7 @@ import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.core.context.startKoin
+import org.koin.core.qualifier.named
 import org.koin.dsl.module
 import retrofit2.Retrofit
 import retrofit2.adapter.rxjava3.RxJava3CallAdapterFactory
@@ -161,6 +163,11 @@ class App : Application() {
         single {
             logcat { "Koin providing Single AggregateFeedLoader object." }
             return@single AggregateFeedLoader
+        }
+
+        single {
+            logcat { "Koin providing Single AggregateFeedLoader object." }
+            return@single SubscriptionsFeedLoader
         }
 
         viewModel {

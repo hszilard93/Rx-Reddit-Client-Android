@@ -274,7 +274,6 @@ class PostViewerFragment : Fragment() {
     private fun goToFollowsFragment(userName: String) {
         logcat { "goToFollowsFragment: userName = $userName" }
 
-
         val action = PostViewerFragmentDirections.actionPostViewerToFollows(userName)
         findNavController().navigate(action)
     }

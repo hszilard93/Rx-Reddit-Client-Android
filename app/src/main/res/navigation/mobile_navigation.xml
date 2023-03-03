@@ -16,6 +16,10 @@
             app:destination="@id/navigation_post_viewer" />
 
         <action
+            android:id="@+id/action_home_to_follows"
+            app:destination="@id/navigation_follows" />
+
+        <action
             android:id="@+id/action_home_to_settings"
             app:destination="@id/navigation_settings"
             app:enterAnim="@anim/slide_in_anim"
@@ -58,7 +62,6 @@
         <action
             android:id="@+id/action_follows_to_post_viewer"
             app:destination="@id/navigation_post_viewer" />
-
 
         <action
             android:id="@+id/action_follows_to_settings"

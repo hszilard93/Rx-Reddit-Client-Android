@@ -18,9 +18,11 @@ import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.navigation.ui.setupWithNavController
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.databinding.ActivityMainBinding
+import com.b4kancs.rxredditdemo.repository.FollowsRepository
 import com.b4kancs.rxredditdemo.ui.follows.FollowsDrawerListAdapter
 import com.b4kancs.rxredditdemo.ui.follows.FollowsDrawerSearchListAdapter
 import com.b4kancs.rxredditdemo.ui.follows.FollowsViewModel
+import com.b4kancs.rxredditdemo.ui.home.HomeFragmentDirections
 import com.b4kancs.rxredditdemo.ui.home.HomeViewModel
 import com.b4kancs.rxredditdemo.ui.home.SubredditsDrawerListAdapter
 import com.b4kancs.rxredditdemo.ui.home.SubredditsDrawerSearchListAdapter
@@ -49,7 +51,7 @@ import kotlin.math.min
 class MainActivity : AppCompatActivity() {
 
     companion object {
-        const val INTENT_TYPE_EXTRA = "RxRedditIntentType"
+        const val INTENT_TYPE_EXTRA = "com.b4kancs.rxredditdemo.ui.main.ShowSubscriptions"
         const val INTENT_TYPE_SUBSCRIPTION = 1
     }
 
@@ -70,6 +72,17 @@ class MainActivity : AppCompatActivity() {
         val navController = findNavController(R.id.fragment_main_nav_host)
         setUpActionBar(navController)
         setUpActionBarAndNavigation(navController)
+
+        // If we got here from a Notification, go to the Follows fragment and load the Subscriptions feed.
+        if (intent.getIntExtra(INTENT_TYPE_EXTRA, 0) == 1) {
+            navController.setGraph(R.navigation.mobile_navigation)
+            val homeToFollowsNavAction = HomeFragmentDirections.actionHomeToFollows(
+                // We use the class name instead of the name 'Subscriptions' because it's pretty much guaranteed that there
+                // isn't a reddit user with this name.
+                FollowsRepository.subscriptionsUserFeed::class.java.name
+            )
+            navController.navigate(homeToFollowsNavAction)
+        }
     }
 
     private fun setUpActionBar(navController: NavController) {

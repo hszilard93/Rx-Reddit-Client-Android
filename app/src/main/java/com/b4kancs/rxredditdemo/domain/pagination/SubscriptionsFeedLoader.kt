@@ -3,10 +3,10 @@ package com.b4kancs.rxredditdemo.domain.pagination
 import com.b4kancs.rxredditdemo.repository.FollowsRepository
 import org.koin.java.KoinJavaComponent
 
-object AggregateFeedLoader : AbstractCombinedFeedLoader() {
+object SubscriptionsFeedLoader : AbstractCombinedFeedLoader() {
 
     private val followsRepository: FollowsRepository by KoinJavaComponent.inject(FollowsRepository::class.java)
 
     override fun getAllFeedsToBeDownloaded() =
-        followsRepository.getAllFollowsFromDb().blockingGet()
+        followsRepository.getAllSubscribedFeeds().blockingGet()
 }

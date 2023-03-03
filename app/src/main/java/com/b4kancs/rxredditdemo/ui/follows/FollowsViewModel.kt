@@ -10,7 +10,6 @@ import com.b4kancs.rxredditdemo.domain.pagination.UserPostsJsonPagingSource
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.model.UserFeed
 import com.b4kancs.rxredditdemo.repository.FollowsRepository
-import com.b4kancs.rxredditdemo.ui.shared.PostPagingDataObservableProvider
 import com.b4kancs.rxredditdemo.ui.shared.BaseListingFragmentViewModel
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Completable
@@ -38,7 +37,7 @@ class FollowsViewModel : BaseListingFragmentViewModel() {
 
     val currentUserFeed: UserFeed
         get() = feedChangedBehaviorSubject
-            .blockingMostRecent(FollowsRepository.defaultUserFeed).first()
+            .blockingMostRecent(FollowsRepository.aggregateUserFeed).first()
     private val disposables = CompositeDisposable()
 
     init {
@@ -65,6 +64,11 @@ class FollowsViewModel : BaseListingFragmentViewModel() {
     fun getAllUserFeeds(): Single<List<UserFeed>> {
         logcat { "getAllUserFeeds" }
         return followsRepository.getAllFollowsFromDb()
+    }
+
+    fun getAllSubscribedFeeds(): Single<List<UserFeed>> {
+        logcat { "getAllSubscribedFeeds" }
+        return followsRepository.getAllSubscribedFeeds()
     }
 
     fun getUserFeedByName(name: String): Maybe<UserFeed> {
@@ -142,7 +146,9 @@ class FollowsViewModel : BaseListingFragmentViewModel() {
     fun getAreThereFollowedUsersBehaviourSubject() =
         followsRepository.areThereFollowedUsersBehaviourSubject
 
-    fun getDefaultUserFeed() = FollowsRepository.defaultUserFeed
+    fun getAggregateUserFeed() = FollowsRepository.aggregateUserFeed
+
+    fun getSubscriptionsUserFeed() = FollowsRepository.subscriptionsUserFeed
 
     override fun getCachedPagingObservable(): Observable<PagingData<Post>> =
         postsCachedPagingObservable

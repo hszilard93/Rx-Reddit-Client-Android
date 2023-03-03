@@ -78,12 +78,13 @@ class FollowsDrawerSearchListAdapter(
                             UserFeed.Status.NOT_IN_DB -> viewModel.addUserFeed(feed)
                             UserFeed.Status.FOLLOWED -> viewModel.subscribeToFeed(feed)
                             UserFeed.Status.SUBSCRIBED -> viewModel.unsubscribeFromFeed(feed)
-                            UserFeed.Status.AGGREGATE -> throw IllegalStateException("AGGREGATE feed in search results!")
+                            else -> throw java.lang.IllegalStateException(
+                                "AGGREGATE or SUBSCRIPTIONS feeds should not show up in the search results."
+                            )
                         }
                     }
                     .addTo(disposables)
             }
-
         }
         return binding.root
     }

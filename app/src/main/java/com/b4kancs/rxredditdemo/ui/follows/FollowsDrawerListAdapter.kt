@@ -99,7 +99,7 @@ class FollowsDrawerListAdapter(
         // .. or the Aggregate feed
         val feed: UserFeed =
             if (position == 0) {
-                viewModel.getDefaultUserFeed()
+                viewModel.getAggregateUserFeed()
             }
             // .. or a regular item
             else {    // Feed aggregate
@@ -118,10 +118,13 @@ class FollowsDrawerListAdapter(
             textViewDrawerFollowsName.text = feed.name
             imageViewDrawerFollowsAction
                 .also {
-                    when {
-                        feed == viewModel.getDefaultUserFeed() -> it.isVisible = false
-                        feed.status == Status.FOLLOWED -> it.setImageResource(R.drawable.ic_outline_notification_24)
-                        feed.status == Status.SUBSCRIBED -> it.setImageResource(R.drawable.ic_baseline_notification_24)
+                    when (feed.status) {
+                        Status.AGGREGATE -> it.setImageResource(R.drawable.ic_follows_aggregate_zipper_24)
+                        Status.FOLLOWED -> it.setImageResource(R.drawable.ic_outline_notification_24)
+                        Status.SUBSCRIBED -> it.setImageResource(R.drawable.ic_baseline_notification_24)
+                        else -> throw java.lang.IllegalStateException(
+                            "No feed with status ${feed.status} should be in the side drawer."
+                        )
                     }
                 }
 

@@ -21,8 +21,14 @@ class FollowsRepository {
 
     companion object {
         private val applicationContext: Context by inject(Context::class.java)
-        private val defaultUserFeedName = applicationContext.getString(R.string.follows_default_feed_name)
-        val defaultUserFeed = UserFeed(defaultUserFeedName, UserFeed.Status.AGGREGATE)
+        val aggregateUserFeed = UserFeed(
+            applicationContext.getString(R.string.follows_default_feed_name),
+            UserFeed.Status.AGGREGATE
+        )
+        val subscriptionsUserFeed = UserFeed(
+            applicationContext.getString(R.string.follows_subscriptions_feed_name),
+            UserFeed.Status.SUBSCRIPTIONS
+        )
     }
 
     val followsChangedSubject: PublishSubject<Unit> = PublishSubject.create()
@@ -56,6 +62,12 @@ class FollowsRepository {
             .doOnError { e ->
                 logcat(LogPriority.ERROR) { "Could not get followed users from DB! Message: ${e.message}" }
             }
+    }
+
+    fun getAllSubscribedFeeds(): Single<List<UserFeed>> {
+        logcat { "getAllSubscribedFeeds" }
+        return followsDatabase.followsDao().getSubscribedUsers()
+            .subscribeOn(Schedulers.io())
     }
 
     fun saveUserFeedToDb(userFeed: UserFeed): Completable {

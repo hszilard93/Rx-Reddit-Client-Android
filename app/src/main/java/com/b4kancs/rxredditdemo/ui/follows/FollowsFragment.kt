@@ -13,6 +13,7 @@ import androidx.viewbinding.ViewBinding
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.databinding.FragmentFollowsBinding
 import com.b4kancs.rxredditdemo.model.UserFeed
+import com.b4kancs.rxredditdemo.repository.FollowsRepository
 import com.b4kancs.rxredditdemo.ui.main.MainActivity
 import com.b4kancs.rxredditdemo.ui.shared.BaseListingFragment
 import com.b4kancs.rxredditdemo.ui.shared.BaseListingFragmentViewModel.UiState
@@ -53,6 +54,7 @@ class FollowsFragment : BaseListingFragment() {
     override fun onViewCreatedDoAlso(view: View, savedInstanceState: Bundle?) {
         logcat { "onCreateViewDoExtras" }
         if (isJustCreated) {
+            setUpInitialFeed()
             setUpBehaviourDisposables()
             isJustCreated = false
         }
@@ -81,8 +83,45 @@ class FollowsFragment : BaseListingFragment() {
         }
     }
 
+    private fun setUpInitialFeed() {
+        logcat { "setUpInitialFeed" }
+        // If we got here from another fragment, we need to recover the navigation argument and go to the specified user's feed.
+        val userNameFromNavigation = args.userName
+        if (viewModel.currentUserFeed.name != userNameFromNavigation) {
+            if (userNameFromNavigation == FollowsRepository.subscriptionsUserFeed::class.java.name) {
+                // This case means we got here from a Notification. We need to go to the Subscriptions feed.
+                viewModel.setUserFeedTo(viewModel.getSubscriptionsUserFeed())
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe()
+                    .addTo(disposables)
+            }
+            else {
+                // We got here from the PostViewerFragment, we need to go to a specific user.
+                userNameFromNavigation?.let { userName ->
+                    viewModel.setUserFeedTo(userName)
+                        .observeOn(AndroidSchedulers.mainThread())
+                        .subscribeBy(
+                            onError = { e ->
+                                logcat(LogPriority.ERROR) { "Failed to set user feed! Message = ${e.message}" }
+                                makeSnackBar(
+                                    view = binding.rvFollowsPosts,
+                                    stringId = R.string.common_error_something_went_wrong,
+                                    type = SnackType.ERROR
+                                ).show()
+                            }
+                        ).addTo(disposables)
+                }
+            }
+        }
+        else {
+            // We likely got here by navigating the bottom nav bar, let's load the aggregate feed.
+            viewModel.setUserFeedTo(viewModel.getAggregateUserFeed())
+        }
+    }
+
     private fun setUpBehaviourDisposables() {
         logcat { "setUpBehaviourDisposables" }
+
         // This subscription is for refreshing the feed. Does NOT need to immediately execute upon subscription,
         // hence the distinct until changed.
         viewModel.feedChangedBehaviorSubject
@@ -99,34 +138,16 @@ class FollowsFragment : BaseListingFragment() {
         viewModel.feedChangedBehaviorSubject
             .observeOn(AndroidSchedulers.mainThread())
             .filter { _binding != null }
-            .startWithItem(viewModel.getDefaultUserFeed())
+            .startWithItem(viewModel.currentUserFeed)
             .subscribe { userFeed ->
                 (activity as MainActivity).supportActionBar?.title =
-                    if (userFeed.status == UserFeed.Status.AGGREGATE)
-                        userFeed.name
-                    else
-                        getString(R.string.follows_title_feed_name_template, userFeed.name)
+                    when (userFeed.status) {
+                        UserFeed.Status.AGGREGATE -> userFeed.name
+                        UserFeed.Status.SUBSCRIPTIONS -> userFeed.name
+                        else -> getString(R.string.follows_title_feed_name_template, userFeed.name)
+                    }
             }
             .addTo(disposables)
-
-        // If we got here from another fragment, we need to recover the navigation argument and go to the specified user's feed.
-        val userNameFromNavigation = args.userName
-        if (viewModel.currentUserFeed.name != userNameFromNavigation) {
-            userNameFromNavigation?.let { userName ->
-                viewModel.setUserFeedTo(userName)
-                    .observeOn(AndroidSchedulers.mainThread())
-                    .subscribeBy(
-                        onError = { e ->
-                            logcat(LogPriority.ERROR) { "Failed to set user feed! Message = ${e.message}" }
-                            makeSnackBar(
-                                view = binding.rvFollowsPosts,
-                                stringId = R.string.common_error_something_went_wrong,
-                                type = SnackType.ERROR
-                            ).show()
-                        }
-                    ).addTo(disposables)
-            }
-        }
     }
 
     override fun setUpUiStatesBehaviour() {
@@ -252,7 +273,7 @@ class FollowsFragment : BaseListingFragment() {
             .subscribeOn(Schedulers.io())
             .doOnNext { logcat { "mergedFeedUpdateObservable.onNext" } }
             .map { viewModel.feedChangedBehaviorSubject.blockingLatest().first() }
-            .startWithItem(viewModel.getDefaultUserFeed())
+            .startWithItem(viewModel.getAggregateUserFeed())
             .replay(1)
             .apply { connect() }
 
