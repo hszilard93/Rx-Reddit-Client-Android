@@ -163,11 +163,8 @@ abstract class BaseListingFragment : Fragment() {
         logcat { "onStart" }
         super.onStart()
 
-        setUpDrawer()
         onStartDoAlso()
     }
-
-    abstract fun setUpDrawer()
 
     open fun onStartDoAlso() {}
 
@@ -175,8 +172,11 @@ abstract class BaseListingFragment : Fragment() {
     override fun onResume() {
         logcat { "onResume" }
         super.onResume()
+        setUpDrawer()
         setUpOptionsMenu()
     }
+
+    abstract fun setUpDrawer()
 
     abstract fun setUpOptionsMenu()
 

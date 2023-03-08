@@ -121,7 +121,13 @@ class FollowsDrawerListAdapter(
                     when (feed.status) {
                         Status.AGGREGATE -> it.setImageResource(R.drawable.ic_follows_aggregate_zipper_24)
                         Status.FOLLOWED -> it.setImageResource(R.drawable.ic_outline_notification_24)
-                        Status.SUBSCRIBED -> it.setImageResource(R.drawable.ic_baseline_notification_24)
+                        Status.SUBSCRIBED -> {
+                            val isNotificationPermissionGrantedOrNotNeeded = viewModel.checkIsNotificationPermissionDenied()
+                            if (isNotificationPermissionGrantedOrNotNeeded)
+                                it.setImageResource(R.drawable.ic_baseline_notification_24_enabled)
+                            else
+                                it.setImageResource(R.drawable.ic_baseline_notification_24_disabled)
+                        }
                         else -> throw java.lang.IllegalStateException(
                             "No feed with status ${feed.status} should be in the side drawer."
                         )

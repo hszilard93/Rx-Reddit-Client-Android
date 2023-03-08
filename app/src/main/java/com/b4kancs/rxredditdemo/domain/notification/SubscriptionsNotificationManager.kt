@@ -15,6 +15,7 @@ import androidx.core.app.TaskStackBuilder
 import androidx.fragment.app.FragmentActivity
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.ui.main.MainActivity
+import com.f2prateek.rx.preferences2.RxSharedPreferences
 import com.tbruyelle.rxpermissions3.RxPermissions
 import io.reactivex.rxjava3.core.Maybe
 import io.reactivex.rxjava3.core.Single
@@ -36,6 +37,9 @@ object SubscriptionsNotificationManager {
 
     fun showNotification(context: Context, message: String) {
         logcat { "showNotification" }
+
+        if (checkHasNotificationPermission().blockingGet(true).not())
+            return
 
         val notificationManager = NotificationManagerCompat.from(context)
         // Create notification channel.
@@ -62,35 +66,69 @@ object SubscriptionsNotificationManager {
 
     // Returns Maybe.empty if no permission is required; Maybe.success(false) if the permission has been denied;
     // and Maybe.just(true) if it has been granted.
-    fun checkForAndAskNotificationPermissionIfNecessary(activity: FragmentActivity): Maybe<Boolean> {
+    fun askNotificationPermissionIfNecessaryAndReturnPermissionStatus(activity: FragmentActivity): Maybe<Boolean> {
         logcat { "checkForNotificationPermissionAndAskPermissionIfNecessary" }
 
         return Maybe.create { emitter ->
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-                emitter.onComplete()
-                // This return is here so that the linter recognizes the end of the execution path and doesn't complain about SDK checks,
-                // but it also makes it easier for us to spot the return points so I don't mind.
-                return@create
-            }
-
-            val permissionStatusCode = applicationContext.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
-            if (permissionStatusCode == PackageManager.PERMISSION_GRANTED) {
-                emitter.onSuccess(true)
-                return@create
-            }
-
-            // Ask for permission here.
-            askForNotificationPermission(activity)
+            checkHasNotificationPermission()
                 .subscribeBy(
-                    onSuccess = { result -> emitter.onSuccess(result) },
-                    onError = { e -> emitter.onError(e) }
+                    onSuccess = { hasPermission ->
+                        if (hasPermission) {
+                            emitter.onSuccess(true)
+                        }
+                        else { // We need to ask for a permission.
+                            askForNotificationPermission(activity)
+                                .subscribeBy(
+                                    onSuccess = { isPermissionGranted ->
+                                        if (!isPermissionGranted) {
+                                            val rxPreferences: RxSharedPreferences by inject(RxSharedPreferences::class.java)
+                                            rxPreferences.getString("pref_list_notifications").set("never")
+                                        }
+                                        emitter.onSuccess(isPermissionGranted)
+                                    },
+                                    onError = { e -> emitter.onError(e) }
+                                )
+                                .addTo(disposables)
+                        }
+                    },
+                    onComplete = { // No permission required.
+                        emitter.onComplete()
+                    },
+                    onError = { e ->
+                        logcat(LogPriority.ERROR) { "Error checking for notification permission. Message: ${e.message}" }
+                        emitter.onError(e)
+                    }
                 )
                 .addTo(disposables)
         }
     }
 
+    fun checkHasNotificationPermission(): Maybe<Boolean> {
+        logcat { "checkForNotificationPermission" }
+
+        return Maybe.create { emitter ->
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                // We don't need permission, return empty Maybe.
+                logcat { "Notification permission not required." }
+                emitter.onComplete()
+            }
+            else {
+                // We do need permission. Return whether or not we already have it.
+                logcat { "Notification permission needed." }
+                val permissionStatusCode = applicationContext.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+                val hasPermission = permissionStatusCode == PackageManager.PERMISSION_GRANTED
+                if (hasPermission)
+                    logcat(LogPriority.INFO) { "The app has notification permission." }
+                else
+                    logcat(LogPriority.WARN) { "The app doesn't have notification permission!" }
+
+                emitter.onSuccess(hasPermission)
+            }
+        }
+    }
+
     @SuppressLint("InlinedApi")
-    private fun askForNotificationPermission(activity: FragmentActivity): Single<Boolean> {
+    fun askForNotificationPermission(activity: FragmentActivity): Single<Boolean> {
         logcat { "askForNotificationPermission" }
 
         return Single.create { emitter ->

@@ -5,7 +5,8 @@ import android.app.job.JobService
 import logcat.LogPriority
 import logcat.logcat
 
-class NotificationService : JobService() {
+
+class SubscriptionsNotificationService : JobService() {
 
     override fun onStartJob(params: JobParameters?): Boolean {
         logcat(LogPriority.INFO) { "onStartJob" }

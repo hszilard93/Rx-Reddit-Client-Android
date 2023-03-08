@@ -37,5 +37,6 @@
 <!--        <item name="colorHudGradientEnd">#AABDE9FF</item>-->
         <item name="colorHudGradientEnd">#88B3EBFF</item>
         <item name="drawer_action_button_default_color">@color/md_theme_light_primary</item>
+        <item name="drawer_action_button_disabled_color">@color/disabled_grey</item>
     </style>
 </resources>

@@ -7,11 +7,13 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.core.view.children
 import androidx.core.view.isVisible
+import androidx.fragment.app.FragmentActivity
 import androidx.navigation.fragment.navArgs
 import androidx.paging.LoadState
 import androidx.viewbinding.ViewBinding
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.databinding.FragmentFollowsBinding
+import com.b4kancs.rxredditdemo.domain.notification.SubscriptionsNotificationManager
 import com.b4kancs.rxredditdemo.model.UserFeed
 import com.b4kancs.rxredditdemo.repository.FollowsRepository
 import com.b4kancs.rxredditdemo.ui.main.MainActivity
@@ -33,6 +35,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import logcat.LogPriority
 import logcat.logcat
+import org.koin.android.ext.android.inject
 import org.koin.androidx.viewmodel.ext.android.sharedViewModel
 import retrofit2.HttpException
 import java.util.concurrent.TimeUnit
@@ -218,6 +221,18 @@ class FollowsFragment : BaseListingFragment() {
                     }
                 }
             }.addTo(disposables)
+
+        viewModel.shouldAskNotificationPermissionPublishSubject
+            .observeOn(AndroidSchedulers.mainThread())
+            .doOnNext { logcat(LogPriority.INFO) { "shouldAskNotificationPermissionPublishSubject.onNext" } }
+            .subscribe {
+                val notificationManager by inject<SubscriptionsNotificationManager>()
+                notificationManager.askNotificationPermissionIfNecessaryAndReturnPermissionStatus(activity as FragmentActivity)
+                    .subscribe { hasNotification ->
+                        if (hasNotification) viewModel.feedChangedBehaviorSubject.onNext(viewModel.currentUserFeed)
+                    }
+                    .addTo(disposables)
+            }.addTo(disposables)
     }
 
     override fun setUpRecyclerView() {
@@ -350,7 +365,7 @@ class FollowsFragment : BaseListingFragment() {
                                 .observeOn(AndroidSchedulers.mainThread())
                                 .subscribeBy(
                                     onComplete = {
-                                        makeSnackBar(binding.root, null, "${currentFeed.name} has been deleted!").show()
+                                        makeSnackBar(binding.root, R.string.follows_snack_subscribed).show()
                                     },
                                     onError = { _ ->
                                         makeSnackBar(
@@ -378,7 +393,7 @@ class FollowsFragment : BaseListingFragment() {
                                 .observeOn(AndroidSchedulers.mainThread())
                                 .subscribeBy(
                                     onComplete = {
-                                        makeSnackBar(binding.root, null, "${currentFeed.name} has been deleted!").show()
+                                        makeSnackBar(binding.root, R.string.follows_snack_unsubscribed).show()
                                     },
                                     onError = { _ ->
                                         makeSnackBar(

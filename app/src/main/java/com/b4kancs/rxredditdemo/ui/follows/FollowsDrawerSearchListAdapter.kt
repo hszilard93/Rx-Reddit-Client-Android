@@ -66,7 +66,7 @@ class FollowsDrawerSearchListAdapter(
                     when (feed.status) {
                         UserFeed.Status.NOT_IN_DB -> R.drawable.ic_outline_add_24
                         UserFeed.Status.FOLLOWED -> R.drawable.ic_outline_notification_24
-                        UserFeed.Status.SUBSCRIBED -> R.drawable.ic_baseline_notification_24
+                        UserFeed.Status.SUBSCRIBED -> R.drawable.ic_baseline_notification_24_enabled
                         else -> throw IllegalStateException("AGGREGATE feed in search results!")
                     }
                 )

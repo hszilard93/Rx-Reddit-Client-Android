@@ -10,7 +10,7 @@ interface PostFavoritesDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     fun insertPost(post: PostFavoritesDbEntry): Single<Long>
 
-    @Query("SELECT * FROM favoritePosts ORDER BY name")
+    @Query("SELECT * FROM favoritePosts ORDER BY favoritedDate")
     fun getFavorites(): Single<List<PostFavoritesDbEntry>>
 
     @Query("SELECT * FROM favoritePosts ORDER BY favoritedDate DESC LIMIT :limit OFFSET :offset")

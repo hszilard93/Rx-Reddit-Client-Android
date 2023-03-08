@@ -6,4 +6,5 @@
     <attr name="colorHudGradientStart" format="color"/>
     <attr name="colorHudGradientEnd" format="color"/>
     <attr name="drawer_action_button_default_color" format="color"/>
+    <attr name="drawer_action_button_disabled_color" format="color"/>
 </resources>
