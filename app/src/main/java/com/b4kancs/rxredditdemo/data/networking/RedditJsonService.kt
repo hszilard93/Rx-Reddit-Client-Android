@@ -23,7 +23,7 @@ interface RedditJsonService {
     fun getUsersPostsJson(
         @Path("userName") userName: String,
         @Query("limit") limit: Int,
-        @Query("after") after: String?
+        @Query("after") after: String? = null
     ): Single<Response<RedditJsonListingModel>>
 
     @GET

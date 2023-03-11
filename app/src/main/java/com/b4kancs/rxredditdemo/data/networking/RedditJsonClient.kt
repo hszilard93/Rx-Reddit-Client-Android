@@ -55,26 +55,4 @@ object RedditJsonClient {
                 emptyList()
             }
     }
-
-    fun getUsersByKeyword(keyword: String): Single<List<Subreddit>> {
-        logcat { "getUsersByKeyword: keyword = $keyword" }
-//        return service.getUsersPostsJson(keyword)
-//            .map { response -> response.body()!! }
-//            .map { subsModel ->
-//                subsModel.data.children
-//            }
-//            .map { listOfSubData ->
-//                val subreddits = ArrayList<Subreddit>()
-//                listOfSubData.forEach {
-//                    subreddits.add(Subreddit.fromSubredditJsonModel(it.data))
-//                }
-//                subreddits
-//            }
-//            .flatMap { Single.just(it.toList()) }
-//            .onErrorReturn {
-//                logcat(LogPriority.ERROR) { it.message.toString() }
-//                emptyList()
-//            }
-        return Single.just(emptyList())
-    }
 }

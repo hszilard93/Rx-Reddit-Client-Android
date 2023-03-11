@@ -6,7 +6,7 @@ import com.b4kancs.rxredditdemo.model.UserFeed
 
 @Database(
     entities = [UserFeed::class],
-    version = 2,
+    version = 3,
     exportSchema = true
 )
 abstract class FollowsDatabase : RoomDatabase() {

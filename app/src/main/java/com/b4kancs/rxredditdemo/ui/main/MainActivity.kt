@@ -203,7 +203,7 @@ class MainActivity : AppCompatActivity() {
         val adapter = FollowsDrawerListAdapter(this, followsViewModel)
         binding.listViewDrawerSubreddits.adapter = adapter
 
-        followsViewModel.feedChangedBehaviorSubject
+        followsViewModel.currentFeedBehaviorSubject
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe {
                 executeTimedDisposable(300) { binding.drawerMain.closeDrawer(GravityCompat.START) }

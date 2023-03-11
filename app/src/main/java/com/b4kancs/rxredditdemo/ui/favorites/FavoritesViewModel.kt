@@ -8,7 +8,7 @@ import androidx.paging.rxjava3.cachedIn
 import androidx.paging.rxjava3.observable
 import com.b4kancs.rxredditdemo.data.database.PostFavoritesDbEntry
 import com.b4kancs.rxredditdemo.domain.pagination.FavoritesPagingSource
-import com.b4kancs.rxredditdemo.domain.pagination.SubredditJsonPagingSource
+import com.b4kancs.rxredditdemo.domain.pagination.SubredditsPagingSource
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.repository.FavoritePostsRepository
 import com.b4kancs.rxredditdemo.ui.shared.PostPagingDataObservableProvider
@@ -43,7 +43,7 @@ class FavoritesViewModel : BaseListingFragmentViewModel(), PostPagingDataObserva
             PagingConfig(
                 pageSize = FavoritesPagingSource.PAGE_SIZE,
                 prefetchDistance = 5,
-                initialLoadSize = SubredditJsonPagingSource.PAGE_SIZE
+                initialLoadSize = SubredditsPagingSource.PAGE_SIZE
             )
         ) { FavoritesPagingSource() }
         postsCachedPagingObservable = pager.observable

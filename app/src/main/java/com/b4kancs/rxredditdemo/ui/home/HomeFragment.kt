@@ -10,7 +10,7 @@ import androidx.paging.LoadState
 import androidx.viewbinding.ViewBinding
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.databinding.FragmentHomeBinding
-import com.b4kancs.rxredditdemo.domain.pagination.SubredditJsonPagingSource
+import com.b4kancs.rxredditdemo.domain.pagination.SubredditsPagingSource
 import com.b4kancs.rxredditdemo.model.Subreddit.Status
 import com.b4kancs.rxredditdemo.ui.main.MainActivity
 import com.b4kancs.rxredditdemo.ui.shared.BaseListingFragment
@@ -198,7 +198,7 @@ class HomeFragment : BaseListingFragment() {
                     logcat(LogPriority.WARN) { "LoadState.Error detected." }
                     val e = ((loadStates.refresh as LoadState.Error).error)
                     if ((e is HttpException && e.code() == 404)
-                        || e is SubredditJsonPagingSource.NoSuchSubredditException)
+                        || e is SubredditsPagingSource.NoSuchSubredditException)
                         viewModel.uiStateBehaviorSubject.onNext(UiState.ERROR_404)
                     else
                         viewModel.uiStateBehaviorSubject.onNext(UiState.ERROR_GENERIC)

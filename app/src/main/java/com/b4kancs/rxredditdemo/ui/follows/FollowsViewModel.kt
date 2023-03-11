@@ -7,7 +7,8 @@ import androidx.paging.PagingData
 import androidx.paging.rxjava3.cachedIn
 import androidx.paging.rxjava3.observable
 import com.b4kancs.rxredditdemo.domain.notification.SubscriptionsNotificationManager
-import com.b4kancs.rxredditdemo.domain.pagination.UserPostsJsonPagingSource
+import com.b4kancs.rxredditdemo.domain.notification.SubscriptionsNotificationScheduler
+import com.b4kancs.rxredditdemo.domain.pagination.FollowsPagingSource
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.model.UserFeed
 import com.b4kancs.rxredditdemo.repository.FollowsRepository
@@ -31,19 +32,24 @@ class FollowsViewModel : BaseListingFragmentViewModel() {
     private val followsRepository: FollowsRepository by inject(FollowsRepository::class.java)
 
     override val postsCachedPagingObservable: Observable<PagingData<Post>>
-    val feedChangedBehaviorSubject: BehaviorSubject<UserFeed> = BehaviorSubject.create()
+    val currentFeedBehaviorSubject: BehaviorSubject<UserFeed> = BehaviorSubject.create()
     val followsSearchResultsChangedSubject: PublishSubject<List<UserFeed>> = PublishSubject.create()
     val shouldAskNotificationPermissionPublishSubject: PublishSubject<Unit> = PublishSubject.create()
+    private val hasNotificationAccess by lazy {
+        logcat { "hasNotificationAccess by lazy" }
+        val notificationManager: SubscriptionsNotificationManager by inject(SubscriptionsNotificationManager::class.java)
+        notificationManager.checkHasNotificationPermission().blockingGet(true)
+    }
 
     val currentUserFeed: UserFeed
-        get() = feedChangedBehaviorSubject
+        get() = currentFeedBehaviorSubject
             .blockingMostRecent(FollowsRepository.aggregateUserFeed).first()
     private val disposables = CompositeDisposable()
 
     init {
         logcat { "init" }
 
-        feedChangedBehaviorSubject
+        currentFeedBehaviorSubject
             .subscribe { feed ->
                 logcat(LogPriority.INFO) { "feedChangedBehaviorSubject.onNext feed = ${feed.name}" }
                 followsRepository.followsChangedSubject.onNext(Unit)
@@ -52,13 +58,13 @@ class FollowsViewModel : BaseListingFragmentViewModel() {
 
         val pager = Pager(
             PagingConfig(
-                pageSize = UserPostsJsonPagingSource.PAGE_SIZE,
+                pageSize = FollowsPagingSource.PAGE_SIZE,
                 prefetchDistance = 5,
-                initialLoadSize = UserPostsJsonPagingSource.PAGE_SIZE
+                initialLoadSize = FollowsPagingSource.PAGE_SIZE
             )
         ) {
             logcat { "Follows pager pagingSourceFactory method called. currentUserFeed = $currentUserFeed" }
-            UserPostsJsonPagingSource(currentUserFeed)
+            FollowsPagingSource(currentUserFeed)
         }
         postsCachedPagingObservable = pager.observable
             .cachedIn(this.viewModelScope)
@@ -83,28 +89,47 @@ class FollowsViewModel : BaseListingFragmentViewModel() {
         logcat { "addUserFeed: userFeed = ${userFeed.name}" }
         val newFeed = UserFeed(userFeed.name, UserFeed.Status.FOLLOWED)
         return followsRepository.saveUserFeedToDb(newFeed)
+            .doOnComplete {
+                if (newFeed.name == currentUserFeed.name) currentFeedBehaviorSubject.onNext(newFeed)
+            }
     }
 
-    fun deleteUserFeed(userFeed: UserFeed): Completable {
-        logcat { "deleteUserFeed: userFeed = ${userFeed.name}" }
-        return followsRepository.deleteUserFeedFromDb(userFeed)
+    fun deleteUserFeed(userFeedToDelete: UserFeed): Completable {
+        logcat { "deleteUserFeed: userFeed = ${userFeedToDelete.name}" }
+        return followsRepository.deleteUserFeedFromDb(userFeedToDelete)
+            .doOnComplete {
+                if (userFeedToDelete.name == currentUserFeed.name) currentFeedBehaviorSubject.onNext(
+                    UserFeed(userFeedToDelete.name, UserFeed.Status.NOT_IN_DB)
+                )
+            }
     }
 
     fun subscribeToFeed(userFeed: UserFeed): Completable {
         logcat { "subscribeToFeed: userFeed = ${userFeed.name}" }
 
+        // If the user has not granted a notification permission, ask for one (if needed)
         val notificationManager: SubscriptionsNotificationManager by inject(SubscriptionsNotificationManager::class.java)
         val shouldAskForPermission = notificationManager.checkHasNotificationPermission().blockingGet(true).not()
         if (shouldAskForPermission) shouldAskNotificationPermissionPublishSubject.onNext(Unit)
 
+        // Check if notifications have been scheduled already. If not, schedule notifications.
+        val notificationScheduler: SubscriptionsNotificationScheduler by inject(SubscriptionsNotificationScheduler::class.java)
+        notificationScheduler.checkForScheduledNotificationAndRescheduleIfMissingDelayElse()
+
         val newFeed = UserFeed(userFeed.name, UserFeed.Status.SUBSCRIBED)
         return followsRepository.saveUserFeedToDb(newFeed)
+            .doOnComplete {
+                if (newFeed.name == currentUserFeed.name) currentFeedBehaviorSubject.onNext(newFeed)
+            }
     }
 
     fun unsubscribeFromFeed(userFeed: UserFeed): Completable {
         logcat { "unsubscribeFromFeed: userFeed = ${userFeed.name}" }
         val newFeed = UserFeed(userFeed.name, UserFeed.Status.FOLLOWED)
         return followsRepository.saveUserFeedToDb(newFeed)
+            .doOnComplete {
+                if (newFeed.name == currentUserFeed.name) currentFeedBehaviorSubject.onNext(newFeed)
+            }
     }
 
     fun setUserFeedTo(userName: String): Completable {
@@ -136,7 +161,7 @@ class FollowsViewModel : BaseListingFragmentViewModel() {
 
     fun setUserFeedTo(userFeed: UserFeed): Completable {
         logcat { "setUserFeedTo: userFeed = $userFeed" }
-        feedChangedBehaviorSubject.onNext(userFeed)
+        currentFeedBehaviorSubject.onNext(userFeed)
         return Completable.complete()
     }
 
@@ -167,8 +192,5 @@ class FollowsViewModel : BaseListingFragmentViewModel() {
         super.onCleared()
     }
 
-    fun checkIsNotificationPermissionDenied(): Boolean {
-        val notificationManager: SubscriptionsNotificationManager by inject(SubscriptionsNotificationManager::class.java)
-        return notificationManager.checkHasNotificationPermission().blockingGet(true)
-    }
+    fun checkIsNotificationPermissionDenied(): Boolean = hasNotificationAccess
 }

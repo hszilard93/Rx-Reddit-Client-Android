@@ -5,7 +5,7 @@ import androidx.paging.PagingState
 import androidx.paging.rxjava3.RxPagingSource
 import com.b4kancs.rxredditdemo.data.database.PostFavoritesDbEntry
 import com.b4kancs.rxredditdemo.data.database.loadFromNetwork
-import com.b4kancs.rxredditdemo.data.utils.JsonDataModelToPostTransformer
+import com.b4kancs.rxredditdemo.data.utils.JsonPostsFeedHelper
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.repository.FavoritePostsRepository
 import io.reactivex.rxjava3.core.Maybe
@@ -91,8 +91,8 @@ class FavoritesPagingSource : RxPagingSource<Int, Post>() {
                         onSuccess = { response ->
                             if (response.isSuccessful) {
                                 val jsonModel = response.body()!!
-                                val post = JsonDataModelToPostTransformer
-                                    .fromJsonPostDataModel(jsonModel.first().data.children.first().data)
+                                val post = JsonPostsFeedHelper
+                                    .fromJsonPostDataModelToPost(jsonModel.first().data.children.first().data)
                                 cachedPostsMap[dbEntry.name] = post
                                 emitter.onSuccess(post)
                             }

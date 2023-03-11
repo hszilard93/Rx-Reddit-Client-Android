@@ -22,4 +22,7 @@ interface FollowsDao {
 
     @Delete
     fun deleteFollowedUser(userFeed: UserFeed): Completable
+
+    @Query("UPDATE follows SET lastPost = :postName WHERE name = :userName")
+    fun updateLatestPost(userName: String, postName: String): Completable
 }

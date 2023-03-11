@@ -3,11 +3,32 @@ package com.b4kancs.rxredditdemo.data.utils
 import com.b4kancs.rxredditdemo.data.networking.RedditJsonClient
 import com.b4kancs.rxredditdemo.data.networking.RedditJsonListingModel
 import com.b4kancs.rxredditdemo.model.Post
+import io.reactivex.rxjava3.core.Single
 import logcat.logcat
+import retrofit2.HttpException
+import retrofit2.Response
 
-object JsonDataModelToPostTransformer {
+object JsonPostsFeedHelper {
 
-    fun fromJsonPostDataModel(dataModel: RedditJsonListingModel.RedditPostDataModel): Post {
+    fun fromGetUsersPostsJsonCallToListOfPostsAsSingle(jsonRequest: Single<Response<RedditJsonListingModel>>): Single<List<Post>> {
+        logcat { "fromGetUsersPostsJsonCallToListOfPostsAsSingle" }
+        return jsonRequest
+            .map { response ->
+                if (response.isSuccessful)
+                    response.body()!!.data.children
+                else
+                    throw HttpException(response)
+            }
+            .map { postsModels ->
+                postsModels
+                    .map { fromJsonPostDataModelToPost(it.data) }
+                    .filter { it.links != null }
+            }
+    }
+
+    fun fromJsonPostDataModelToPost(dataModel: RedditJsonListingModel.RedditPostDataModel): Post {
+        logcat { "fromJsonPostDataModel" }
+
         with(dataModel) {
             val glideSupportedFileTypesPattern = """^.*\.(gif|jpg|jpeg|raw|png|webp)${'$'}""".toRegex()
             val galleryPattern = """^https://www.reddit.com/gallery/(.+)$""".toRegex()

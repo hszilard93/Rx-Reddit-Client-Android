@@ -4,10 +4,18 @@ import android.content.Context
 import androidx.work.*
 import com.f2prateek.rx.preferences2.RxSharedPreferences
 import io.reactivex.rxjava3.disposables.CompositeDisposable
+import logcat.LogPriority
 import logcat.logcat
 import org.koin.java.KoinJavaComponent.inject
 import java.util.concurrent.TimeUnit
 
+// Notification scheduling logic:
+// Upon opening the app, check if a notification is scheduled in the next (some interval depending on notification frequency).
+// If there is one, reschedule the notification (by some time depending on notification frequency).
+// Schedule notifications upon
+//      a. first subscription to a user
+//      b. just got notification permission
+//      c. changed notification frequency preference in Settings
 class SubscriptionsNotificationScheduler(val context: Context) {
 
     companion object {
@@ -18,7 +26,7 @@ class SubscriptionsNotificationScheduler(val context: Context) {
     private val rxPreferences: RxSharedPreferences by inject(RxSharedPreferences::class.java)
     private val disposables = CompositeDisposable()
     private val notificationManager: SubscriptionsNotificationManager by inject(SubscriptionsNotificationManager::class.java)
-    private val hasNotificationPermission = notificationManager.checkHasNotificationPermission().blockingGet(false)
+    private val hasNotificationPermission = notificationManager.checkHasNotificationPermission().blockingGet(true)
 
     fun scheduleImmediateNotification() {   // For testing purposes.
         logcat { "scheduleImmediateNotification" }
@@ -39,9 +47,15 @@ class SubscriptionsNotificationScheduler(val context: Context) {
         val scheduledWorkList = workManager.getWorkInfosForUniqueWork(PERIODIC_WORK_REQUEST_NAME).get()
         if (scheduledWorkList.isNotEmpty()) {
             // A notification is already scheduled.
+            logcat(LogPriority.INFO) { "A previously scheduled notification already exists. Returning." }
             return
+
+            // I did not find a way to get the scheduled time out of the notification in order to delay it,
+            // and I haven't figured out a sure-fire way to record the next scheduled notifications time,
+            // as a Preference for example, either. TODO: Think harder (ง •̀_•́)ง
         }
 
+        logcat { "Scheduling new notification." }
         scheduleNewNotification()
     }
 
@@ -50,6 +64,7 @@ class SubscriptionsNotificationScheduler(val context: Context) {
 
         if (!hasNotificationPermission) {
             // The user doesn't want our notifications.
+            logcat(LogPriority.WARN) { "The app doesn't have notification permission. Returning." }
             return
         }
 
@@ -59,14 +74,16 @@ class SubscriptionsNotificationScheduler(val context: Context) {
             "once_day" -> 24L to TimeUnit.HOURS
             "twice_week" -> 3L to TimeUnit.DAYS
             "once_week" -> 6L to TimeUnit.DAYS
-            "never" -> return  // The user doesn't want to hear from us. Oh well!
-            else -> throw java.lang.IllegalStateException("Illegal value as notification preference! value = $notificationPreferenceValue")
+            "never" -> {
+                logcat(LogPriority.INFO) { "Notification frequency preference value is 'never'. Returning." }
+                return
+            }  // The user doesn't want to hear from us. Oh well!
+            else -> throw java.lang.IllegalStateException("Illegal notification frequency preference! value = $notificationPreferenceValue")
         }
 
         val workConstraints = Constraints.Builder()
             .setRequiredNetworkType(NetworkType.UNMETERED)
             .setRequiresBatteryNotLow(true)
-            .setRequiresDeviceIdle(true)
             .build()
 
         val workRequest = PeriodicWorkRequestBuilder<SubscriptionsNotificationWorker>(workFrequency.first, workFrequency.second)

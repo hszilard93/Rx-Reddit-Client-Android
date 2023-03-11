@@ -38,15 +38,17 @@ object SubscriptionsNotificationManager {
     fun showNotification(context: Context, message: String) {
         logcat { "showNotification" }
 
-        if (checkHasNotificationPermission().blockingGet(true).not())
+        if (checkHasNotificationPermission().blockingGet(true).not()) {
+            logcat(LogPriority.INFO) { "Can't show notification: permission not granted!" }
             return
+        }
 
         val notificationManager = NotificationManagerCompat.from(context)
-        // Create notification channel.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            if (notificationManager.notificationChannels.isNotEmpty())
-                return
 
+        // Create notification channel.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+            && notificationManager.notificationChannels.isEmpty()) {
+            logcat(LogPriority.INFO) { "Creating new notification channel." }
             val channelName = context.resources.getString(R.string.notification_channel_name_subscriptions)
             val importance = NotificationManager.IMPORTANCE_LOW
             val channel = NotificationChannel(CHANNEL_ID, channelName, importance)
@@ -61,6 +63,7 @@ object SubscriptionsNotificationManager {
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setAutoCancel(true)
 
+        logcat(LogPriority.INFO) { "Posting notification with message: $message" }
         notificationManager.notify(NOTIFICATION_ID, notificationBuilder.build())
     }
 
@@ -104,7 +107,7 @@ object SubscriptionsNotificationManager {
     }
 
     fun checkHasNotificationPermission(): Maybe<Boolean> {
-        logcat { "checkForNotificationPermission" }
+        logcat { "checkHasNotificationPermission" }
 
         return Maybe.create { emitter ->
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {

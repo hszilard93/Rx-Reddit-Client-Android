@@ -11,7 +11,8 @@ import com.google.gson.stream.JsonWriter
 @Entity(tableName = "follows")
 data class UserFeed(
     @PrimaryKey val name: String,
-    val status: Status
+    val status: Status,
+    val lastPost: String? = null
 ) {
     enum class Status { NOT_IN_DB, FOLLOWED, SUBSCRIBED, AGGREGATE, SUBSCRIPTIONS }
 }

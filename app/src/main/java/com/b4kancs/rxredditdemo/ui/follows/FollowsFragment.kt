@@ -72,7 +72,7 @@ class FollowsFragment : BaseListingFragment() {
         }
 
         // Every time the Fragment is recreated, we need to change the support action bar title.
-        viewModel.feedChangedBehaviorSubject
+        viewModel.currentFeedBehaviorSubject
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe { (activity as MainActivity).supportActionBar?.title = it.name }
             .addTo(disposables)
@@ -127,10 +127,10 @@ class FollowsFragment : BaseListingFragment() {
 
         // This subscription is for refreshing the feed. Does NOT need to immediately execute upon subscription,
         // hence the distinct until changed.
-        viewModel.feedChangedBehaviorSubject
+        viewModel.currentFeedBehaviorSubject
             .observeOn(AndroidSchedulers.mainThread())
             .filter { _binding != null }
-            .distinctUntilChanged()
+            .distinctUntilChanged { feed1, feed2 -> feed1.name == feed2.name }
             .doOnNext { logcat { "followsViewModel.feedChangedBehaviorSubject.onNext" } }
             .subscribe { _ ->
                 (binding.rvFollowsPosts.adapter as PostsVerticalRvAdapter).refresh()
@@ -138,7 +138,7 @@ class FollowsFragment : BaseListingFragment() {
             .addTo(disposables)
 
         // This subscription is to change the Fragment title. It does need to immediately execute with a starting value.
-        viewModel.feedChangedBehaviorSubject
+        viewModel.currentFeedBehaviorSubject
             .observeOn(AndroidSchedulers.mainThread())
             .filter { _binding != null }
             .startWithItem(viewModel.currentUserFeed)
@@ -229,7 +229,7 @@ class FollowsFragment : BaseListingFragment() {
                 val notificationManager by inject<SubscriptionsNotificationManager>()
                 notificationManager.askNotificationPermissionIfNecessaryAndReturnPermissionStatus(activity as FragmentActivity)
                     .subscribe { hasNotification ->
-                        if (hasNotification) viewModel.feedChangedBehaviorSubject.onNext(viewModel.currentUserFeed)
+                        if (hasNotification) viewModel.currentFeedBehaviorSubject.onNext(viewModel.currentUserFeed)
                     }
                     .addTo(disposables)
             }.addTo(disposables)
@@ -283,11 +283,11 @@ class FollowsFragment : BaseListingFragment() {
 
         val mergedFeedUpdateObservable = Observable.merge(   // See setUpOptionsMenu() in HomeFragment.kt
             viewModel.getFollowsChangedSubject(),
-            viewModel.feedChangedBehaviorSubject
+            viewModel.currentFeedBehaviorSubject
         )
             .subscribeOn(Schedulers.io())
             .doOnNext { logcat { "mergedFeedUpdateObservable.onNext" } }
-            .map { viewModel.feedChangedBehaviorSubject.blockingLatest().first() }
+            .map { viewModel.currentFeedBehaviorSubject.blockingLatest().first() }
             .startWithItem(viewModel.getAggregateUserFeed())
             .replay(1)
             .apply { connect() }

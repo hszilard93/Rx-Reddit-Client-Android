@@ -2,9 +2,10 @@ package com.b4kancs.rxredditdemo.domain.pagination
 
 import androidx.paging.PagingSource
 import com.b4kancs.rxredditdemo.data.networking.RedditJsonService
-import com.b4kancs.rxredditdemo.data.utils.JsonDataModelToPostTransformer
+import com.b4kancs.rxredditdemo.data.utils.JsonPostsFeedHelper
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.model.UserFeed
+import com.b4kancs.rxredditdemo.repository.FollowsRepository
 import io.reactivex.rxjava3.core.Maybe
 import io.reactivex.rxjava3.core.Single
 import io.reactivex.rxjava3.disposables.CompositeDisposable
@@ -14,8 +15,7 @@ import io.reactivex.rxjava3.schedulers.Schedulers
 import io.reactivex.rxjava3.subjects.PublishSubject
 import logcat.LogPriority
 import logcat.logcat
-import org.koin.java.KoinJavaComponent
-import retrofit2.HttpException
+import org.koin.java.KoinJavaComponent.inject
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
@@ -24,13 +24,14 @@ abstract class AbstractCombinedFeedLoader {
 
     private class FeedsDownloadException : Exception()
 
-    protected val jsonService: RedditJsonService by KoinJavaComponent.inject(RedditJsonService::class.java)
+    protected val jsonService: RedditJsonService by inject(RedditJsonService::class.java)
+    protected val followsRepository: FollowsRepository by inject(FollowsRepository::class.java)
+
     protected val disposables = CompositeDisposable()
 
     protected val userNameToPostsMap = ConcurrentHashMap<String, List<Post>?>()
     protected val usersWithNoMorePostsSet = Collections.newSetFromMap(ConcurrentHashMap<String, Boolean>())
     protected var requiredFeedSize = 0
-
 
     // Determines the feeds to be downloaded, i.e. all followed feeds (combined) or just the subscribed feeds (used for notifications).
     abstract fun getAllFeedsToBeDownloaded(): List<UserFeed>
@@ -56,6 +57,7 @@ abstract class AbstractCombinedFeedLoader {
                     .subscribeBy(
                         onSuccess = { initialFeedsMap ->
                             logcat { "Initial feeds downloaded." }
+                            updateLatestPostsForUsers(initialFeedsMap)
                             processInitialBatchForResult(initialFeedsMap, pageSize)
                                 .subscribe { result -> emitter.onSuccess(result) }
                                 .addTo(disposables)
@@ -150,7 +152,6 @@ abstract class AbstractCombinedFeedLoader {
                 .addTo(disposables)
         }
     }
-
 
     protected fun processInitialBatchForResult(
         initialFeedsMap: Map<String, List<Post>?>,
@@ -287,20 +288,24 @@ abstract class AbstractCombinedFeedLoader {
             logcat { "after = $it" }
         }
 
-        return jsonService.getUsersPostsJson(name, loadSize, lastDownloadedPostName)
+        val request = jsonService.getUsersPostsJson(name, loadSize, lastDownloadedPostName)
+            .subscribeOn(Schedulers.io())
             .observeOn(Schedulers.computation())
-            .map { response ->
-                if (response.isSuccessful)
-                    response.body()!!.data.children
-                else
-                    throw HttpException(response)
+
+        return JsonPostsFeedHelper.fromGetUsersPostsJsonCallToListOfPostsAsSingle(request)
+    }
+
+
+    // After we've downloaded the initial batch of posts for every followed feed, let's update their last known posts in the database.
+    // This is then used in the notification logic, determining whether we should show the user a notification about new posts from
+    // the feeds they're subscribed to.
+    private fun updateLatestPostsForUsers(initialFeedsMap: Map<String, List<Post>?>) {
+        logcat { "updateLatestPostsForUsers" }
+        for ((userName, posts) in initialFeedsMap) {
+            posts?.maxByOrNull { it.createdAt }?.let { latestPost ->
+                followsRepository.updateUsersLatestPost(userName, latestPost.name).subscribe().addTo(disposables)
             }
-            .map { postsModels ->
-                postsModels
-                    .map { JsonDataModelToPostTransformer.fromJsonPostDataModel(it.data) }
-                    .filter { it.links != null }        // The 'links' of all posts that are not picture or gallery posts is null
-            }
-            .retry(5)
+        }
     }
 
 

@@ -124,6 +124,7 @@ class App : Application() {
         logcat { "setUpNotificationService" }
 
         val notificationScheduler: SubscriptionsNotificationScheduler by inject()
+//        notificationScheduler.scheduleImmediateNotification()
         notificationScheduler.checkForScheduledNotificationAndRescheduleIfMissingDelayElse()
     }
 

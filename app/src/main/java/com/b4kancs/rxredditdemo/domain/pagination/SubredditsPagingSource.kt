@@ -3,7 +3,7 @@ package com.b4kancs.rxredditdemo.domain.pagination
 import androidx.paging.PagingState
 import androidx.paging.rxjava3.RxPagingSource
 import com.b4kancs.rxredditdemo.data.networking.RedditJsonService
-import com.b4kancs.rxredditdemo.data.utils.JsonDataModelToPostTransformer.fromJsonPostDataModel
+import com.b4kancs.rxredditdemo.data.utils.JsonPostsFeedHelper.fromJsonPostDataModelToPost
 import com.b4kancs.rxredditdemo.model.Post
 import io.reactivex.rxjava3.core.Single
 import logcat.LogPriority
@@ -11,7 +11,7 @@ import logcat.logcat
 import org.koin.java.KoinJavaComponent.inject
 import retrofit2.HttpException
 
-class SubredditJsonPagingSource(private val subredditAddress: String) : RxPagingSource<String, Post>() {
+class SubredditsPagingSource(private val subredditAddress: String) : RxPagingSource<String, Post>() {
 
     companion object {
         const val PAGE_SIZE = 50
@@ -45,7 +45,7 @@ class SubredditJsonPagingSource(private val subredditAddress: String) : RxPaging
             }
             .map { posts ->
                 posts
-                    .map { fromJsonPostDataModel(it.data) }
+                    .map { fromJsonPostDataModelToPost(it.data) }
                     .filter { it.links != null }        // The 'links' of all posts that are not picture or gallery posts is null
             }
             .map<LoadResult<String, Post>> { posts ->

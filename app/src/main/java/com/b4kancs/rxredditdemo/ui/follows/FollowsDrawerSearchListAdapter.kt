@@ -56,7 +56,7 @@ class FollowsDrawerSearchListAdapter(
                     .observeOn(AndroidSchedulers.mainThread())
                     .doOnNext { logcat(LogPriority.INFO) { "textViewDrawerListItemActionSearch.clicks.onNext" } }
                     .subscribe {
-                        viewModel.feedChangedBehaviorSubject.onNext(feed)
+                        viewModel.currentFeedBehaviorSubject.onNext(feed)
                     }
                     .addTo(disposables)
             }

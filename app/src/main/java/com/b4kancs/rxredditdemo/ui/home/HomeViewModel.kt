@@ -6,7 +6,7 @@ import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.rxjava3.cachedIn
 import androidx.paging.rxjava3.observable
-import com.b4kancs.rxredditdemo.domain.pagination.SubredditJsonPagingSource
+import com.b4kancs.rxredditdemo.domain.pagination.SubredditsPagingSource
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.model.Subreddit
 import com.b4kancs.rxredditdemo.repository.SubredditRepository
@@ -58,12 +58,12 @@ class HomeViewModel : BaseListingFragmentViewModel() {
 
         val pager = Pager(
             PagingConfig(
-                pageSize = SubredditJsonPagingSource.PAGE_SIZE,
+                pageSize = SubredditsPagingSource.PAGE_SIZE,
                 prefetchDistance = 5,
-                initialLoadSize = SubredditJsonPagingSource.PAGE_SIZE
+                initialLoadSize = SubredditsPagingSource.PAGE_SIZE
             )
         ) {
-            SubredditJsonPagingSource(subredditAddress)
+            SubredditsPagingSource(subredditAddress)
         }
         postsCachedPagingObservable = pager.observable
             .cachedIn(viewModelScope)

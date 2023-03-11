@@ -85,4 +85,5 @@
     <string name="preference_about_summary">What\'s this about?</string>
     <string name="settings_title">Settings</string>
     <string name="follows_subscriptions_feed_name">Subscriptions</string>
+    <string name="follows_subscriptions_notification_message">%1$d users you\'re subscribed to have new posts. Check them out!</string>
 </resources>

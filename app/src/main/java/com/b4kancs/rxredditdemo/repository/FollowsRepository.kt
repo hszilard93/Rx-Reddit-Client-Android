@@ -112,4 +112,10 @@ class FollowsRepository {
         logcat { "getUserFeedFromDbByNameLike: query = $query" }
         return followsDatabase.followsDao().getFollowedUsersByNameLike(query)
     }
+
+    fun updateUsersLatestPost(userName: String, postName: String): Completable {
+        logcat { "updateUsersLastPost: userName = $userName, post = $postName" }
+
+        return followsDatabase.followsDao().updateLatestPost(userName, postName)
+    }
 }
