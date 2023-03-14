@@ -56,7 +56,7 @@ object SubscriptionsNotificationManager {
         }
 
         val notificationBuilder = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_gallery_256)
+            .setSmallIcon(R.drawable.app_icon)
             .setContentTitle(applicationContext.getString(R.string.notification_channel_name_subscriptions))
             .setContentText(message)
             .setContentIntent(createNewSubscriptionsIntent())

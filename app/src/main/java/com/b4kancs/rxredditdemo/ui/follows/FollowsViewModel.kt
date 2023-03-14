@@ -23,10 +23,12 @@ import io.reactivex.rxjava3.kotlin.addTo
 import io.reactivex.rxjava3.kotlin.subscribeBy
 import io.reactivex.rxjava3.subjects.BehaviorSubject
 import io.reactivex.rxjava3.subjects.PublishSubject
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import logcat.LogPriority
 import logcat.logcat
 import org.koin.java.KoinJavaComponent.inject
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class FollowsViewModel : BaseListingFragmentViewModel() {
 
     private val followsRepository: FollowsRepository by inject(FollowsRepository::class.java)
@@ -35,11 +37,17 @@ class FollowsViewModel : BaseListingFragmentViewModel() {
     val currentFeedBehaviorSubject: BehaviorSubject<UserFeed> = BehaviorSubject.create()
     val followsSearchResultsChangedSubject: PublishSubject<List<UserFeed>> = PublishSubject.create()
     val shouldAskNotificationPermissionPublishSubject: PublishSubject<Unit> = PublishSubject.create()
-    private val hasNotificationAccess by lazy {
-        logcat { "hasNotificationAccess by lazy" }
-        val notificationManager: SubscriptionsNotificationManager by inject(SubscriptionsNotificationManager::class.java)
-        notificationManager.checkHasNotificationPermission().blockingGet(true)
-    }
+    private var hasNotificationAccess: Boolean = false
+        get() {
+            logcat { "hasNotificationAccess get()" }
+            // So that we don't always have to execute these calls once we have the permission.
+            return if (!field) {
+                val notificationManager: SubscriptionsNotificationManager by inject(SubscriptionsNotificationManager::class.java)
+                field = notificationManager.checkHasNotificationPermission().blockingGet(true)
+                field
+            }
+            else true
+        }
 
     val currentUserFeed: UserFeed
         get() = currentFeedBehaviorSubject
