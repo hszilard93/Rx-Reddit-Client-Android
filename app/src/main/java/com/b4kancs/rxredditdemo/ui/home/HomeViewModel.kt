@@ -34,7 +34,6 @@ class HomeViewModel : BaseListingFragmentViewModel() {
 
     private val subredditRepository: SubredditRepository by inject(SubredditRepository::class.java)
     private lateinit var subredditAddress: String
-    val disposables = CompositeDisposable()
 
     val selectedSubredditChangedPublishSubject: PublishSubject<Subreddit> = PublishSubject.create()
     val selectedSubredditReplayObservable: ConnectableObservable<Subreddit> = selectedSubredditChangedPublishSubject.replay(1)

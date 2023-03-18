@@ -28,9 +28,7 @@ class FavoritesViewModel : BaseListingFragmentViewModel(), PostPagingDataObserva
 //    enum class FavoritesUiStates { NORMAL, LOADING, ERROR_GENERIC, NO_CONTENT }
 
     override val postsCachedPagingObservable: Observable<PagingData<Post>>
-
     private val favoritePostsRepository: FavoritePostsRepository by inject(FavoritePostsRepository::class.java)
-    private val disposables = CompositeDisposable()
 
     init {
         logcat { "init" }

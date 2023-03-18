@@ -78,8 +78,7 @@ object JsonPostsFeedHelper {
                 this.score,
                 this.createdAt,
                 this.nsfw,
-                this.numOfComments,
-                toBlur = this.nsfw
+                this.numOfComments
             )
         }
     }

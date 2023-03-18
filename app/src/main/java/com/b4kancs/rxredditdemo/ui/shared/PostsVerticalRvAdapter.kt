@@ -182,14 +182,14 @@ class PostsVerticalRvAdapter(
                         }.addTo(disposables)
                 }
 
-                if (post.toBlur) {
+                if (viewModel.shouldBlurThisPost(post)) {
                     nsfwClickObserver = postImageView.clicks()
                         .doOnSubscribe { logcat { "Subscribing for nsfw imageview clicks." } }
                         .take(1)
                         .subscribe {
                             logcat { "Unblurring NSFW image." }
                             nsfwTagTextView.isVisible = false
-                            post.toBlur = false
+                            viewModel.dontBlurThisPostAnymore(post)
                             positionSubject.onNext(currentGalleryPosition)
                             subscribeForRegularClicks()
                         }
@@ -248,7 +248,7 @@ class PostsVerticalRvAdapter(
                 positionSubject
                     .doOnNext { logcat { "positionSubject.onNext: position = $it" } }
                     .subscribe { position ->
-                        loadImageWithGlide(post.links[position], hasImageLoaded, post.toBlur)
+                        loadImageWithGlide(post.links[position], hasImageLoaded, viewModel.shouldBlurThisPost(post))
                         currentGalleryPosition = position
                     }
                     .addTo(disposables)

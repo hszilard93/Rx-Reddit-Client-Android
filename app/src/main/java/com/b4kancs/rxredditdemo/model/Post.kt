@@ -13,6 +13,5 @@ data class Post(
     val score: Int,
     val createdAt: Int,
     val nsfw: Boolean,
-    val numOfComments: Int,
-    var toBlur: Boolean = nsfw
+    val numOfComments: Int
 )

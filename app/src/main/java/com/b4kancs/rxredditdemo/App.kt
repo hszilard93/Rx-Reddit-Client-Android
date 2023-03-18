@@ -14,6 +14,7 @@ import com.b4kancs.rxredditdemo.domain.pagination.AggregateFeedLoader
 import com.b4kancs.rxredditdemo.domain.pagination.SubscriptionsFeedLoader
 import com.b4kancs.rxredditdemo.repository.FavoritePostsRepository
 import com.b4kancs.rxredditdemo.repository.FollowsRepository
+import com.b4kancs.rxredditdemo.repository.PostsPropertiesRepository
 import com.b4kancs.rxredditdemo.repository.SubredditRepository
 import com.b4kancs.rxredditdemo.ui.favorites.FavoritesViewModel
 import com.b4kancs.rxredditdemo.ui.follows.FollowsViewModel
@@ -164,6 +165,10 @@ class App : Application() {
         single {
             logcat { "Koin providing Single FollowsRepository instance." }
             FollowsRepository()
+        }
+        single {
+            logcat { "Koin providing Single PostsPropertiesRepository instance." }
+            PostsPropertiesRepository()
         }
         single {
             logcat { "Koin providing Single RedditJsonClient object." }

@@ -17,11 +17,14 @@ import androidx.lifecycle.ViewModel
 import com.b4kancs.rxredditdemo.data.database.PostFavoritesDbEntry
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.repository.FavoritePostsRepository
+import com.b4kancs.rxredditdemo.repository.PostsPropertiesRepository
 import com.b4kancs.rxredditdemo.ui.shared.PostPagingDataObservableProvider
 import com.b4kancs.rxredditdemo.utils.fromCompletable
+import com.b4kancs.rxredditdemo.utils.toV3Observable
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
+import com.f2prateek.rx.preferences2.RxSharedPreferences
 import com.tbruyelle.rxpermissions3.RxPermissions
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Completable
@@ -41,15 +44,35 @@ import java.io.OutputStream
 class PostViewerViewModel(pagingDataObservableProvider: PostPagingDataObservableProvider) : ViewModel() {
 
     private val favoritePostsRepository: FavoritePostsRepository by inject(FavoritePostsRepository::class.java)
+    private val rxSharedPreferences: RxSharedPreferences by inject(RxSharedPreferences::class.java)
+    private val postsPropertiesRepository: PostsPropertiesRepository by inject(PostsPropertiesRepository::class.java)
     private val disposables = CompositeDisposable()
 
     val pagingDataObservable = pagingDataObservableProvider.getCachedPagingObservable()
     val navigateToFollowsActionTriggerSubject =
-        // We need username for FollowsFragment as well as a Subject that will pass back a Completable which will signal the success of the navigation.
+    // We need the username for FollowsFragment as well as a Subject that will pass back a
+        // Completable which will signal the success of the navigation.
         PublishSubject.create<Pair<String, PublishSubject<Completable>>>()
+
+    var hudTimeOutInSeconds = Int.MAX_VALUE
+    var shouldBlurNsfwPosts = true
 
     init {
         logcat { "The paging data provider is $pagingDataObservableProvider" }
+
+        rxSharedPreferences.getString("pref_list_hud").asObservable().toV3Observable()
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe { value ->   // Gets the current value or the default value immediately and reacts to preference changes.
+                hudTimeOutInSeconds = when (value) {
+                    "stay_on" -> Int.MAX_VALUE
+                    else -> value.toInt()
+                }
+            }.addTo(disposables)
+
+        rxSharedPreferences.getBoolean("pref_switch_unblur_nsfw").asObservable().toV3Observable()
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe { shouldBlurNsfwPosts = it.not() }
+            .addTo(disposables)
     }
 
     fun getFavoritePosts(): Single<List<PostFavoritesDbEntry>> =
@@ -70,8 +93,7 @@ class PostViewerViewModel(pagingDataObservableProvider: PostPagingDataObservable
                 val urlIntent = Intent(Intent.ACTION_VIEW, Uri.parse(link))
                 context.startActivity(urlIntent)
                 emitter.onComplete()
-            }
-            catch (e: Exception) {
+            } catch (e: Exception) {
                 logcat(LogPriority.ERROR) { "Could not open link! Message: ${e.message}" }
                 emitter.onError(e)
             }
@@ -110,8 +132,10 @@ class PostViewerViewModel(pagingDataObservableProvider: PostPagingDataObservable
                             onSuccess = { bitmap ->
                                 val fileName = link.split('/').last()   // Get the filename from the URL
                                     .split('.').let {
-                                        it.subList(0,
-                                            it.lastIndex)              // Remove the extension from the filename (we will save it as a .jpg)
+                                        it.subList(
+                                            0,
+                                            it.lastIndex
+                                        )              // Remove the extension from the filename (we will save it as a .jpg)
                                     }.reduce(String::plus)
 
                                 saveImageToStorage(bitmap, fileName, activity)
@@ -155,8 +179,7 @@ class PostViewerViewModel(pagingDataObservableProvider: PostPagingDataObservable
 
                                             wallpaperManager.setBitmap(bitmap)
                                             emitter.onComplete()
-                                        }
-                                        catch (e: Exception) {
+                                        } catch (e: Exception) {
                                             logcat(LogPriority.ERROR) { "Error attempting to set the wallpaper. Message = ${e.message}" }
                                             emitter.onError(e)
                                         }
@@ -170,6 +193,20 @@ class PostViewerViewModel(pagingDataObservableProvider: PostPagingDataObservable
                 }.addTo(disposables)
         }
     }
+
+
+    fun shouldBlurThisPost(post: Post): Boolean {
+        logcat { "shouldBlurThisPost: post = ${post.name}" }
+        if (!shouldBlurNsfwPosts) return false
+
+        return post.nsfw && !postsPropertiesRepository.isPostInDontBlurThesePostsSet(post)
+    }
+
+    fun dontBlurThisPostAnymore(post: Post) {
+        logcat { "dontBlurThisPostAnymore: post = ${post.name}" }
+        postsPropertiesRepository.addPostToDontBlurThesePostsSet(post)
+    }
+
 
     private fun getBitmapWithGlide(link: String, context: Context): Single<Bitmap> {
         logcat { "downloadImageWithGlide: link = $link" }
@@ -186,8 +223,7 @@ class PostViewerViewModel(pagingDataObservableProvider: PostPagingDataObservable
                         override fun onLoadCleared(placeholder: Drawable?) {}
 
                     })
-            }
-            catch (e: Exception) {
+            } catch (e: Exception) {
                 logcat(LogPriority.ERROR) { "Error loading bitmap with Glide! Message = ${e.message}" }
                 emitter.onError(e)
             }
@@ -215,8 +251,7 @@ class PostViewerViewModel(pagingDataObservableProvider: PostPagingDataObservable
                     }
                     logcat(LogPriority.INFO) { "Image saved to device." }
                     emitter.onComplete()
-                }
-                catch (e: Exception) {
+                } catch (e: Exception) {
                     logcat(LogPriority.ERROR) { "Error saving image. Message: ${e.message}" }
                     emitter.onError(e)
                 }
@@ -242,8 +277,7 @@ class PostViewerViewModel(pagingDataObservableProvider: PostPagingDataObservable
                     bitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream)
                     logcat(LogPriority.INFO) { "Image saved to device." }
                     emitter.onComplete()
-                }
-                catch (e: Exception) {
+                } catch (e: Exception) {
                     logcat(LogPriority.ERROR) { "Error saving image. Message: ${e.message}" }
                     emitter.onError(e)
                 }
@@ -286,8 +320,7 @@ class PostViewerViewModel(pagingDataObservableProvider: PostPagingDataObservable
                 }
             }
             return Single.just(uri!!)
-        }
-        catch (e: Exception) {
+        } catch (e: Exception) {
             if (uri != null) {
                 logcat(LogPriority.ERROR) { "Error creating URI from Bitmap. Message = ${e.message}" }
                 // Don't leave an orphan entry in the MediaStore

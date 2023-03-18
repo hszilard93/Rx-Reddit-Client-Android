@@ -48,11 +48,9 @@ class FollowsViewModel : BaseListingFragmentViewModel() {
             }
             else true
         }
-
     val currentUserFeed: UserFeed
         get() = currentFeedBehaviorSubject
             .blockingMostRecent(FollowsRepository.aggregateUserFeed).first()
-    private val disposables = CompositeDisposable()
 
     init {
         logcat { "init" }

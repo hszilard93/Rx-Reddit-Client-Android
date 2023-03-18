@@ -29,7 +29,7 @@ abstract class AbstractCombinedFeedLoader {
 
     protected val disposables = CompositeDisposable()
 
-    protected val userNameToPostsMap = ConcurrentHashMap<String, List<Post>?>()
+    protected val userNameToPostsSortedMap = ConcurrentHashMap<String, List<Post>?>()
     protected val usersWithNoMorePostsSet = Collections.newSetFromMap(ConcurrentHashMap<String, Boolean>())
     protected var requiredFeedSize = 0
 
@@ -45,7 +45,7 @@ abstract class AbstractCombinedFeedLoader {
             // Request is for a new combined feed.
             logcat(LogPriority.INFO) { "Starting to load new combined feed." }
             // If we have existing feed data, reset them.
-            if (userNameToPostsMap.values.isNotEmpty()) clearData()
+            if (userNameToPostsSortedMap.values.isNotEmpty()) clearData()
 
             // For this function and others in the class, UserFeeds will be represented by their name properties,
             // and will be called users (user = UserFeed.name).
@@ -96,7 +96,7 @@ abstract class AbstractCombinedFeedLoader {
             return Maybe.empty()
 
         for (user in usersToDownloadFrom) {
-            downloadSingleFeed(user, loadSize)
+            downloadSingleFeedAutoContinueFromLastPost(user, loadSize)
                 .subscribeBy(
                     onSuccess = { posts ->
                         logcat { "Downloaded ${posts.size} posts from user $user." }
@@ -163,7 +163,7 @@ abstract class AbstractCombinedFeedLoader {
         if (initialFeedsMap.values.isEmpty()) {
             // The resulting list might be empty, if the feeds we follow don't have any posts, have been deleted, etc.
             logcat(LogPriority.INFO) { "Initial batch is empty. Returning empty feed." }
-            val resultingPostsList = userNameToPostsMap
+            val resultingPostsList = userNameToPostsSortedMap
                 .flatMap { (_, v) -> v ?: emptyList() }
                 .sortedByDescending { it.createdAt }
 
@@ -200,18 +200,18 @@ abstract class AbstractCombinedFeedLoader {
                 logcat { "Evaluating posts from $user on thread ${Thread.currentThread()}" }
                 posts.mapIndexed { i, p -> logcat { "\t$i\t${p.name}, ${p.title}}" } }
 
-                logcat { "Adding ${posts.size} posts to userNameToPostsMap[$user] (size = ${userNameToPostsMap[user]?.size})." }
-                val usersPreviousPosts = userNameToPostsMap[user] ?: arrayListOf()
+                logcat { "Adding ${posts.size} posts to userNameToPostsMap[$user] (size = ${userNameToPostsSortedMap[user]?.size})." }
+                val usersPreviousPosts = userNameToPostsSortedMap[user] ?: arrayListOf()
                 // We store the posts in chronological order.
                 val usersUpdatedPosts = (usersPreviousPosts + posts).sortedByDescending { post -> post.createdAt }
-                userNameToPostsMap[user] = usersUpdatedPosts
+                userNameToPostsSortedMap[user] = usersUpdatedPosts
             }
             else {
                 logcat { "$user has run out of posts." }
                 usersWithNoMorePostsSet.add(user)
             }
             // Store the oldest post of the user that we've downloaded so far. Null in case of a download error.
-            userNameToPostsMap[user]?.let { updatedPosts ->
+            userNameToPostsSortedMap[user]?.let { updatedPosts ->
                 logcat(LogPriority.VERBOSE) { "updatedPosts:" }
                 updatedPosts.mapIndexed { i, it -> logcat(LogPriority.VERBOSE) { "\t$i.\t${it.name}, ${it.title}, ${it.createdAt}\n" } }
                 userNameToOldestPostMap[user] = updatedPosts.last()
@@ -235,7 +235,7 @@ abstract class AbstractCombinedFeedLoader {
 
         logcat { "youngestOldestUser = $youngestOldestUser, youngestOldestPost = $youngestOldestPost" }
 
-        val allPostsInFeedFlattened = userNameToPostsMap
+        val allPostsInFeedFlattened = userNameToPostsSortedMap
             .flatMap { (_, posts) -> posts ?: emptyList() }
             .sortedByDescending { post -> post.createdAt }
         val youngestOldestPostsIndexInFeed = allPostsInFeedFlattened.indexOf(youngestOldestPost)
@@ -259,7 +259,7 @@ abstract class AbstractCombinedFeedLoader {
         else {  // Download the feed with the youngestOldestPost and start processing again.
             return Single.create { emitter ->
                 logcat { "Continuing by downloading feed $youngestOldestUser from ${youngestOldestPost.name}" }
-                downloadSingleFeed(
+                downloadSingleFeedAutoContinueFromLastPost(
                     name = youngestOldestUser!!,
                     loadSize = pageSize / 2
                 )
@@ -281,12 +281,14 @@ abstract class AbstractCombinedFeedLoader {
     }
 
 
-    protected fun downloadSingleFeed(name: String, loadSize: Int): Single<List<Post>> {
+    protected fun downloadSingleFeedAutoContinueFromLastPost(name: String, loadSize: Int): Single<List<Post>> {
         logcat { "downloadSingleFeed: name = $name, loadSize = $loadSize" }
 
-        val lastDownloadedPostName = userNameToPostsMap[name]?.last()?.name?.also {
-            logcat { "after = $it" }
-        }
+        // Check
+        val lastDownloadedPostName = userNameToPostsSortedMap[name]?.last()?.name
+            ?.also {
+                logcat { "after = $it" }
+            }
 
         val request = jsonService.getUsersPostsJson(name, loadSize, lastDownloadedPostName)
             .subscribeOn(Schedulers.io())
@@ -313,7 +315,7 @@ abstract class AbstractCombinedFeedLoader {
     protected fun clearData() {
         logcat { "clearData" }
         disposables.clear()
-        userNameToPostsMap.clear()
+        userNameToPostsSortedMap.clear()
         usersWithNoMorePostsSet.clear()
     }
 }

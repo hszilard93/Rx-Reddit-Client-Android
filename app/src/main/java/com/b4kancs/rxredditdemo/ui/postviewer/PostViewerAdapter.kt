@@ -327,7 +327,7 @@ class PostViewerAdapter(
         private fun changeGalleryPosition(position: Int) {
             logcat { "changeGalleryPosition" }
             logcat(LogPriority.INFO) { "New gallery position: $position" }
-            loadImageWithGlide(binding.imageViewPostMainImage, post.links!![position], updateExisting = true, toBlur = false)
+            loadImageWithGlide(binding.imageViewPostMainImage, post.links!![position], updateExisting = true)
             currentGalleryPosition = position
             resetScrollPosition = true
         }
@@ -389,10 +389,10 @@ class PostViewerAdapter(
             with(binding) {
                 currentGalleryPosition = 0
                 imageViewPostMainImage.transitionName = post.links!!.first()
-                textViewRvNsfwTag.isVisible = post.toBlur
+                textViewRvNsfwTag.isVisible = viewModel.shouldBlurThisPost(post)
 
                 val zoomableImageView = imageViewPostMainImage
-                loadImageWithGlide(zoomableImageView, post.links[0], false, post.toBlur)
+                loadImageWithGlide(zoomableImageView, post.links[0], false, viewModel.shouldBlurThisPost(post))
 
                 val colorGreyTypedValue = TypedValue()
                 context.theme.resolveAttribute(
@@ -439,10 +439,10 @@ class PostViewerAdapter(
                         logcat { "hasAppliedBlur: $hasAppliedBlur" }
                         if (hasAppliedBlur) {
                             logcat(LogPriority.INFO) { "Unblurring image." }
-                            post.toBlur = false
+                            viewModel.dontBlurThisPostAnymore(post)
                             hasAppliedBlur = false
                             textViewRvNsfwTag.isVisible = false
-                            loadImageWithGlide(zoomableImageView, post.links[0], true, post.toBlur)
+                            loadImageWithGlide(zoomableImageView, post.links[0], updateExisting = true, shouldBlur = false)
                         }
                         else {
                             logcat(LogPriority.VERBOSE) { "isHudVisible = $isHudVisible" }
@@ -489,7 +489,12 @@ class PostViewerAdapter(
         }
 
         @SuppressLint("CheckResult")
-        private fun loadImageWithGlide(imageView: ImageView, link: String, updateExisting: Boolean, toBlur: Boolean) {
+        private fun loadImageWithGlide(
+            imageView: ImageView,
+            link: String,
+            updateExisting: Boolean,
+            shouldBlur: Boolean = false
+        ) {
             logcat { "loadImageWithGlide" }
             Glide.with(context).load(link)
                 .apply {
@@ -505,7 +510,7 @@ class PostViewerAdapter(
                         placeholder(R.drawable.ic_download)
                         dontTransform()
                     }
-                    if (toBlur) {
+                    if (viewModel.shouldBlurThisPost(post)) {
                         apply(RequestOptions.bitmapTransform(BlurTransformation(25, 10)))
                         hasAppliedBlur = true
                     }
@@ -544,7 +549,7 @@ class PostViewerAdapter(
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe {
                         logcat(LogPriority.INFO) { "Slideshow button clicked." }
-                        startAutoHideHudTimer(5L)
+                        startAutoHideHudTimer()
 
                         slideShowOnOffSubject.onNext(slideShowOnOffSubject.value!!.not())
                     }
