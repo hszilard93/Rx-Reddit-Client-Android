@@ -15,20 +15,18 @@ import io.reactivex.rxjava3.schedulers.Schedulers
 import io.reactivex.rxjava3.subjects.PublishSubject
 import logcat.LogPriority
 import logcat.logcat
-import org.koin.java.KoinJavaComponent.inject
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
 // Creates a combined feed of any number of UserFeeds.
-abstract class AbstractCombinedFeedLoader {
+abstract class AbstractCombinedFeedLoader(
+    protected val jsonService: RedditJsonService,
+    protected val followsRepository: FollowsRepository
+) {
 
     private class FeedsDownloadException : Exception()
 
-    protected val jsonService: RedditJsonService by inject(RedditJsonService::class.java)
-    protected val followsRepository: FollowsRepository by inject(FollowsRepository::class.java)
-
     protected val disposables = CompositeDisposable()
-
     protected val userNameToPostsSortedMap = ConcurrentHashMap<String, List<Post>?>()
     protected val usersWithNoMorePostsSet = Collections.newSetFromMap(ConcurrentHashMap<String, Boolean>())
     protected var requiredFeedSize = 0

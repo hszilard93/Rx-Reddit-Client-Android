@@ -3,10 +3,8 @@ package com.b4kancs.rxredditdemo.domain.notification
 import android.content.Context
 import androidx.work.*
 import com.f2prateek.rx.preferences2.RxSharedPreferences
-import io.reactivex.rxjava3.disposables.CompositeDisposable
 import logcat.LogPriority
 import logcat.logcat
-import org.koin.java.KoinJavaComponent.inject
 import java.util.concurrent.TimeUnit
 
 // Notification scheduling logic:
@@ -16,16 +14,18 @@ import java.util.concurrent.TimeUnit
 //      a. first subscription to a user
 //      b. just got notification permission
 //      c. changed notification frequency preference in Settings
-class SubscriptionsNotificationScheduler(val context: Context) {
+class SubscriptionsNotificationScheduler(
+    val context: Context,
+    private val rxPreferences: RxSharedPreferences,
+    private val notificationManager: SubscriptionsNotificationManager
+
+) {
 
     companion object {
         const val PERIODIC_WORK_REQUEST_NAME = "PERIODIC_SUBSCRIPTIONS_NOTIFICATION_WORK_REQUEST"
         const val IMMEDIATE_WORK_REQUEST_NAME = "IMMEDIATE_SUBSCRIPTIONS_NOTIFICATION_WORK_REQUEST"
     }
 
-    private val rxPreferences: RxSharedPreferences by inject(RxSharedPreferences::class.java)
-    private val disposables = CompositeDisposable()
-    private val notificationManager: SubscriptionsNotificationManager by inject(SubscriptionsNotificationManager::class.java)
     private val hasNotificationPermission = notificationManager.checkHasNotificationPermission().blockingGet(true)
 
     fun scheduleImmediateNotification() {   // For testing purposes.

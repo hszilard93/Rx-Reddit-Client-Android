@@ -1,6 +1,10 @@
 package com.b4kancs.rxredditdemo.domain.pagination
 
-object SubscriptionsFeedLoader : AbstractCombinedFeedLoader() {
+import com.b4kancs.rxredditdemo.data.networking.RedditJsonService
+import com.b4kancs.rxredditdemo.repository.FollowsRepository
+
+class SubscriptionsFeedLoader(jsonService: RedditJsonService, followsRepository: FollowsRepository) :
+        AbstractCombinedFeedLoader(jsonService, followsRepository) {
 
     override fun getAllFeedsToBeDownloaded() =
         followsRepository.getAllSubscribedFeeds().blockingGet()

@@ -8,18 +8,18 @@ import com.b4kancs.rxredditdemo.model.Post
 import io.reactivex.rxjava3.core.Single
 import logcat.LogPriority
 import logcat.logcat
-import org.koin.java.KoinJavaComponent.inject
 import retrofit2.HttpException
 
-class SubredditsPagingSource(private val subredditAddress: String) : RxPagingSource<String, Post>() {
+class SubredditsPagingSource(
+    private val subredditAddress: String,
+    private val jsonService: RedditJsonService
+) : RxPagingSource<String, Post>() {
 
     companion object {
         const val PAGE_SIZE = 50
     }
 
     object NoSuchSubredditException : Exception()
-
-    private val service: RedditJsonService by inject(RedditJsonService::class.java)
 
     init {
         logcat { "init subreddit = $subredditAddress" }
@@ -28,7 +28,7 @@ class SubredditsPagingSource(private val subredditAddress: String) : RxPagingSou
     // Load the posts of a given subreddit into a PagingSource.LoadResult
     override fun loadSingle(params: LoadParams<String>): Single<LoadResult<String, Post>> {
         logcat { "loadSingle" }
-        return service.getSubredditJson(
+        return jsonService.getSubredditJson(
             subredditAddress,
             params.loadSize,
             params.key

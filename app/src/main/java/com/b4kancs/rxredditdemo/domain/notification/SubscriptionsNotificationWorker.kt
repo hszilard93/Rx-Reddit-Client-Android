@@ -22,6 +22,7 @@ class SubscriptionsNotificationWorker(val context: Context, workerParams: Worker
 
     private val jsonService: RedditJsonService by inject(RedditJsonService::class.java)
     private val followsRepository: FollowsRepository by inject(FollowsRepository::class.java)
+    private val notificationManager: SubscriptionsNotificationManager by inject(SubscriptionsNotificationManager::class.java)
 
     override fun createWork(): Single<Result> {
         logcat { "createWork" }
@@ -54,7 +55,6 @@ class SubscriptionsNotificationWorker(val context: Context, workerParams: Worker
                 .subscribe { feedsWithNewPostsCount ->
                     logcat(LogPriority.INFO) { "$feedsWithNewPostsCount subscribed users with new posts." }
                     if (feedsWithNewPostsCount > 0) {
-                        val notificationManager: SubscriptionsNotificationManager by inject(SubscriptionsNotificationManager::class.java)
                         val notificationMessage = context.getString(
                             R.string.follows_subscriptions_notification_message,
                             feedsWithNewPostsCount

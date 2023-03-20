@@ -6,19 +6,22 @@ import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.rxjava3.cachedIn
 import androidx.paging.rxjava3.observable
+import com.b4kancs.rxredditdemo.data.networking.RedditJsonService
 import com.b4kancs.rxredditdemo.domain.notification.SubscriptionsNotificationManager
 import com.b4kancs.rxredditdemo.domain.notification.SubscriptionsNotificationScheduler
 import com.b4kancs.rxredditdemo.domain.pagination.FollowsPagingSource
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.model.UserFeed
+import com.b4kancs.rxredditdemo.repository.FavoritePostsRepository
 import com.b4kancs.rxredditdemo.repository.FollowsRepository
+import com.b4kancs.rxredditdemo.repository.PostsPropertiesRepository
 import com.b4kancs.rxredditdemo.ui.shared.BaseListingFragmentViewModel
+import com.f2prateek.rx.preferences2.RxSharedPreferences
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Completable
 import io.reactivex.rxjava3.core.Maybe
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.core.Single
-import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.addTo
 import io.reactivex.rxjava3.kotlin.subscribeBy
 import io.reactivex.rxjava3.subjects.BehaviorSubject
@@ -26,12 +29,17 @@ import io.reactivex.rxjava3.subjects.PublishSubject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import logcat.LogPriority
 import logcat.logcat
-import org.koin.java.KoinJavaComponent.inject
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class FollowsViewModel : BaseListingFragmentViewModel() {
-
-    private val followsRepository: FollowsRepository by inject(FollowsRepository::class.java)
+class FollowsViewModel(
+    private val followsRepository: FollowsRepository,
+    private val notificationManager: SubscriptionsNotificationManager,
+    private val notificationScheduler: SubscriptionsNotificationScheduler,
+    private val rxSharedPreferences: RxSharedPreferences,
+    private val postsPropertiesRepository: PostsPropertiesRepository,
+    private val favoritePostsRepository: FavoritePostsRepository,
+    private val jsonService: RedditJsonService
+) : BaseListingFragmentViewModel(rxSharedPreferences, postsPropertiesRepository, favoritePostsRepository) {
 
     override val postsCachedPagingObservable: Observable<PagingData<Post>>
     val currentFeedBehaviorSubject: BehaviorSubject<UserFeed> = BehaviorSubject.create()
@@ -42,7 +50,6 @@ class FollowsViewModel : BaseListingFragmentViewModel() {
             logcat { "hasNotificationAccess get()" }
             // So that we don't always have to execute these calls once we have the permission.
             return if (!field) {
-                val notificationManager: SubscriptionsNotificationManager by inject(SubscriptionsNotificationManager::class.java)
                 field = notificationManager.checkHasNotificationPermission().blockingGet(true)
                 field
             }
@@ -70,7 +77,7 @@ class FollowsViewModel : BaseListingFragmentViewModel() {
             )
         ) {
             logcat { "Follows pager pagingSourceFactory method called. currentUserFeed = $currentUserFeed" }
-            FollowsPagingSource(currentUserFeed)
+            FollowsPagingSource(currentUserFeed, jsonService, followsRepository)
         }
         postsCachedPagingObservable = pager.observable
             .cachedIn(this.viewModelScope)
@@ -114,12 +121,10 @@ class FollowsViewModel : BaseListingFragmentViewModel() {
         logcat { "subscribeToFeed: userFeed = ${userFeed.name}" }
 
         // If the user has not granted a notification permission, ask for one (if needed)
-        val notificationManager: SubscriptionsNotificationManager by inject(SubscriptionsNotificationManager::class.java)
         val shouldAskForPermission = notificationManager.checkHasNotificationPermission().blockingGet(true).not()
         if (shouldAskForPermission) shouldAskNotificationPermissionPublishSubject.onNext(Unit)
 
         // Check if notifications have been scheduled already. If not, schedule notifications.
-        val notificationScheduler: SubscriptionsNotificationScheduler by inject(SubscriptionsNotificationScheduler::class.java)
         notificationScheduler.checkForScheduledNotificationAndRescheduleIfMissingDelayElse()
 
         val newFeed = UserFeed(userFeed.name, UserFeed.Status.SUBSCRIBED)

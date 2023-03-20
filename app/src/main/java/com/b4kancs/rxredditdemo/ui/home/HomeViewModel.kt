@@ -6,16 +6,19 @@ import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.rxjava3.cachedIn
 import androidx.paging.rxjava3.observable
+import com.b4kancs.rxredditdemo.data.networking.RedditJsonService
 import com.b4kancs.rxredditdemo.domain.pagination.SubredditsPagingSource
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.model.Subreddit
+import com.b4kancs.rxredditdemo.repository.FavoritePostsRepository
+import com.b4kancs.rxredditdemo.repository.PostsPropertiesRepository
 import com.b4kancs.rxredditdemo.repository.SubredditRepository
 import com.b4kancs.rxredditdemo.ui.shared.BaseListingFragmentViewModel
+import com.f2prateek.rx.preferences2.RxSharedPreferences
 import io.reactivex.rxjava3.core.Completable
 import io.reactivex.rxjava3.core.Maybe
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.core.Single
-import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.addTo
 import io.reactivex.rxjava3.kotlin.subscribeBy
 import io.reactivex.rxjava3.observables.ConnectableObservable
@@ -23,16 +26,20 @@ import io.reactivex.rxjava3.subjects.PublishSubject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import logcat.LogPriority
 import logcat.logcat
-import org.koin.java.KoinJavaComponent.inject
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class HomeViewModel : BaseListingFragmentViewModel() {
+class HomeViewModel(
+    private val subredditRepository: SubredditRepository,
+    private val jsonService: RedditJsonService,
+    private val rxSharedPreferences: RxSharedPreferences,
+    private val postsPropertiesRepository: PostsPropertiesRepository,
+    private val favoritePostsRepository: FavoritePostsRepository
+) : BaseListingFragmentViewModel(rxSharedPreferences, postsPropertiesRepository, favoritePostsRepository) {
 
 //    enum class HomeUiStates { NORMAL, LOADING, ERROR_404, ERROR_GENERIC, NO_CONTENT }
 
     override val postsCachedPagingObservable: Observable<PagingData<Post>>
 
-    private val subredditRepository: SubredditRepository by inject(SubredditRepository::class.java)
     private lateinit var subredditAddress: String
 
     val selectedSubredditChangedPublishSubject: PublishSubject<Subreddit> = PublishSubject.create()
@@ -62,7 +69,7 @@ class HomeViewModel : BaseListingFragmentViewModel() {
                 initialLoadSize = SubredditsPagingSource.PAGE_SIZE
             )
         ) {
-            SubredditsPagingSource(subredditAddress)
+            SubredditsPagingSource(subredditAddress, jsonService)
         }
         postsCachedPagingObservable = pager.observable
             .cachedIn(viewModelScope)

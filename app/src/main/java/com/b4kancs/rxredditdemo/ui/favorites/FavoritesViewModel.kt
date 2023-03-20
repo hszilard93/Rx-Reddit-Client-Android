@@ -7,28 +7,37 @@ import androidx.paging.PagingData
 import androidx.paging.rxjava3.cachedIn
 import androidx.paging.rxjava3.observable
 import com.b4kancs.rxredditdemo.data.database.PostFavoritesDbEntry
+import com.b4kancs.rxredditdemo.data.networking.RedditJsonService
 import com.b4kancs.rxredditdemo.domain.pagination.FavoritesPagingSource
 import com.b4kancs.rxredditdemo.domain.pagination.SubredditsPagingSource
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.repository.FavoritePostsRepository
-import com.b4kancs.rxredditdemo.ui.shared.PostPagingDataObservableProvider
+import com.b4kancs.rxredditdemo.repository.PostsPropertiesRepository
 import com.b4kancs.rxredditdemo.ui.shared.BaseListingFragmentViewModel
+import com.b4kancs.rxredditdemo.ui.shared.PostPagingDataObservableProvider
+import com.f2prateek.rx.preferences2.RxSharedPreferences
 import io.reactivex.rxjava3.core.Completable
 import io.reactivex.rxjava3.core.Observable
-import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.addTo
 import io.reactivex.rxjava3.subjects.BehaviorSubject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import logcat.logcat
-import org.koin.java.KoinJavaComponent.inject
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class FavoritesViewModel : BaseListingFragmentViewModel(), PostPagingDataObservableProvider {
+class FavoritesViewModel(
+    private val favoritePostsRepository: FavoritePostsRepository,
+    private val jsonService: RedditJsonService,
+    private val rxSharedPreferences: RxSharedPreferences,
+    private val postsPropertiesRepository: PostsPropertiesRepository,
+) : BaseListingFragmentViewModel(
+    rxSharedPreferences,
+    postsPropertiesRepository,
+    favoritePostsRepository
+), PostPagingDataObservableProvider {
 
 //    enum class FavoritesUiStates { NORMAL, LOADING, ERROR_GENERIC, NO_CONTENT }
 
     override val postsCachedPagingObservable: Observable<PagingData<Post>>
-    private val favoritePostsRepository: FavoritePostsRepository by inject(FavoritePostsRepository::class.java)
 
     init {
         logcat { "init" }
@@ -43,7 +52,7 @@ class FavoritesViewModel : BaseListingFragmentViewModel(), PostPagingDataObserva
                 prefetchDistance = 5,
                 initialLoadSize = SubredditsPagingSource.PAGE_SIZE
             )
-        ) { FavoritesPagingSource() }
+        ) { FavoritesPagingSource(favoritePostsRepository, jsonService) }
         postsCachedPagingObservable = pager.observable
             .cachedIn(this.viewModelScope)
     }

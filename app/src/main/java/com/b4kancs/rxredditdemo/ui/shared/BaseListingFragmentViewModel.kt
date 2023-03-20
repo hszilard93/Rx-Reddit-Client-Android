@@ -6,7 +6,6 @@ import com.b4kancs.rxredditdemo.data.database.PostFavoritesDbEntry
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.repository.FavoritePostsRepository
 import com.b4kancs.rxredditdemo.repository.PostsPropertiesRepository
-import com.b4kancs.rxredditdemo.ui.main.MainViewModel
 import com.b4kancs.rxredditdemo.utils.toV3Observable
 import com.f2prateek.rx.preferences2.RxSharedPreferences
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
@@ -16,10 +15,13 @@ import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.addTo
 import io.reactivex.rxjava3.subjects.BehaviorSubject
 import logcat.logcat
-import org.koin.java.KoinJavaComponent
-import org.koin.java.KoinJavaComponent.inject
 
-abstract class BaseListingFragmentViewModel : ViewModel(), PostPagingDataObservableProvider {
+abstract class BaseListingFragmentViewModel(
+    private val rxSharedPreferences: RxSharedPreferences,
+    private val postsPropertiesRepository: PostsPropertiesRepository,
+    private val favoritePostsRepository: FavoritePostsRepository
+
+) : ViewModel(), PostPagingDataObservableProvider {
 
     enum class UiState { NORMAL, LOADING, ERROR_404, ERROR_GENERIC, NO_CONTENT, NO_CONTENT_AGGREGATE }
     /*
@@ -29,9 +31,6 @@ abstract class BaseListingFragmentViewModel : ViewModel(), PostPagingDataObserva
         FollowsViewModel:   NORMAL, LOADING, ERROR_404, ERROR_GENERIC, NO_CONTENT, NO_CONTENT_AGGREGATE
      */
 
-    private val rxSharedPreferences: RxSharedPreferences by inject(RxSharedPreferences::class.java)
-    private val postsPropertiesRepository: PostsPropertiesRepository by inject(PostsPropertiesRepository::class.java)
-    private val favoritePostsRepository: FavoritePostsRepository by inject(FavoritePostsRepository::class.java)
     val uiStateBehaviorSubject: BehaviorSubject<UiState> = BehaviorSubject.createDefault(UiState.LOADING)
     val disposables = CompositeDisposable()
     private var _savedPosition: Int? = null

@@ -1,12 +1,11 @@
 package com.b4kancs.rxredditdemo.repository
 
 import com.b4kancs.rxredditdemo.data.database.SubredditDatabase
-import com.b4kancs.rxredditdemo.data.networking.RedditJsonClient
+import com.b4kancs.rxredditdemo.data.networking.RedditJsonHelper
 import com.b4kancs.rxredditdemo.model.Subreddit
 import com.f2prateek.rx.preferences2.RxSharedPreferences
 import io.reactivex.rxjava3.core.Completable
 import io.reactivex.rxjava3.core.Maybe
-import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.core.Single
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.addTo
@@ -15,10 +14,12 @@ import io.reactivex.rxjava3.schedulers.Schedulers
 import io.reactivex.rxjava3.subjects.PublishSubject
 import logcat.LogPriority
 import logcat.logcat
-import org.koin.java.KoinJavaComponent.inject
-import java.util.concurrent.TimeUnit
 
-class SubredditRepository {
+class SubredditRepository(
+    private val subredditDatabase: SubredditDatabase,
+    private val redditJsonClient: RedditJsonHelper,
+    private val rxSharedPreferences: RxSharedPreferences
+) {
 
     companion object {
         private const val DEFAULT_SUBREDDIT_PREFERENCE_KEY = "default_subreddit"
@@ -28,9 +29,6 @@ class SubredditRepository {
     val subredditsChangedSubject: PublishSubject<Unit> = PublishSubject.create()
     var defaultSubreddit = Subreddit("SFWPornNetwork", "user/kjoneslol/m/sfwpornnetwork", Subreddit.Status.FAVORITED)
 
-    private val subredditDatabase: SubredditDatabase by inject(SubredditDatabase::class.java)
-    private val redditJsonClient: RedditJsonClient by inject(RedditJsonClient::class.java)
-    private val rxSharedPreferences: RxSharedPreferences by inject(RxSharedPreferences::class.java)
     private val disposables = CompositeDisposable()
 
     fun getAllSubredditsFromDb(): Single<List<Subreddit>> {

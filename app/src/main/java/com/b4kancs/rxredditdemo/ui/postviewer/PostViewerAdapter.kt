@@ -57,24 +57,16 @@ import java.util.concurrent.TimeUnit
 class PostViewerAdapter(
     private val context: Context,
     private val viewModel: PostViewerViewModel,
-    // This is how the ViewPager scrolls to the next/previous ViewHolder.
+    // This is how the ViewPager scrolls to the next/previous ViewHolder. TODO consider different pattern
     private val onPositionChangedCallback: (Int) -> Unit,
     isSlideShowOnGoing: Boolean = false,
     private val shouldShowNavigationToFollowsOption: Boolean = true
 ) : PagingDataAdapter<Post, PostViewerAdapter.PostViewerViewHolder>(PostComparator) {
-    companion object {
-        private const val SLIDESHOW_INTERVAL_KEY = "slideshow_interval"
-    }
 
     val disposables = CompositeDisposable()
     val readyToBeDrawnSubject: PublishSubject<Int> = PublishSubject.create()
     val slideShowOnOffSubject: BehaviorSubject<Boolean> = BehaviorSubject.createDefault(isSlideShowOnGoing)
-    private val rxSharedPreferences: RxSharedPreferences by inject(RxSharedPreferences::class.java)
     private val positionSubject: PublishSubject<Pair<Int, Int>> = PublishSubject.create()
-    private val slideshowIntervalValueSubject: BehaviorSubject<Long> =
-        BehaviorSubject.createDefault(
-            rxSharedPreferences.getLong(SLIDESHOW_INTERVAL_KEY, 5L).get()
-        )
     private val viewHolderMap = HashMap<PostViewerViewHolder, Int>()
     private var slideshowIntervalPlayerDisposable: Disposable? = null
     private var autoHideHudTimerDisposable: Disposable? = null
@@ -127,11 +119,6 @@ class PostViewerAdapter(
                 }
             }.addTo(disposables)
 
-        slideshowIntervalValueSubject
-            .subscribe { newInterval ->
-                rxSharedPreferences.getLong(SLIDESHOW_INTERVAL_KEY).set(newInterval)
-            }.addTo(disposables)
-
         // For to debug ye olde code
         logcat { "The pagingDataObservable is ${viewModel.pagingDataObservable}" }
 
@@ -140,7 +127,7 @@ class PostViewerAdapter(
 
     private fun startSlideShow() {
         logcat { "startSlideShow" }
-        val slideshowInterval = slideshowIntervalValueSubject.value ?: 5L
+        val slideshowInterval = viewModel.slideshowIntervalInSeconds
         logcat(LogPriority.INFO) { "Keeping screen awake." }
         (context as Activity).window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         logcat(LogPriority.INFO) { "Starting slideshow timer: $slideshowInterval seconds." }
@@ -294,7 +281,7 @@ class PostViewerAdapter(
                             R.drawable.ic_baseline_slideshow_60
                     )
                     binding.constraintPostMainHudLeftSlideshowControls.isVisible = isSlideshowVisible
-                    binding.editTextPostMainHudLeftSlideshowDelay.setText(slideshowIntervalValueSubject.value!!.toString())
+                    binding.editTextPostMainHudLeftSlideshowDelay.setText(viewModel.slideshowIntervalInSeconds.toString())
                 }.addTo(disposables)
 
             noLongerShownSubject
@@ -577,9 +564,8 @@ class PostViewerAdapter(
                             EditorInfo.IME_ACTION_DONE -> {
                                 val value = (actionEvent.view as EditText).text.toString().toLong()
                                 logcat(LogPriority.INFO) { "Slideshow interval EditText IME_ACTION_DONE. Value: $value" }
-                                if (value >= 1) {
-                                    slideshowIntervalValueSubject.onNext(value)
-
+                                if (value >= 1) {   // In case of illegal input, the keyboard won't disappear and the sldshow won't start.
+                                    viewModel.slideshowIntervalInSeconds = value
                                     startSlideShow()
                                     hideHud()
                                     hideKeyboard(actionEvent.view)

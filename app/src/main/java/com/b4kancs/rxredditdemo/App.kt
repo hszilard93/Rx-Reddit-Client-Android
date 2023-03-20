@@ -6,7 +6,7 @@ import androidx.preference.PreferenceManager
 import com.b4kancs.rxredditdemo.data.database.FavoritesRoomDatabase
 import com.b4kancs.rxredditdemo.data.database.FollowsRoomDatabase
 import com.b4kancs.rxredditdemo.data.database.SubredditRoomDatabase
-import com.b4kancs.rxredditdemo.data.networking.RedditJsonClient
+import com.b4kancs.rxredditdemo.data.networking.RedditJsonHelper
 import com.b4kancs.rxredditdemo.data.networking.RedditJsonService
 import com.b4kancs.rxredditdemo.domain.notification.SubscriptionsNotificationManager
 import com.b4kancs.rxredditdemo.domain.notification.SubscriptionsNotificationScheduler
@@ -125,8 +125,8 @@ class App : Application() {
         logcat { "setUpNotificationService" }
 
         val notificationScheduler: SubscriptionsNotificationScheduler by inject()
-//        notificationScheduler.scheduleImmediateNotification()
-        notificationScheduler.checkForScheduledNotificationAndRescheduleIfMissingDelayElse()
+        notificationScheduler.scheduleImmediateNotification()
+//        notificationScheduler.checkForScheduledNotificationAndRescheduleIfMissingDelayElse()
     }
 
     private fun makeKoinAppModule() = module {
@@ -156,32 +156,32 @@ class App : Application() {
         }
         single {
             logcat { "Koin providing Single SubredditRepository instance." }
-            SubredditRepository()
+            SubredditRepository(get(), get(), get())
         }
         single {
             logcat { "Koin providing Single FavoritePostsRepository instance." }
-            FavoritePostsRepository()
+            FavoritePostsRepository(get())
         }
         single {
             logcat { "Koin providing Single FollowsRepository instance." }
-            FollowsRepository()
+            FollowsRepository(get())
         }
         single {
             logcat { "Koin providing Single PostsPropertiesRepository instance." }
             PostsPropertiesRepository()
         }
         single {
-            logcat { "Koin providing Single RedditJsonClient object." }
-            return@single RedditJsonClient
+            logcat { "Koin providing Single RedditJsonClient instance." }
+            RedditJsonHelper(get())
         }
         single {
-            logcat { "Koin providing Single AggregateFeedLoader object." }
-            return@single AggregateFeedLoader
+            logcat { "Koin providing Single AggregateFeedLoader instance." }
+            AggregateFeedLoader(get(), get())
         }
 
         single {
-            logcat { "Koin providing Single AggregateFeedLoader object." }
-            return@single SubscriptionsFeedLoader
+            logcat { "Koin providing Single AggregateFeedLoader instance." }
+            SubscriptionsFeedLoader(get(), get())
         }
 
         viewModel {
@@ -190,30 +190,30 @@ class App : Application() {
         }
         viewModel {
             logcat { "Koin providing ViewModel HomeViewModel instance." }
-            HomeViewModel()
+            HomeViewModel(get(), get(), get(), get(), get())
         }
         viewModel {
             logcat { "Koin providing ViewModel FavoritesViewModel instance." }
-            FavoritesViewModel()
+            FavoritesViewModel(get(), get(), get(), get())
         }
         viewModel {
             logcat { "Koin providing ViewModel FollowsViewModel instance." }
-            FollowsViewModel()
+            FollowsViewModel(get(), get(), get(), get(), get(), get(), get())
         }
         viewModel {
             logcat { "Koin providing ViewModel PostViewerViewModel instance." }
-            PostViewerViewModel(get())
+            PostViewerViewModel(get(), get(), get(), get())
         }
         single {
             logcat { "Koin providing single AssetManager instance." }
             assets
         }
         single {
-            logcat { "Koin providing object SubscriptionsNotificationManager." }
-            SubscriptionsNotificationManager
+            SubscriptionsNotificationScheduler(get(), get(), get())
         }
         single {
-            SubscriptionsNotificationScheduler(get())
+            logcat { "Koin providing SubscriptionsNotificationManager instance." }
+            SubscriptionsNotificationManager(get(), get())
         }
     }
 }

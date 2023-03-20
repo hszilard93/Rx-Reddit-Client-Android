@@ -5,6 +5,7 @@ import androidx.paging.PagingState
 import androidx.paging.rxjava3.RxPagingSource
 import com.b4kancs.rxredditdemo.data.database.PostFavoritesDbEntry
 import com.b4kancs.rxredditdemo.data.database.loadFromNetwork
+import com.b4kancs.rxredditdemo.data.networking.RedditJsonService
 import com.b4kancs.rxredditdemo.data.utils.JsonPostsFeedHelper
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.repository.FavoritePostsRepository
@@ -17,12 +18,14 @@ import io.reactivex.rxjava3.schedulers.Schedulers
 import io.reactivex.rxjava3.subjects.PublishSubject
 import logcat.LogPriority
 import logcat.logcat
-import org.koin.java.KoinJavaComponent.inject
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.streams.toList
 
-class FavoritesPagingSource : RxPagingSource<Int, Post>() {
+class FavoritesPagingSource(
+    private val favoritePostsRepository: FavoritePostsRepository,
+    private val jsonService: RedditJsonService
+) : RxPagingSource<Int, Post>() {
 
     companion object {
         const val PAGE_SIZE = 5
@@ -31,7 +34,6 @@ class FavoritesPagingSource : RxPagingSource<Int, Post>() {
         private val cachedPostsMap: ConcurrentHashMap<String, Post> by lazy { ConcurrentHashMap<String, Post>() }
     }
 
-    private val favoritePostsRepository: FavoritePostsRepository by inject(FavoritePostsRepository::class.java)
     private val disposables = CompositeDisposable()
 
     @SuppressLint("CheckResult")
@@ -83,7 +85,7 @@ class FavoritesPagingSource : RxPagingSource<Int, Post>() {
         return Maybe.create { emitter ->
             if (!cachedPostsMap.containsKey(dbEntry.name)) {
                 logcat { "Loading post data ${dbEntry.name} from network." }
-                dbEntry.loadFromNetwork()
+                dbEntry.loadFromNetwork(jsonService)
                     .subscribeOn(Schedulers.io())
                     .observeOn(Schedulers.computation())
                     .retry(5)

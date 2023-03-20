@@ -17,7 +17,9 @@ import logcat.LogPriority
 import logcat.logcat
 import org.koin.java.KoinJavaComponent.inject
 
-class FollowsRepository {
+class FollowsRepository(
+    private val followsDatabase: FollowsDatabase
+) {
 
     companion object {
         private val applicationContext: Context by inject(Context::class.java)
@@ -33,8 +35,6 @@ class FollowsRepository {
 
     val followsChangedSubject: PublishSubject<Unit> = PublishSubject.create()
     val areThereFollowedUsersBehaviourSubject: BehaviorSubject<Boolean> = BehaviorSubject.create()
-
-    private val followsDatabase: FollowsDatabase by inject(FollowsDatabase::class.java)
     private val disposables = CompositeDisposable()
 
     init {

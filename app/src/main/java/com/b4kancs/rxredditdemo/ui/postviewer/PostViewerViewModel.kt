@@ -20,7 +20,6 @@ import com.b4kancs.rxredditdemo.repository.FavoritePostsRepository
 import com.b4kancs.rxredditdemo.repository.PostsPropertiesRepository
 import com.b4kancs.rxredditdemo.ui.shared.PostPagingDataObservableProvider
 import com.b4kancs.rxredditdemo.utils.fromCompletable
-import com.b4kancs.rxredditdemo.utils.toV3Observable
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
@@ -36,43 +35,52 @@ import io.reactivex.rxjava3.schedulers.Schedulers
 import io.reactivex.rxjava3.subjects.PublishSubject
 import logcat.LogPriority
 import logcat.logcat
-import org.koin.java.KoinJavaComponent.inject
 import java.io.File
 import java.io.FileOutputStream
 import java.io.OutputStream
 
-class PostViewerViewModel(pagingDataObservableProvider: PostPagingDataObservableProvider) : ViewModel() {
+class PostViewerViewModel(
+    pagingDataObservableProvider: PostPagingDataObservableProvider,
+    private val favoritePostsRepository: FavoritePostsRepository,
+    private val rxSharedPreferences: RxSharedPreferences,
+    private val postsPropertiesRepository: PostsPropertiesRepository
+) : ViewModel() {
 
-    private val favoritePostsRepository: FavoritePostsRepository by inject(FavoritePostsRepository::class.java)
-    private val rxSharedPreferences: RxSharedPreferences by inject(RxSharedPreferences::class.java)
-    private val postsPropertiesRepository: PostsPropertiesRepository by inject(PostsPropertiesRepository::class.java)
-    private val disposables = CompositeDisposable()
+    companion object {
+        private const val SLIDESHOW_INTERVAL_KEY = "slideshow_interval"
+    }
 
     val pagingDataObservable = pagingDataObservableProvider.getCachedPagingObservable()
+
     val navigateToFollowsActionTriggerSubject =
     // We need the username for FollowsFragment as well as a Subject that will pass back a
         // Completable which will signal the success of the navigation.
         PublishSubject.create<Pair<String, PublishSubject<Completable>>>()
 
+    var slideshowIntervalInSeconds: Long = 5L
+        set(value) {
+            field = value
+            rxSharedPreferences.getLong(SLIDESHOW_INTERVAL_KEY).set(value)
+        }
+
     var hudTimeOutInSeconds = Int.MAX_VALUE
     var shouldBlurNsfwPosts = true
+    private val disposables = CompositeDisposable()
 
     init {
         logcat { "The paging data provider is $pagingDataObservableProvider" }
 
-        rxSharedPreferences.getString("pref_list_hud").asObservable().toV3Observable()
-            .observeOn(AndroidSchedulers.mainThread())
-            .subscribe { value ->   // Gets the current value or the default value immediately and reacts to preference changes.
-                hudTimeOutInSeconds = when (value) {
+        slideshowIntervalInSeconds = rxSharedPreferences.getLong(SLIDESHOW_INTERVAL_KEY, 5L).get()
+
+        hudTimeOutInSeconds =
+            rxSharedPreferences.getString("pref_list_hud").get().let { value ->
+                when (value) {
                     "stay_on" -> Int.MAX_VALUE
                     else -> value.toInt()
                 }
-            }.addTo(disposables)
+            }
 
-        rxSharedPreferences.getBoolean("pref_switch_unblur_nsfw").asObservable().toV3Observable()
-            .observeOn(AndroidSchedulers.mainThread())
-            .subscribe { shouldBlurNsfwPosts = it.not() }
-            .addTo(disposables)
+        shouldBlurNsfwPosts = rxSharedPreferences.getBoolean("pref_switch_unblur_nsfw").get()
     }
 
     fun getFavoritePosts(): Single<List<PostFavoritesDbEntry>> =

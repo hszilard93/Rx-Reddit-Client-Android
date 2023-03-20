@@ -1,10 +1,12 @@
 package com.b4kancs.rxredditdemo.data.utils
 
-import com.b4kancs.rxredditdemo.data.networking.RedditJsonClient
+import com.b4kancs.rxredditdemo.data.networking.RedditJsonHelper
 import com.b4kancs.rxredditdemo.data.networking.RedditJsonListingModel
+import com.b4kancs.rxredditdemo.data.networking.RedditJsonService
 import com.b4kancs.rxredditdemo.model.Post
 import io.reactivex.rxjava3.core.Single
 import logcat.logcat
+import org.koin.java.KoinJavaComponent.inject
 import retrofit2.HttpException
 import retrofit2.Response
 
@@ -26,7 +28,7 @@ object JsonPostsFeedHelper {
             }
     }
 
-    fun fromJsonPostDataModelToPost(dataModel: RedditJsonListingModel.RedditPostDataModel): Post {
+    fun fromJsonPostDataModelToPost(dataModel: RedditJsonListingModel.RedditPostDataModel): Post {  // TODO Maybe
         logcat { "fromJsonPostDataModel" }
 
         with(dataModel) {
@@ -53,7 +55,8 @@ object JsonPostsFeedHelper {
                         }
                     val galleryPostUrl = "https://www.reddit.com/r/$sub/comments/$galleryId"
                     logcat { "Attempting to get links to gallery items on post $name $title; gallery url $url; request url $galleryPostUrl." }
-                    val idTypePairs = RedditJsonClient.getPictureIdTypePairsFromGalleryPostAtUrl(galleryPostUrl)
+                    val jsonHelper: RedditJsonHelper by inject(RedditJsonHelper::class.java)
+                    val idTypePairs = jsonHelper.getPictureIdTypePairsFromGalleryPostAtUrl(galleryPostUrl)
                         .blockingGet()
                     idTypePairs?.map { (imageId, imageType) ->
                         val type = imageType.split("/").last()  // This data is in the format of "image/png", for example.

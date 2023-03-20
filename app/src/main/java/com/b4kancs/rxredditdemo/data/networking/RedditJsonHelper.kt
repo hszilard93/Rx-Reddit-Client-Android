@@ -6,14 +6,14 @@ import io.reactivex.rxjava3.core.Single
 import io.reactivex.rxjava3.schedulers.Schedulers
 import logcat.LogPriority
 import logcat.logcat
-import org.koin.java.KoinJavaComponent.inject
 
-object RedditJsonClient {
-    private val service: RedditJsonService by inject(RedditJsonService::class.java)
+class RedditJsonHelper(
+    private val jsonService: RedditJsonService
+) {
 
     fun getPictureIdTypePairsFromGalleryPostAtUrl(url: String): Maybe<List<Pair<String, String>>> {
         logcat { "getPictureIdTypePairsFromGalleryPostAtUrl: url = $url" }
-        return service
+        return jsonService
             .getGalleryJson("$url/.json")
             .subscribeOn(Schedulers.io())
             .map { response ->
@@ -28,7 +28,8 @@ object RedditJsonClient {
                 val idTypePairs = ArrayList<Pair<String, String>>()
                 if (items.isEmpty()) {
                     Maybe.empty()
-                } else {
+                }
+                else {
                     items.forEach { idTypePairs.add(it.id to it.type) }
                     Maybe.just(idTypePairs)
                 }
@@ -37,7 +38,7 @@ object RedditJsonClient {
 
     fun getSubredditsByKeyword(keyword: String): Single<List<Subreddit>> {
         logcat { "getSubredditsByKeyword: keyword = $keyword" }
-        return service.searchSubredditsByKeyword(keyword)
+        return jsonService.searchSubredditsByKeyword(keyword)
             .map { response -> response.body()!! }
             .map { subsModel ->
                 subsModel.data.children

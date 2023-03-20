@@ -9,11 +9,11 @@ import io.reactivex.rxjava3.schedulers.Schedulers
 import io.reactivex.rxjava3.subjects.BehaviorSubject
 import logcat.LogPriority
 import logcat.logcat
-import org.koin.java.KoinJavaComponent.inject
 
-class FavoritePostsRepository {
+class FavoritePostsRepository(
+    private val favoritesDatabase: FavoritesDatabase
+) {
 
-    private val favoritesDatabase: FavoritesDatabase by inject(FavoritesDatabase::class.java)
     val favoritePostEntriesBehaviorSubject = BehaviorSubject.create<List<PostFavoritesDbEntry>>()
 
     fun getAllFavoritePostsFromDb(): Single<List<PostFavoritesDbEntry>> {

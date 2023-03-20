@@ -4,7 +4,6 @@ import androidx.paging.PagingState
 import androidx.paging.rxjava3.RxPagingSource
 import com.b4kancs.rxredditdemo.data.networking.RedditJsonService
 import com.b4kancs.rxredditdemo.data.utils.JsonPostsFeedHelper.fromGetUsersPostsJsonCallToListOfPostsAsSingle
-import com.b4kancs.rxredditdemo.data.utils.JsonPostsFeedHelper.fromJsonPostDataModelToPost
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.model.UserFeed
 import com.b4kancs.rxredditdemo.repository.FollowsRepository
@@ -13,16 +12,16 @@ import io.reactivex.rxjava3.schedulers.Schedulers
 import logcat.LogPriority
 import logcat.logcat
 import org.koin.java.KoinJavaComponent.inject
-import retrofit2.HttpException
 
-class FollowsPagingSource(private val userFeed: UserFeed) : RxPagingSource<String, Post>() {
+class FollowsPagingSource(
+    private val userFeed: UserFeed,
+    private val jsonService: RedditJsonService,
+    private val followsRepository: FollowsRepository
+) : RxPagingSource<String, Post>() {
 
     companion object {
         const val PAGE_SIZE = 50
     }
-
-    private val jsonService: RedditJsonService by inject(RedditJsonService::class.java)
-    private val followsRepository: FollowsRepository by inject(FollowsRepository::class.java)
 
     init {
         logcat { "init username = $userFeed" }
@@ -37,6 +36,8 @@ class FollowsPagingSource(private val userFeed: UserFeed) : RxPagingSource<Strin
             val combinedFeedLoaderType =
                 if (userFeed == FollowsRepository.aggregateUserFeed) AggregateFeedLoader::class.java
                 else SubscriptionsFeedLoader::class.java
+            // This type of dynamic field injection could be replaced by constructor injection (by an instance of both types) later if it
+            // poses an issue.
             val aggregateFeedLoader: AbstractCombinedFeedLoader by inject(combinedFeedLoaderType)
 
             return aggregateFeedLoader.loadCombinedFeeds(params.loadSize, params.key)

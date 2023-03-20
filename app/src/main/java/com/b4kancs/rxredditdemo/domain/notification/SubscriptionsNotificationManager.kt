@@ -24,14 +24,17 @@ import io.reactivex.rxjava3.kotlin.addTo
 import io.reactivex.rxjava3.kotlin.subscribeBy
 import logcat.LogPriority
 import logcat.logcat
-import org.koin.java.KoinJavaComponent.inject
 
-object SubscriptionsNotificationManager {
+class SubscriptionsNotificationManager(
+    private val applicationContext: Context,
+    private val rxPreferences: RxSharedPreferences
+) {
 
-    private const val CHANNEL_ID = "NOTIFICATIONS_SUBSCRIPTIONS"
-    private const val NOTIFICATION_ID = 1
+    companion object {
+        private const val CHANNEL_ID = "NOTIFICATIONS_SUBSCRIPTIONS"
+        private const val NOTIFICATION_ID = 1
+    }
 
-    private val applicationContext: Context by inject(Context::class.java)
     private val disposables = CompositeDisposable()
 
 
@@ -84,7 +87,6 @@ object SubscriptionsNotificationManager {
                                 .subscribeBy(
                                     onSuccess = { isPermissionGranted ->
                                         if (!isPermissionGranted) {
-                                            val rxPreferences: RxSharedPreferences by inject(RxSharedPreferences::class.java)
                                             rxPreferences.getString("pref_list_notifications").set("never")
                                         }
                                         emitter.onSuccess(isPermissionGranted)
