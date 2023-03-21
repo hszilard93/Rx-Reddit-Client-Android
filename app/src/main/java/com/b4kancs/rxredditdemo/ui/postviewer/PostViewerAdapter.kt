@@ -587,14 +587,14 @@ class PostViewerAdapter(
                 favView.setImageResource(R.drawable.ic_baseline_favorite_filled_60)
                 viewModel.addPostToFavorites(post)
                     .observeOn(AndroidSchedulers.mainThread())
-                    .subscribe(
-                        {
+                    .subscribeBy(
+                        onComplete = {
                             logcat(LogPriority.INFO) { "Post ${post.name} was favorited." }
                             makeSnackBar(view = favView, stringId = null, message = "Post favorited!")
                                 .show()
                             isFavorite = true
                         },
-                        {
+                        onError = {
                             logcat(LogPriority.ERROR) { "Could not favorite post ${post.name} !\tMessage: ${it.message}" }
                             makeSnackBar(view = favView, stringId = null, message = "Failed to favorite post :(", type = SnackType.ERROR)
                                 .show()
@@ -608,14 +608,14 @@ class PostViewerAdapter(
                 favView.setImageResource(R.drawable.ic_baseline_favorite_border_60)
                 viewModel.removePostFromFavorites(post)
                     .observeOn(AndroidSchedulers.mainThread())
-                    .subscribe(
-                        {
+                    .subscribeBy(
+                        onComplete = {
                             logcat(LogPriority.INFO) { "Post ${post.name} was deleted from favorites." }
                             makeSnackBar(view = favView, stringId = null, message = "Post no longer in Favorites!")
                                 .show()
                             isFavorite = false
                         },
-                        {
+                        onError = {
                             logcat(LogPriority.ERROR) { "Error deleting post ${post.name} from favorites!\tMessage: ${it.message}" }
                             makeSnackBar(
                                 view = favView,

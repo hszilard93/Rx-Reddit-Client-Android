@@ -478,7 +478,7 @@ class HomeFragment : BaseListingFragment() {
                 setUpAddToYourSubsMenuItem(menuItems)
                 setUpAddToFavorites(menuItems)
                 setUpRemoveFromFavorites(menuItems)
-                setUpGoToSettingsMenuItem(menuItems, mergedCurrentSubUpdateObservable.flatMap { Observable.just(Unit) })
+                setUpGoToSettingsMenuItem(menuItems)
             }.addTo(transientDisposables)
     }
 

@@ -181,6 +181,8 @@ class MainActivity : AppCompatActivity() {
 
     fun setUpSubredditDrawer(homeViewModel: HomeViewModel) {
         logcat { "setUpSubredditDrawer" }
+        unlockDrawer()
+
         val adapter = SubredditsDrawerListAdapter(this, homeViewModel)
         binding.listViewDrawerSubreddits.adapter = adapter
 
@@ -200,6 +202,8 @@ class MainActivity : AppCompatActivity() {
 
     fun setUpFollowsDrawer(followsViewModel: FollowsViewModel) {
         logcat { "setUpFollowsDrawer" }
+        unlockDrawer()
+
         val adapter = FollowsDrawerListAdapter(this, followsViewModel)
         binding.listViewDrawerSubreddits.adapter = adapter
 

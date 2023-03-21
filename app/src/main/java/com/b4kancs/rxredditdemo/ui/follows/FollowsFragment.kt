@@ -429,7 +429,7 @@ class FollowsFragment : BaseListingFragment() {
                 setUpDeleteFromYourFollowsMenuItem(menuItems)
                 subscribeToUserFeedMenuItem(menuItems)
                 unsubscribeFromUserFeedMenuItem(menuItems)
-                setUpGoToSettingsMenuItem(menuItems, mergedFeedUpdateObservable.flatMap { Observable.just(Unit) })
+                setUpGoToSettingsMenuItem(menuItems)
             }
             .addTo(transientDisposables)
     }

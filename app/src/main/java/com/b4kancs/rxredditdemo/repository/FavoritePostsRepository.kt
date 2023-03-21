@@ -46,17 +46,16 @@ class FavoritePostsRepository(
     fun addFavoritePostToDb(post: Post): Completable {
         logcat(LogPriority.INFO) { "addFavoritePostToDb: post = ${post.name}" }
         val newDbEntryPost = PostFavoritesDbEntry.fromPost(post)
-        return favoritesDatabase.favoritesDao().insertPost(newDbEntryPost)
-            .subscribeOn(Schedulers.io())
-            .retry(1)
-            .doOnSuccess {
-                val oldList = favoritePostEntriesBehaviorSubject.value!!
-                val newList = oldList.plus(newDbEntryPost)
-                favoritePostEntriesBehaviorSubject.onNext(newList)
-            }
-            .flatMapCompletable { insertedThisMany ->
-                if (insertedThisMany == 1L) Completable.complete() else Completable.error(Exception())
-            }
+        return Completable.fromSingle(
+            favoritesDatabase.favoritesDao().insertPost(newDbEntryPost)
+                .subscribeOn(Schedulers.io())
+                .retry(1)
+                .doOnSuccess {
+                    val oldList = favoritePostEntriesBehaviorSubject.value!!
+                    val newList = oldList.plus(newDbEntryPost)
+                    favoritePostEntriesBehaviorSubject.onNext(newList)
+                }
+        )
     }
 
     fun removeFavoritePostFromDb(post: Post): Completable {

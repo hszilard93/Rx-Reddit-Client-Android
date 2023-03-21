@@ -27,9 +27,8 @@ class SettingsFragment : PreferenceFragmentCompat() {
     private val rxPreferences: RxSharedPreferences by inject()
     private val disposables = CompositeDisposable()
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        logcat { "onViewCreated" }
-
+    override fun onCreate(savedInstanceState: Bundle?) {
+        logcat { "onCreate" }
         StringBuilder().let { builder ->
             builder.append("Current preferences:\n")
             rxPreferences.getPreference().all.forEach { entry ->
@@ -37,6 +36,18 @@ class SettingsFragment : PreferenceFragmentCompat() {
             }
             logcat { builder.toString() }
         }
+
+        super.onCreate(savedInstanceState)
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        logcat { "onViewCreated" }
+
+        super.onViewCreated(view, savedInstanceState)
+    }
+
+    override fun onResume() {
+        logcat { "onResume" }
 
         (activity as MainActivity).apply {
             // Without waiting for the activity's binding to 'get ready', the app crashes when the theme preference is changed.
@@ -55,13 +66,14 @@ class SettingsFragment : PreferenceFragmentCompat() {
 
         handleNotificationFrequencyPreferenceChanges()
 
-        super.onViewCreated(view, savedInstanceState)
+        super.onResume()
     }
 
     private fun handleNotificationFrequencyPreferenceChanges() {
         logcat { "handleNotificationFrequencyPreferenceChanges" }
 
         rxPreferences.getString("pref_list_notifications").asObservable().toV3Observable()
+            .skip(1)    // The first one is going to be the current or default value.
             .distinctUntilChanged()
             .doOnNext { logcat { "Notification frequency preference value changed! New value = $it" } }
             .subscribe { preferenceValue ->
@@ -78,7 +90,6 @@ class SettingsFragment : PreferenceFragmentCompat() {
                             }
                             else {
                                 // This provides visual feedback to the user that the notifications aren't active.
-
                                 rxPreferences.getString("pref_list_notifications").set("never")
                             }
                         },

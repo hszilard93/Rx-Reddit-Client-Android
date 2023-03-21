@@ -180,20 +180,17 @@ abstract class BaseListingFragment : Fragment() {
 
     abstract fun setUpOptionsMenu()
 
-    open fun setUpGoToSettingsMenuItem(menuItems: Sequence<MenuItem>, triggerObservable: Observable<Unit>) {
-        triggerObservable
-            .observeOn(AndroidSchedulers.mainThread())
-            .subscribe {
-                menuItems
-                    .find { it.itemId == R.id.menu_item_toolbar_settings }
-                    ?.clicks()
-                    ?.observeOn(AndroidSchedulers.mainThread())
-                    ?.doOnNext { logcat(LogPriority.INFO) { "Settings menu item clicked." } }
-                    ?.subscribe {
-                        goToNewSettingsFragment()
-                    }
-                    ?.addTo(disposables)
-            }.addTo(disposables)
+    open fun setUpGoToSettingsMenuItem(menuItems: Sequence<MenuItem>) {
+        logcat { "setUpGoToSettingsMenuItem" }
+        menuItems
+            .find { it.itemId == R.id.menu_item_toolbar_settings }
+            ?.clicks()
+            ?.observeOn(AndroidSchedulers.mainThread())
+            ?.doOnNext { logcat(LogPriority.INFO) { "Settings menu item clicked." } }
+            ?.subscribe {
+                goToNewSettingsFragment()
+            }
+            ?.addTo(disposables)
     }
 
 

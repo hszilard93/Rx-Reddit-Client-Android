@@ -125,8 +125,8 @@ class App : Application() {
         logcat { "setUpNotificationService" }
 
         val notificationScheduler: SubscriptionsNotificationScheduler by inject()
-        notificationScheduler.scheduleImmediateNotification()
-//        notificationScheduler.checkForScheduledNotificationAndRescheduleIfMissingDelayElse()
+//        notificationScheduler.scheduleImmediateNotification()
+        notificationScheduler.checkForScheduledNotificationAndRescheduleIfMissingDelayElse()
     }
 
     private fun makeKoinAppModule() = module {

@@ -224,7 +224,7 @@ class FavoritesFragment : BaseListingFragment() {
                     }
                 }
                 setUpClearAllFavoritesMenuItem(menuItems)
-                setUpGoToSettingsMenuItem(menuItems, viewModel.getFavoritePostsBehaviorSubject().flatMap { Observable.just(Unit) })
+                setUpGoToSettingsMenuItem(menuItems)
             }
             .addTo(transientDisposables)
     }
@@ -237,10 +237,5 @@ class FavoritesFragment : BaseListingFragment() {
     override fun onDestroyViewRemoveBinding() {
         logcat { "onDestroyViewRemoveBinding" }
         _binding = null
-    }
-
-    override fun onDestroyViewDoAlso() {
-        logcat { "onDestroyViewDoAlso" }
-        (activity as MainActivity).unlockDrawer()
     }
 }
