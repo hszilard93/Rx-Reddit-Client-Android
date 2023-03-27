@@ -26,6 +26,7 @@ import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.ui.PostComparator
 import com.b4kancs.rxredditdemo.ui.uiutils.*
 import com.b4kancs.rxredditdemo.utils.executeTimedDisposable
+import com.b4kancs.rxredditdemo.utils.forwardOnceTrue
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.DataSource
 import com.bumptech.glide.load.engine.GlideException
@@ -34,7 +35,6 @@ import com.bumptech.glide.request.RequestListener
 import com.bumptech.glide.request.RequestOptions
 import com.bumptech.glide.request.target.Target
 import com.bumptech.glide.request.transition.DrawableCrossFadeFactory
-import com.f2prateek.rx.preferences2.RxSharedPreferences
 import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.textview.MaterialTextView
 import com.jakewharton.rxbinding4.view.clicks
@@ -46,77 +46,53 @@ import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.kotlin.addTo
 import io.reactivex.rxjava3.kotlin.subscribeBy
+import io.reactivex.rxjava3.schedulers.Schedulers
 import io.reactivex.rxjava3.subjects.BehaviorSubject
 import io.reactivex.rxjava3.subjects.PublishSubject
 import jp.wasabeef.glide.transformations.BlurTransformation
 import logcat.LogPriority
 import logcat.logcat
-import org.koin.java.KoinJavaComponent.inject
 import java.util.concurrent.TimeUnit
 
 class PostViewerAdapter(
     private val context: Context,
     private val viewModel: PostViewerViewModel,
-    // This is how the ViewPager scrolls to the next/previous ViewHolder. TODO consider different pattern
-    private val onPositionChangedCallback: (Int) -> Unit,
-    isSlideShowOnGoing: Boolean = false,
     private val shouldShowNavigationToFollowsOption: Boolean = true
 ) : PagingDataAdapter<Post, PostViewerAdapter.PostViewerViewHolder>(PostComparator) {
 
     val disposables = CompositeDisposable()
     val readyToBeDrawnSubject: PublishSubject<Int> = PublishSubject.create()
-    val slideShowOnOffSubject: BehaviorSubject<Boolean> = BehaviorSubject.createDefault(isSlideShowOnGoing)
-    private val positionSubject: PublishSubject<Pair<Int, Int>> = PublishSubject.create()
     private val viewHolderMap = HashMap<PostViewerViewHolder, Int>()
     private var slideshowIntervalPlayerDisposable: Disposable? = null
     private var autoHideHudTimerDisposable: Disposable? = null
     private var isRecentlyDisplayed = true
     private var isHudVisible = !isRecentlyDisplayed
-    private var currentLayoutPosition: Int? = null
+    private var currentPosition: Int = viewModel.pagerPositionBehaviorSubject.value!!
     private var resetScrollPosition = true
 
     override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
         logcat { "onAttachedToRecyclerView" }
-        positionSubject
+        viewModel.pagerPositionBehaviorSubject
             .observeOn(AndroidSchedulers.mainThread())
-            .subscribe { (currentPosition, nextPosition) ->
+            .skip(1)
+            .subscribe { nextPosition ->
                 logcat { "onPositionChangedCallback($nextPosition)" }
-                onPositionChangedCallback(nextPosition)
                 getViewHolderForPosition(currentPosition)?.noLongerShownSubject?.onNext(Unit)
                 getViewHolderForPosition(nextPosition)?.shownSubject?.onNext(Unit)
-                currentLayoutPosition = nextPosition
+                currentPosition = nextPosition
             }.addTo(disposables)
 
-        // For recovering slideshow behaviour after configuration change
-        slideShowOnOffSubject
+        // Set up slideshow behaviour as well as continue slideshow after configuration change
+        viewModel.slideShowOnOffSubject
+            .forwardOnceTrue(50L) { viewHolderMap.isNotEmpty() }
+            .subscribeOn(Schedulers.computation())
             .observeOn(AndroidSchedulers.mainThread())
-            .skipWhile { currentLayoutPosition == null }
-            .doOnNext { logcat(LogPriority.INFO) { "slideShowOnOffSubject.onNext: $it" } }
-            .subscribe { toShow ->
-                val slideshowStartViewHolder = getViewHolderForPosition(currentLayoutPosition!!)!!
-                if (toShow) {
-                    logcat(LogPriority.INFO) { "Starting slideshow." }
-
-                    slideshowStartViewHolder.binding.imageViewPostMainHudLeftSlideshow.setImageResource(R.drawable.ic_baseline_pause_slideshow_60)
-                    slideshowStartViewHolder.showSlideShowControls()
+            .doOnNext { logcat(LogPriority.INFO) { "viewModel.slideShowOnOffSubject.onNext: $it" } }
+            .subscribe { isSlideShowOn ->
+                if (isSlideShowOn)
                     startSlideShow()
-
-                    makeSnackBar(
-                        getViewHolderForPosition(currentLayoutPosition!!)!!.itemView,
-                        R.string.post_viewer_slideshow_on
-                    ).show()
-                }
-                else {
-                    logcat(LogPriority.INFO) { "Stopping slideshow." }
-                    slideshowStartViewHolder.binding.imageViewPostMainHudLeftSlideshow.setImageResource(R.drawable.ic_baseline_slideshow_60)
-                    slideshowStartViewHolder.hideSlideShowControls()
+                else
                     cancelSlideshow()
-
-                    makeSnackBar(
-                        getViewHolderForPosition(currentLayoutPosition!!)!!.itemView,
-                        R.string.post_viewer_slideshow_off
-                    ).show()
-                }
             }.addTo(disposables)
 
         // For to debug ye olde code
@@ -126,7 +102,12 @@ class PostViewerAdapter(
     }
 
     private fun startSlideShow() {
-        logcat { "startSlideShow" }
+        logcat(LogPriority.INFO) { "startSlideShow" }
+
+        val currentViewHolder = getViewHolderForPosition(currentPosition)!!
+        currentViewHolder.binding.imageViewPostMainHudLeftSlideshow.setImageResource(R.drawable.ic_baseline_pause_slideshow_60)
+        currentViewHolder.showSlideShowControls()
+
         val slideshowInterval = viewModel.slideshowIntervalInSeconds
         logcat(LogPriority.INFO) { "Keeping screen awake." }
         (context as Activity).window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -134,20 +115,44 @@ class PostViewerAdapter(
         slideshowIntervalPlayerDisposable = Observable.interval(slideshowInterval, TimeUnit.SECONDS)
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe {
-                val currentViewHolder = getViewHolderForPosition(currentLayoutPosition!!)!!
+                val currentViewHolder = getViewHolderForPosition(currentPosition)!!
                 isHudVisible = false
                 if (currentViewHolder.isGallery) {
                     logcat(LogPriority.INFO) { "Slideshow; gallery post. Trying to page withing gallery." }
                     if (currentViewHolder.showNextInGallery()) return@subscribe
                 }
                 logcat(LogPriority.INFO) { "Slideshow; paging to next post." }
-                positionSubject.onNext(currentLayoutPosition!! to currentLayoutPosition!! + 1)
+                viewModel.pagerPositionBehaviorSubject.onNext(currentPosition + 1)
             }
             .addTo(disposables)
+
+        makeSnackBar(
+            currentViewHolder.itemView,
+            R.string.post_viewer_slideshow_on
+        ).show()
     }
 
     private fun cancelSlideshow() {
         logcat { "cancelSlideshow" }
+        // First, check if slideshow is running at all.
+        if (slideshowIntervalPlayerDisposable == null) return
+
+        logcat(LogPriority.INFO) { "Stopping slideshow." }
+        val currentViewHolder = getViewHolderForPosition(currentPosition)!!
+        currentViewHolder.binding.imageViewPostMainHudLeftSlideshow.setImageResource(R.drawable.ic_baseline_slideshow_60)
+        currentViewHolder.hideSlideShowControls()
+        logcat(LogPriority.INFO) { "No longer keeping screen awake." }
+        (context as Activity).window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        slideshowIntervalPlayerDisposable?.dispose()
+        makeSnackBar(
+            currentViewHolder.itemView,
+            R.string.post_viewer_slideshow_off
+        ).show()
+    }
+
+    // This function is used to pause the slideshow when the user is editing the slideshow interval.
+    private fun pauseSlideShow() {
+        logcat(LogPriority.INFO) { "pauseSlideShow" }
         logcat(LogPriority.INFO) { "No longer keeping screen awake." }
         (context as Activity).window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         slideshowIntervalPlayerDisposable?.dispose()
@@ -169,8 +174,6 @@ class PostViewerAdapter(
         viewHolderMap[viewHolder] = position
         if (isRecentlyDisplayed) {
             viewHolder.shownSubject.onNext(Unit)
-            if (slideShowOnOffSubject.value == true)
-                slideShowOnOffSubject.onNext(true)
             isRecentlyDisplayed = false
             logcat { "isRecentlyDisplayed = false" }
         }
@@ -189,7 +192,9 @@ class PostViewerAdapter(
     fun getViewHolderForPosition(pos: Int): PostViewerViewHolder? {
         logcat { "getViewHolderForPosition: position = $pos" }
 
-        viewHolderMap.keys.find { keyViewHolder -> viewHolderMap[keyViewHolder] == pos }?.let { return it }
+        viewHolderMap.keys
+            .find { keyViewHolder -> viewHolderMap[keyViewHolder] == pos }
+            ?.let { return it }
 
         logcat(LogPriority.WARN) { "Can't find PostViewerViewHolder for position $pos" }
         return null
@@ -253,7 +258,8 @@ class PostViewerAdapter(
 
                 textViewPostLowerTitle.text = post.title
                 textViewPostLowerScore.text = post.score.toString()
-                textViewPostLowerComments.text = "${post.numOfComments} comments"
+
+                textViewPostLowerComments.text = context.getString(R.string.post_viewer_comments, post.numOfComments)
                 textViewPostLowerDateAuthor.text = calculateDateAuthorSubredditText(post)
 
                 hudElements.addAll(
@@ -271,16 +277,16 @@ class PostViewerAdapter(
                 .subscribe {
                     if (isHudVisible) startAutoHideHudTimer()
                     hudElements.forEach { it.isVisible = isHudVisible }
-                    currentLayoutPosition = layoutPosition
+                    currentPosition = layoutPosition
 
-                    val isSlideshowVisible = slideShowOnOffSubject.value!!
+                    val isSlideshowOn = viewModel.slideShowOnOffSubject.value ?: false
                     binding.imageViewPostMainHudLeftSlideshow.setImageResource(
-                        if (isSlideshowVisible)
+                        if (isSlideshowOn)
                             R.drawable.ic_baseline_pause_slideshow_60
                         else
                             R.drawable.ic_baseline_slideshow_60
                     )
-                    binding.constraintPostMainHudLeftSlideshowControls.isVisible = isSlideshowVisible
+                    binding.constraintPostMainHudLeftSlideshowControls.isVisible = isSlideshowOn
                     binding.editTextPostMainHudLeftSlideshowDelay.setText(viewModel.slideshowIntervalInSeconds.toString())
                 }.addTo(disposables)
 
@@ -293,6 +299,7 @@ class PostViewerAdapter(
                 .addTo(disposables)
         }
 
+        // TODO: Change method name and/or return type.
         fun showNextInGallery(): Boolean {
             logcat { "nextInGallery" }
             return if (currentGalleryPosition in 0 until post.links!!.size - 1) {
@@ -402,7 +409,7 @@ class PostViewerAdapter(
                     constraintPostMainHudLeft.clicks()
                         .subscribe {
                             logcat(LogPriority.INFO) { "Left hud clicked, paging left." }
-                            positionSubject.onNext(layoutPosition to layoutPosition - 1)
+                            viewModel.pagerPositionBehaviorSubject.onNext(layoutPosition - 1)
                         }.addTo(disposables)
                 }
 
@@ -414,7 +421,7 @@ class PostViewerAdapter(
                     constraintPostMainHudRight.clicks()
                         .subscribe {
                             logcat(LogPriority.INFO) { "Right hud clicked, paging right." }
-                            positionSubject.onNext(layoutPosition to layoutPosition + 1)
+                            viewModel.pagerPositionBehaviorSubject.onNext(layoutPosition + 1)
                         }.addTo(disposables)
                 }
 
@@ -538,7 +545,7 @@ class PostViewerAdapter(
                         logcat(LogPriority.INFO) { "Slideshow button clicked." }
                         startAutoHideHudTimer()
 
-                        slideShowOnOffSubject.onNext(slideShowOnOffSubject.value!!.not())
+                        viewModel.slideShowOnOffSubject.onNext((viewModel.slideShowOnOffSubject.value ?: false).not())
                     }
                     .addTo(disposables)
             }
@@ -552,7 +559,7 @@ class PostViewerAdapter(
                     .subscribe { isFocused ->
                         if (isFocused) {
                             logcat(LogPriority.INFO) { "Slideshow interval EditText has focus." }
-                            cancelSlideshow()
+                            pauseSlideShow()
                             cancelAutoHideHudTimer()
                         }
                     }.addTo(disposables)
@@ -564,7 +571,7 @@ class PostViewerAdapter(
                             EditorInfo.IME_ACTION_DONE -> {
                                 val value = (actionEvent.view as EditText).text.toString().toLong()
                                 logcat(LogPriority.INFO) { "Slideshow interval EditText IME_ACTION_DONE. Value: $value" }
-                                if (value >= 1) {   // In case of illegal input, the keyboard won't disappear and the sldshow won't start.
+                                if (value >= 1) {   // In case of illegal input, the keyboard won't disappear and the slideshow won't start.
                                     viewModel.slideshowIntervalInSeconds = value
                                     startSlideShow()
                                     hideHud()

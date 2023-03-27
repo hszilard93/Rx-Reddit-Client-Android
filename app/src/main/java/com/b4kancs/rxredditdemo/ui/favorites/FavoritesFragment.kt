@@ -86,6 +86,8 @@ class FavoritesFragment : BaseListingFragment() {
                             rvFavoritesPosts.isVisible = true
                             linearLayoutFavoritesErrorContainer.isVisible = false
                             progressBarFavoritesLarge.isVisible = false
+                            logcat(LogPriority.INFO) { "Scrolling to position: ${viewModel.rvPosition}" }
+                            binding.rvFavoritesPosts.scrollToPosition(viewModel.rvPosition)
                         }
                         UiState.LOADING -> {
                             rvFavoritesPosts.isVisible = false
@@ -144,12 +146,8 @@ class FavoritesFragment : BaseListingFragment() {
             .onEach {
                 logcat(LogPriority.VERBOSE) { "postsFavoritesAdapter.loadStateFlow.onEach loadStates.refresh == LoadState.NotLoading" }
                 if (adapter.itemCount > 1) {
-                    viewModel.uiStateBehaviorSubject.onNext(UiState.NORMAL)
-
-                    positionToGoTo?.let { pos ->
-                        logcat(LogPriority.INFO) { "Scrolling to position: $pos" }
-                        binding.rvFavoritesPosts.scrollToPosition(pos)
-                        positionToGoTo = null
+                    if (viewModel.uiStateBehaviorSubject.value != UiState.NORMAL) {
+                        viewModel.uiStateBehaviorSubject.onNext(UiState.NORMAL)
                     }
                 }
                 else {

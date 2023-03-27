@@ -42,7 +42,7 @@ import logcat.logcat
 
 class PostsVerticalRvAdapter(
     private val context: Context,
-    var disableTransformations: Boolean,
+//    var disableTransformations: Boolean,
     val viewModel: BaseListingFragmentViewModel
 ) :
     PagingDataAdapter<Post, RecyclerView.ViewHolder>(PostComparator) {
@@ -284,9 +284,9 @@ class PostsVerticalRvAdapter(
                             val height = resource.intrinsicHeight
                             val newImageViewHeight = ((imageView.width.toFloat() / width) * height).toInt()
 
-                            if (disableTransformations)
-                                imageView.layoutParams.height = newImageViewHeight
-                            else
+//                            if (disableTransformations)
+//                                imageView.layoutParams.height = newImageViewHeight
+//                            else
                                 animateViewHeightChange(imageView, oldImageViewHeight, newImageViewHeight, 150)
                         }
 

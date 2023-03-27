@@ -6,7 +6,6 @@ import hu.akarnokd.rxjava3.bridge.RxJavaBridge
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Completable
 import io.reactivex.rxjava3.core.CompletableEmitter
-import io.reactivex.rxjava3.core.MaybeEmitter
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.core.Scheduler
 import io.reactivex.rxjava3.disposables.CompositeDisposable
@@ -26,6 +25,14 @@ fun CompletableEmitter.fromCompletable(completable: Completable) =
         onError = { e -> this.onError(e) }
     )
 
+// This extension function is used to forward the items of an Observable after a certain condition is met.
+fun <T : Any> Observable<T>.forwardOnceTrue(pollFrequencyInMillis: Long, predicate: () -> Boolean): Observable<T> =
+    this.switchMap { item ->
+        Observable.interval(0, pollFrequencyInMillis, TimeUnit.MILLISECONDS)
+            .takeUntil { predicate() }
+            .filter { predicate() }
+            .map { item }
+    }
 
 fun executeTimedDisposable(
     delayInMillis: Long,

@@ -16,6 +16,7 @@
     <string name="post_viewer_title">Post Viewer</string>
     <string name="post_viewer_slideshow_on">Slideshow started.</string>
     <string name="post_viewer_slideshow_off">Slideshow stopped.</string>
+    <string name="post_viewer_comments">%1$d comments</string>
     <string name="favorites_no_media">You have not favorited any posts yet, so there\'s nothing to show here. Don\'t worry, here\'s a birdie to cheer you up!</string>
     <string name="home_action_set_as_default_sub">Set as your Default subreddit</string>
     <string name="home_action_delete_subreddit">Delete Subreddit</string>

@@ -23,7 +23,6 @@ import com.b4kancs.rxredditdemo.ui.follows.FollowsFragmentDirections
 import com.b4kancs.rxredditdemo.ui.home.HomeFragment
 import com.b4kancs.rxredditdemo.ui.home.HomeFragmentDirections
 import com.b4kancs.rxredditdemo.ui.main.MainActivity
-import com.b4kancs.rxredditdemo.ui.postviewer.PostViewerFragment
 import com.b4kancs.rxredditdemo.ui.shared.BaseListingFragmentViewModel.UiState
 import com.b4kancs.rxredditdemo.ui.uiutils.CustomLinearLayoutManager
 import com.b4kancs.rxredditdemo.utils.executeTimedDisposable
@@ -43,16 +42,13 @@ import java.util.concurrent.TimeUnit
  * while making it easier to identify specific behaviour.
 */
 abstract class BaseListingFragment : Fragment() {
-    companion object {
-        const val FLICKERING_DELAY = 200L
-    }
 
     abstract val viewModel: BaseListingFragmentViewModel
     protected val disposables = CompositeDisposable()
     protected val transientDisposables = CompositeDisposable()
-    protected var positionToGoTo: Int? = null
     protected var enterAnimationInProgress = false
-    protected lateinit var delayedTransitionTriggerDisposable: Disposable
+    protected lateinit var delayedTransitionTriggerDisposable: Disposable   // Used to trigger the shared element transition if it doesn't get triggered in time.
+
 
     override fun onCreateAnimation(transit: Int, enter: Boolean, nextAnim: Int): Animation? {
         logcat { "onCreateAnimation" }
@@ -90,22 +86,6 @@ abstract class BaseListingFragment : Fragment() {
         }
 
         val genericBinding = setUpBinding(inflater, container)
-
-        // Recover position from PostViewerFragment, if applicable
-        findNavController().currentBackStackEntry?.let { backStackEntry ->
-            positionToGoTo = backStackEntry.savedStateHandle.get<Int>(PostViewerFragment.SAVED_STATE_POSITION_KEY)
-            backStackEntry.savedStateHandle.remove<Int>(PostViewerFragment.SAVED_STATE_POSITION_KEY)
-            positionToGoTo?.let { logcat(LogPriority.INFO) { "Recovered position from PostViewerFragment. positionToGoTo = $it" } }
-        }
-
-        // Else, recover position after config change or when coming from another Home|Favorites|Follows fragment, if applicable
-        if (positionToGoTo == null) {
-            positionToGoTo = viewModel.savedPosition ?: 0
-        }
-
-        logcat(LogPriority.INFO) { "positionToGoTo = $positionToGoTo" }
-
-        // TODO move stuff here?
 
         onCreateViewDoAlso(inflater, container, savedInstanceState)
 
@@ -211,7 +191,7 @@ abstract class BaseListingFragment : Fragment() {
             if (currentPosition == RecyclerView.NO_POSITION)
                 currentPosition = it.findFirstVisibleItemPosition()
             if (currentPosition != RecyclerView.NO_POSITION)
-                viewModel.updateSavedPosition(currentPosition)
+                viewModel.rvPosition = currentPosition
         }
     }
 
@@ -274,18 +254,18 @@ abstract class BaseListingFragment : Fragment() {
             .apply { canScrollHorizontally = false }
 
         if (recyclerView.adapter == null) {
-            // If positionToGoTo is not null, we need to disable glide transformations and some other stuff for the
-            // shared element transition to work properly
-            val shouldDisableTransformations = if (positionToGoTo != null) {
-                logcat { "Disabling glide transformations" }
-                true
-            }
-            else
-                false
+//            // If positionToGoTo is not null, we need to disable glide transformations and some other stuff for the
+//            // shared element transition to work properly
+//            val shouldDisableTransformations = if (viewModel.rvPosition != 0) {
+//                logcat { "Disabling glide transformations" }
+//                true
+//            }
+//            else
+//                false
 
             recyclerView.adapter = PostsVerticalRvAdapter(
                 mainActivity,
-                shouldDisableTransformations,
+//                shouldDisableTransformations,
                 viewModel
             )
         }
@@ -295,6 +275,7 @@ abstract class BaseListingFragment : Fragment() {
             .subscribe { pagingData ->
                 try {
                     postsAdapter.submitData(viewLifecycleOwner.lifecycle, pagingData)
+//                    positionToGoTo?.let { recyclerView.scrollToPosition(it) }
                 } catch (e: Exception) {
                     // There might be a weird NullPointerException happening sometimes that doesn't really seem to affect anything
                     logcat(LogPriority.ERROR) { e.stackTrace.toString() }
@@ -316,12 +297,7 @@ abstract class BaseListingFragment : Fragment() {
         // This is only useful when returning from a PostViewerFragment, to trigger the delayed transition
         postsAdapter.readyForTransitionSubject
             .observeOn(AndroidSchedulers.mainThread())
-            .filter { pos ->
-                if (positionToGoTo != null)
-                    pos == positionToGoTo
-                else
-                    pos == 0
-            }
+            .filter { posOfTheReadyImage -> posOfTheReadyImage == viewModel.rvPosition }
 //            .take(1)
             .doOnNext { logcat(LogPriority.INFO) { "readyToBeDrawnSubject.onNext: pos = $it" } }
             .subscribe { pos ->
@@ -349,7 +325,7 @@ abstract class BaseListingFragment : Fragment() {
                         }
                     logcat { "Disposing of delayedTransitionTriggerDisposable" }
                     delayedTransitionTriggerDisposable.dispose()
-                    postsAdapter.disableTransformations = false
+//                    postsAdapter.disableTransformations = false
                     logcat { "startPostponedEnterTransition()" }
                     startPostponedEnterTransition()
                     viewModel.uiStateBehaviorSubject.onNext(UiState.NORMAL)

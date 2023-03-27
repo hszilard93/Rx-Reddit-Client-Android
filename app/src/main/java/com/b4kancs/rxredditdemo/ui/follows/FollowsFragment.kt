@@ -130,7 +130,10 @@ class FollowsFragment : BaseListingFragment() {
         viewModel.currentFeedBehaviorSubject
             .observeOn(AndroidSchedulers.mainThread())
             .filter { _binding != null }
-            .distinctUntilChanged { feed1, feed2 -> feed1.name == feed2.name }
+            .distinctUntilChanged { feed1, feed2 ->
+                // We compare by name because we don't want to reload on status change, for example.
+                feed1.name == feed2.name
+            }
             .doOnNext { logcat { "followsViewModel.feedChangedBehaviorSubject.onNext" } }
             .subscribe { _ ->
                 (binding.rvFollowsPosts.adapter as PostsVerticalRvAdapter).refresh()
@@ -166,6 +169,8 @@ class FollowsFragment : BaseListingFragment() {
                             rvFollowsPosts.isVisible = true
                             linearLayoutFollowsErrorContainer.isVisible = false
                             progressBarFollowsLarge.isVisible = false
+                            logcat { "Scrolling to position: ${viewModel.rvPosition}" }
+                            binding.rvFollowsPosts.scrollToPosition(viewModel.rvPosition)
                         }
                         UiState.LOADING -> {
                             rvFollowsPosts.isVisible = false
@@ -264,10 +269,8 @@ class FollowsFragment : BaseListingFragment() {
             .onEach {
                 logcat(LogPriority.INFO) { "postFollowsAdapter.loadStateFlow.onEach loadStates.refresh == LoadState.NotLoading" }
                 if (adapter.itemCount > 1) {
-                    positionToGoTo?.let { pos ->
-                        logcat(LogPriority.INFO) { "Scrolling to position: $pos" }
-                        binding.rvFollowsPosts.scrollToPosition(pos)
-                    }
+                    logcat(LogPriority.INFO) { "Scrolling to position: ${viewModel.rvPosition}" }
+                    binding.rvFollowsPosts.scrollToPosition(viewModel.rvPosition)
                 }
                 else {
                     if (viewModel.currentUserFeed.status == UserFeed.Status.AGGREGATE)
@@ -281,6 +284,7 @@ class FollowsFragment : BaseListingFragment() {
     override fun setUpOptionsMenu() {
         logcat { "setUpOptionsMenu" }
 
+        // This observable will emit the current feed whenever the follows change or the current feed changes.
         val mergedFeedUpdateObservable = Observable.merge(   // See setUpOptionsMenu() in HomeFragment.kt
             viewModel.getFollowsChangedSubject(),
             viewModel.currentFeedBehaviorSubject

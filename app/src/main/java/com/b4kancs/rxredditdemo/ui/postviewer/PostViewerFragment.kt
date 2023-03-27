@@ -23,7 +23,7 @@ import com.b4kancs.rxredditdemo.ui.favorites.FavoritesViewModel
 import com.b4kancs.rxredditdemo.ui.follows.FollowsViewModel
 import com.b4kancs.rxredditdemo.ui.home.HomeViewModel
 import com.b4kancs.rxredditdemo.ui.main.MainActivity
-import com.b4kancs.rxredditdemo.ui.shared.PostPagingDataObservableProvider
+import com.b4kancs.rxredditdemo.ui.shared.BaseListingFragmentViewModel
 import com.b4kancs.rxredditdemo.ui.uiutils.ANIMATION_DURATION_SHORT
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
@@ -45,10 +45,6 @@ import org.koin.core.parameter.parametersOf
 import java.util.concurrent.TimeUnit
 
 class PostViewerFragment : Fragment() {
-    companion object {
-        const val SAVED_STATE_POSITION_KEY = "position"
-        private const val SAVED_STATE_SLIDESHOW_KEY = "slideshow"
-    }
 
     private val args: PostViewerFragmentArgs by navArgs()
     private val disposables = CompositeDisposable()
@@ -57,7 +53,6 @@ class PostViewerFragment : Fragment() {
     private lateinit var viewModel: PostViewerViewModel
     private var previousFragmentName: String? = null
     private lateinit var delayedEnterTransitionTriggerDisposable: Disposable
-    private var currentPosition = 0     // This gets recovered when the Fragment gets restored from the BackStack
 
     init {
         logcat { "init $this" }
@@ -65,11 +60,6 @@ class PostViewerFragment : Fragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         logcat { "onCreate" }
-
-        currentPosition = savedInstanceState?.getInt(SAVED_STATE_POSITION_KEY)
-            ?: if (args.position != -1) args.position else 0
-
-        logcat { "currentPosition = $currentPosition" }
 
         setUpViewModel()
 
@@ -111,9 +101,8 @@ class PostViewerFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         logcat { "onViewCreated" }
 
-        val isSlideShowOngoing = savedInstanceState?.getBoolean(SAVED_STATE_SLIDESHOW_KEY) ?: false
         previousFragmentName = findNavController().previousBackStackEntry?.destination?.displayName
-        setUpViewPager(isSlideShowOngoing)
+        setUpViewPager()
     }
 
     override fun onStart() {
@@ -130,9 +119,9 @@ class PostViewerFragment : Fragment() {
             return
         }
 
-        val pagingDataObservableProviderName = args.pagingDataObservableProvider
-        val pagingDataObservableProvider: Lazy<PostPagingDataObservableProvider> =
-            when (pagingDataObservableProviderName) {
+        val originViewModelName = args.pagingDataObservableProvider
+        val originViewModel: Lazy<BaseListingFragmentViewModel> =
+            when (originViewModelName) {
                 HomeViewModel::class.simpleName -> {
                     logcat { "The pagingDataObservableProvider is a HomeViewModel instance." }
                     sharedViewModel<HomeViewModel>()
@@ -146,16 +135,16 @@ class PostViewerFragment : Fragment() {
                     sharedViewModel<FollowsViewModel>()
                 }
                 else -> {
-                    logcat(LogPriority.ERROR) { "Provided class $pagingDataObservableProviderName is not a recognized pagingDataObservableProvider." }
+                    logcat(LogPriority.ERROR) { "Provided class $originViewModelName is not a recognized pagingDataObservableProvider." }
                     throw IllegalArgumentException()
                 }
             }
-        viewModel = viewModel<PostViewerViewModel> { parametersOf(pagingDataObservableProvider.value) }.value
+        viewModel = viewModel<PostViewerViewModel> { parametersOf(originViewModel.value) }.value
 
         logcat { "viewModel.pagingDataObservable = ${viewModel.pagingDataObservable}" }
     }
 
-    private fun setUpViewPager(isSlideShowOnGoing: Boolean = false) {
+    private fun setUpViewPager() {
         logcat { "setUpViewPager" }
 
 //        val display = requireActivity().windowManager.defaultDisplay
@@ -168,18 +157,17 @@ class PostViewerFragment : Fragment() {
 //            logcat(LogPriority.INFO) { "viewPager after width = ${layoutParams.width}, viewPager height = ${layoutParams.height}" }
 //        }
 
-        val onPositionChangedCallback = { nextPosition: Int ->
-            logcat { "onPositionChangedCallback: nextPosition = $nextPosition" }
-            binding.viewPagerPostViewer.customSetCurrentItem(nextPosition, ANIMATION_DURATION_SHORT)
-            currentPosition = nextPosition
-            // TODO: Make Observable
-        }
+        viewModel.pagerPositionBehaviorSubject
+            .observeOn(AndroidSchedulers.mainThread())
+            .skip(1)    // Skip the initial value, we'll use the regular setCurrentItem() instead.
+            .subscribe { newPosition ->
+                binding.viewPagerPostViewer.customSetCurrentItem(newPosition, ANIMATION_DURATION_SHORT)
+            }
+            .addTo(disposables)
 
         val postViewerAdapter = PostViewerAdapter(
             requireContext(),
             viewModel,
-            onPositionChangedCallback,
-            isSlideShowOnGoing,
             shouldShowNavigationToFollowsOption = previousFragmentName?.contains("follows", ignoreCase = true)?.not() ?: true
         )
 
@@ -205,7 +193,7 @@ class PostViewerFragment : Fragment() {
                         .take(1)
                         .onEach {
                             logcat { "postViewerAdapter.loadStateFlow.onEach: loadState = NotLoading" }
-                            viewPagerPostViewer.setCurrentItem(currentPosition, false)
+                            viewPagerPostViewer.setCurrentItem(viewModel.pagerPositionBehaviorSubject.value!!, false)
                             viewPagerPostViewer.isVisible = true
                         }
                         .launchIn(MainScope())
@@ -215,7 +203,7 @@ class PostViewerFragment : Fragment() {
             postViewerAdapter.readyToBeDrawnSubject
                 .observeOn(AndroidSchedulers.mainThread())
                 .filter { this@PostViewerFragment.isVisible }
-                .filter { it == (currentPosition) }
+                .filter { it == (viewModel.pagerPositionBehaviorSubject.value!!) }
                 .take(1)
                 .doOnNext { logcat { "postViewerAdapter.readyToBeDrawnSubject.onNext: position = $it" } }
                 .subscribe {
@@ -240,7 +228,8 @@ class PostViewerFragment : Fragment() {
             // Stops the user from clicking on anything while the transition takes place.
             (binding.viewPagerPostViewer.adapter as PostViewerAdapter).disposables.dispose()
 
-            val visibleViewHolder = (binding.viewPagerPostViewer.adapter as PostViewerAdapter).getViewHolderForPosition(currentPosition)
+            val visibleViewHolder = (binding.viewPagerPostViewer.adapter as PostViewerAdapter)
+                .getViewHolderForPosition(viewModel.pagerPositionBehaviorSubject.value!!)
             val imageTransitionName =
                 visibleViewHolder
                     ?.binding
@@ -249,7 +238,7 @@ class PostViewerFragment : Fragment() {
             logcat(LogPriority.INFO) { "Transition name = $imageTransitionName" }
             imageTransitionName?.let { (sharedElementReturnTransition as Transition).addTarget(it) }
 
-            findNavController().previousBackStackEntry?.savedStateHandle?.set(SAVED_STATE_POSITION_KEY, currentPosition)
+            viewModel.originViewModel.rvPosition = viewModel.pagerPositionBehaviorSubject.value!!
             findNavController().popBackStack()
         }
     }
@@ -296,21 +285,6 @@ class PostViewerFragment : Fragment() {
         disposables.dispose()
 
         super.onDestroy()
-    }
-
-    override fun onSaveInstanceState(outState: Bundle) {
-        logcat { "onSaveInstanceState" }
-        outState.putInt(SAVED_STATE_POSITION_KEY, currentPosition)
-        _binding?.let { binding ->
-            outState.putBoolean(
-                SAVED_STATE_SLIDESHOW_KEY,
-                (binding.viewPagerPostViewer.adapter as PostViewerAdapter).slideShowOnOffSubject.value ?: return
-            )
-        }
-//        viewModel.savedPosition = currentPosition
-//        viewModel.savedSlideshowStateIsOn = (binding.viewPagerPostViewer.adapter as PostViewerAdapter).slideShowOnOffSubject.value ?: return
-
-        super.onSaveInstanceState(outState)
     }
 
 

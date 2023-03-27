@@ -18,8 +18,9 @@ import com.b4kancs.rxredditdemo.data.database.PostFavoritesDbEntry
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.repository.FavoritePostsRepository
 import com.b4kancs.rxredditdemo.repository.PostsPropertiesRepository
-import com.b4kancs.rxredditdemo.ui.shared.PostPagingDataObservableProvider
+import com.b4kancs.rxredditdemo.ui.shared.BaseListingFragmentViewModel
 import com.b4kancs.rxredditdemo.utils.fromCompletable
+import com.b4kancs.rxredditdemo.utils.toV3Observable
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
@@ -32,6 +33,7 @@ import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.addTo
 import io.reactivex.rxjava3.kotlin.subscribeBy
 import io.reactivex.rxjava3.schedulers.Schedulers
+import io.reactivex.rxjava3.subjects.BehaviorSubject
 import io.reactivex.rxjava3.subjects.PublishSubject
 import logcat.LogPriority
 import logcat.logcat
@@ -40,7 +42,7 @@ import java.io.FileOutputStream
 import java.io.OutputStream
 
 class PostViewerViewModel(
-    pagingDataObservableProvider: PostPagingDataObservableProvider,
+    val originViewModel: BaseListingFragmentViewModel,
     private val favoritePostsRepository: FavoritePostsRepository,
     private val rxSharedPreferences: RxSharedPreferences,
     private val postsPropertiesRepository: PostsPropertiesRepository
@@ -50,37 +52,49 @@ class PostViewerViewModel(
         private const val SLIDESHOW_INTERVAL_KEY = "slideshow_interval"
     }
 
-    val pagingDataObservable = pagingDataObservableProvider.getCachedPagingObservable()
+    private val disposables = CompositeDisposable()
 
+    val pagingDataObservable = originViewModel.getCachedPagingObservable()
     val navigateToFollowsActionTriggerSubject =
     // We need the username for FollowsFragment as well as a Subject that will pass back a
         // Completable which will signal the success of the navigation.
         PublishSubject.create<Pair<String, PublishSubject<Completable>>>()
-
+    val pagerPositionBehaviorSubject: BehaviorSubject<Int> = BehaviorSubject.createDefault(originViewModel.rvPosition)
+    val slideShowOnOffSubject: BehaviorSubject<Boolean> = BehaviorSubject.create()
     var slideshowIntervalInSeconds: Long = 5L
         set(value) {
             field = value
             rxSharedPreferences.getLong(SLIDESHOW_INTERVAL_KEY).set(value)
         }
-
     var hudTimeOutInSeconds = Int.MAX_VALUE
-    var shouldBlurNsfwPosts = true
-    private val disposables = CompositeDisposable()
+    private var shouldBlurNsfwPosts: Boolean = true
 
     init {
-        logcat { "The paging data provider is $pagingDataObservableProvider" }
+        logcat { "The paging data provider is $originViewModel" }
 
         slideshowIntervalInSeconds = rxSharedPreferences.getLong(SLIDESHOW_INTERVAL_KEY, 5L).get()
 
-        hudTimeOutInSeconds =
-            rxSharedPreferences.getString("pref_list_hud").get().let { value ->
-                when (value) {
-                    "stay_on" -> Int.MAX_VALUE
-                    else -> value.toInt()
-                }
-            }
+        pagerPositionBehaviorSubject
+            .doOnNext { logcat { "pagerPositionBehaviorSubject.onNext: $it" } }
+            .subscribe { originViewModel.rvPosition = it }
+            .addTo(disposables)
 
-        shouldBlurNsfwPosts = rxSharedPreferences.getBoolean("pref_switch_unblur_nsfw").get()
+        rxSharedPreferences.getBoolean("pref_switch_unblur_nsfw")
+            .asObservable()
+            .toV3Observable()
+            .subscribe { shouldBlurNsfwPosts = !it }
+            .addTo(disposables)
+
+        rxSharedPreferences.getString("pref_list_hud")
+            .asObservable()
+            .toV3Observable()
+            .subscribe { value ->
+                hudTimeOutInSeconds =
+                    when (value) {
+                        "stay_on" -> Int.MAX_VALUE
+                        else -> value.toInt()
+                    }
+            }.addTo(disposables)
     }
 
     fun getFavoritePosts(): Single<List<PostFavoritesDbEntry>> =

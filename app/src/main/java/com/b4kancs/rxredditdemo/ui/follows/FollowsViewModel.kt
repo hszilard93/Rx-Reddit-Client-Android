@@ -66,6 +66,7 @@ class FollowsViewModel(
             .subscribe { feed ->
                 logcat(LogPriority.INFO) { "feedChangedBehaviorSubject.onNext feed = ${feed.name}" }
                 followsRepository.followsChangedSubject.onNext(Unit)
+                rvPosition = 0
             }
             .addTo(disposables)
 

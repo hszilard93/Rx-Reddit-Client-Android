@@ -41,7 +41,6 @@ class HomeFragment : BaseListingFragment() {
     override val viewModel: HomeViewModel by sharedViewModel()
     private var _binding: FragmentHomeBinding? = null
     private val binding get() = _binding!!
-    private var justChangedSubreddits = false
 
     override fun setUpBinding(inflater: LayoutInflater, container: ViewGroup?): ViewBinding {
         logcat { "setUpBinding" }
@@ -54,11 +53,8 @@ class HomeFragment : BaseListingFragment() {
 
         if (viewModel.isAppJustStarted) {
             logcat(LogPriority.INFO) { "Condition: the app just started." }
-            positionToGoTo = 0
             viewModel.isAppJustStarted = false
         }
-        else if (justChangedSubreddits) positionToGoTo = 0
-        logcat(LogPriority.INFO) { "positionToGoTo = $positionToGoTo" }
 
         setUpBehaviourDisposables()
     }
@@ -93,11 +89,7 @@ class HomeFragment : BaseListingFragment() {
             .doOnNext { logcat(LogPriority.INFO) { "selectedSubredditChangedSubject.doOnNext: ${it.name}" } }
             .subscribe { _ ->
                 viewModel.uiStateBehaviorSubject.onNext(UiState.LOADING)
-                positionToGoTo = 0
-                justChangedSubreddits = true
-
-                val adapter = binding.rvHomePosts.adapter as PostsVerticalRvAdapter
-                adapter.refresh()
+                (binding.rvHomePosts.adapter as PostsVerticalRvAdapter).refresh()
             }
             .addTo(disposables)
     }
@@ -212,10 +204,8 @@ class HomeFragment : BaseListingFragment() {
             .onEach {
                 logcat(LogPriority.INFO) { "postsHomeAdapter.loadStateFlow.onEach loadStates.refresh == LoadState.NotLoading" }
                 if (adapter.itemCount > 1) {
-                    positionToGoTo?.let { pos ->
-                        logcat(LogPriority.INFO) { "Scrolling to position: $pos" }
-                        binding.rvHomePosts.scrollToPosition(pos)
-                    }
+                    logcat(LogPriority.INFO) { "Scrolling to position: ${viewModel.rvPosition}" }
+                    binding.rvHomePosts.scrollToPosition(viewModel.rvPosition)
                 }
                 else
                     viewModel.uiStateBehaviorSubject.onNext(UiState.NO_CONTENT)
@@ -227,8 +217,8 @@ class HomeFragment : BaseListingFragment() {
 
         val mergedCurrentSubUpdateObservable = Observable.merge(
             // We want to refresh the visibility of the menu item not only when the
-            viewModel.getSubredditsChangedSubject(),         // subreddit is changed, but also when there is a modification of the subreddits
-            viewModel.selectedSubredditReplayObservable, // (e.g. a sub is set as default, so the option should no longer be visible)
+            viewModel.getSubredditsChangedSubject(),        // subreddit is changed, but also when there is a modification of the subreddits
+            viewModel.selectedSubredditReplayObservable,    // (e.g. a sub is set as default, so the option should no longer be visible)
         )
             .subscribeOn(Schedulers.io())
             .map { viewModel.selectedSubredditReplayObservable.blockingLatest().first() }

@@ -33,9 +33,16 @@ abstract class BaseListingFragmentViewModel(
 
     val uiStateBehaviorSubject: BehaviorSubject<UiState> = BehaviorSubject.createDefault(UiState.LOADING)
     val disposables = CompositeDisposable()
-    private var _savedPosition: Int? = null
-    val savedPosition get() = _savedPosition
     var shouldBlurNsfwPosts = true
+    var rvPosition: Int = 0
+        get() {
+            logcat { "rvPosition.get" }
+            return field
+        }
+        set(value) {
+            logcat { "rvPosition.set: value = $value" }
+            field = value
+        }
 
     abstract val postsCachedPagingObservable: Observable<PagingData<Post>>
 
@@ -49,11 +56,6 @@ abstract class BaseListingFragmentViewModel(
     fun getFavoritePosts(): Single<List<PostFavoritesDbEntry>> {
         logcat { "getFavoritePosts" }
         return favoritePostsRepository.getAllFavoritePostsFromDb()
-    }
-
-    fun updateSavedPosition(newPos: Int) {
-        logcat { "updateSavedPosition: newPos = $newPos" }
-        _savedPosition = newPos
     }
 
     fun shouldBlurThisPost(post: Post): Boolean {

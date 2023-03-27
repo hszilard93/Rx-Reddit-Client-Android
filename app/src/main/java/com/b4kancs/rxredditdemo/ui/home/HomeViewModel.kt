@@ -51,7 +51,10 @@ class HomeViewModel(
         logcat { "init" }
         selectedSubredditReplayObservable.connect()
         selectedSubredditChangedPublishSubject
-            .subscribe { sub -> logcat(LogPriority.INFO) { "selectedSubredditChangedSubject.onNext: sub = ${sub.name}" } }
+            .subscribe { sub ->
+                logcat(LogPriority.INFO) { "selectedSubredditChangedSubject.onNext: sub = ${sub.name}" }
+                rvPosition = 0
+            }
             .addTo(disposables)
 
         subredditRepository.loadDefaultSubreddit()
