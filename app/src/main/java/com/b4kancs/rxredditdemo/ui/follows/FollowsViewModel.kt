@@ -45,15 +45,13 @@ class FollowsViewModel(
     val currentFeedBehaviorSubject: BehaviorSubject<UserFeed> = BehaviorSubject.create()
     val followsSearchResultsChangedSubject: PublishSubject<List<UserFeed>> = PublishSubject.create()
     val shouldAskNotificationPermissionPublishSubject: PublishSubject<Unit> = PublishSubject.create()
-    private var hasNotificationAccess: Boolean = false
+    private var hasNotificationAccess: Boolean? = null
         get() {
-            logcat { "hasNotificationAccess get()" }
-            // So that we don't always have to execute these calls once we have the permission.
-            return if (!field) {
+            if (field == null) {
+                logcat { "hasNotificationAccess get() calculation" }
                 field = notificationManager.checkHasNotificationPermission().blockingGet(true)
-                field
             }
-            else true
+            return field
         }
     val currentUserFeed: UserFeed
         get() = currentFeedBehaviorSubject
@@ -204,5 +202,5 @@ class FollowsViewModel(
         super.onCleared()
     }
 
-    fun checkIsNotificationPermissionDenied(): Boolean = hasNotificationAccess
+    fun checkIsNotificationPermissionDenied(): Boolean = hasNotificationAccess!!
 }

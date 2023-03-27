@@ -18,6 +18,7 @@ import com.b4kancs.rxredditdemo.ui.shared.PostsVerticalRvAdapter
 import com.b4kancs.rxredditdemo.ui.uiutils.SnackType
 import com.b4kancs.rxredditdemo.ui.uiutils.makeConfirmationDialog
 import com.b4kancs.rxredditdemo.ui.uiutils.makeSnackBar
+import com.b4kancs.rxredditdemo.utils.forwardLatestOnceTrue
 import com.jakewharton.rxbinding4.view.clicks
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Observable
@@ -47,9 +48,9 @@ class FavoritesFragment : BaseListingFragment() {
         logcat { "onCreateViewDoExtras" }
 
         viewModel.getFavoritePostsBehaviorSubject()
-            .observeOn(AndroidSchedulers.mainThread())
             .doOnNext { logcat { "favoritesViewModel.favoritePostsBehaviorSubject.onNext" } }
-            .filter { _binding != null }
+            .forwardLatestOnceTrue { _binding != null }
+            .observeOn(AndroidSchedulers.mainThread())
             .distinctUntilChanged()
             .subscribe { postDbEntries ->
                 // TODO check this over
@@ -75,8 +76,8 @@ class FavoritesFragment : BaseListingFragment() {
     override fun setUpUiStatesBehaviour() {
         logcat { "setUpUiStatesBehaviour" }
         viewModel.uiStateBehaviorSubject
+            .forwardLatestOnceTrue { _binding != null }
             .observeOn(AndroidSchedulers.mainThread())
-            .filter { _binding != null }
             .distinctUntilChanged()
             .doOnNext { logcat { "viewModel.uiStateBehaviorSubject.onNext" } }
             .subscribe { uiState ->

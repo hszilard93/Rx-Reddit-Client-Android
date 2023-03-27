@@ -18,6 +18,7 @@ import com.b4kancs.rxredditdemo.ui.shared.BaseListingFragmentViewModel.UiState
 import com.b4kancs.rxredditdemo.ui.shared.PostsVerticalRvAdapter
 import com.b4kancs.rxredditdemo.ui.uiutils.SnackType
 import com.b4kancs.rxredditdemo.ui.uiutils.makeSnackBar
+import com.b4kancs.rxredditdemo.utils.forwardLatestOnceTrue
 import com.jakewharton.rxbinding4.view.clicks
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Maybe
@@ -97,8 +98,8 @@ class HomeFragment : BaseListingFragment() {
     override fun setUpUiStatesBehaviour() {
         logcat { "setUpUiStatesBehaviour" }
         viewModel.uiStateBehaviorSubject
+            .forwardLatestOnceTrue { _binding != null }
             .observeOn(AndroidSchedulers.mainThread())
-            .filter { _binding != null }
             .distinctUntilChanged()
             .doOnNext { logcat { "viewModel.uiStateBehaviorSubject.onNext" } }
             .subscribe { uiState ->
@@ -106,23 +107,9 @@ class HomeFragment : BaseListingFragment() {
                 with(binding) {
                     when (uiState) {
                         UiState.NORMAL -> {
-                            /* Not sure if I need this part anymore. Let's leave it here for now. */
-                            // This check makes it so that when returning from a PVF
-//                            if (!rvHomePosts.isVisible) {
-//                                rvHomePosts.visibility = View.INVISIBLE
-                            // This timer prevents the RV flickering when changing subs.
-//                                Observable.timer(
-//                                    FLICKERING_DELAY,
-//                                    TimeUnit.MILLISECONDS,
-//                                    AndroidSchedulers.mainThread()
-//                                )
-//                                    .subscribe {
                             rvHomePosts.isVisible = true
                             linearLayoutHomeErrorContainer.isVisible = false
                             progressBarHomeLarge.isVisible = false
-//                                    }
-//                                    .addTo(disposables)
-//                            }
                         }
                         UiState.LOADING -> {
                             rvHomePosts.isVisible = false

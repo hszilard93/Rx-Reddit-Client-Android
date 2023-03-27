@@ -22,6 +22,7 @@ import com.b4kancs.rxredditdemo.ui.shared.BaseListingFragmentViewModel.UiState
 import com.b4kancs.rxredditdemo.ui.shared.PostsVerticalRvAdapter
 import com.b4kancs.rxredditdemo.ui.uiutils.SnackType
 import com.b4kancs.rxredditdemo.ui.uiutils.makeSnackBar
+import com.b4kancs.rxredditdemo.utils.forwardLatestOnceTrue
 import com.jakewharton.rxbinding4.view.clicks
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Observable
@@ -128,8 +129,8 @@ class FollowsFragment : BaseListingFragment() {
         // This subscription is for refreshing the feed. Does NOT need to immediately execute upon subscription,
         // hence the distinct until changed.
         viewModel.currentFeedBehaviorSubject
+            .forwardLatestOnceTrue { _binding != null }
             .observeOn(AndroidSchedulers.mainThread())
-            .filter { _binding != null }
             .distinctUntilChanged { feed1, feed2 ->
                 // We compare by name because we don't want to reload on status change, for example.
                 feed1.name == feed2.name
@@ -159,9 +160,9 @@ class FollowsFragment : BaseListingFragment() {
     override fun setUpUiStatesBehaviour() {
         logcat { "setUpUiStatesBehaviour" }
         viewModel.uiStateBehaviorSubject
-            .observeOn(AndroidSchedulers.mainThread())
-            .filter { _binding != null }
             .doOnNext { logcat { "viewModel.uiStateBehaviorSubject.onNext" } }
+            .forwardLatestOnceTrue { _binding != null }
+            .observeOn(AndroidSchedulers.mainThread())
             .subscribe { uiState ->
                 with(binding) {
                     when (uiState) {

@@ -17,7 +17,9 @@ import io.reactivex.Observable as V1Observable
 fun <T : Any> V1Observable<T>.toV3Observable(): io.reactivex.rxjava3.core.Observable<T> =
     RxJavaBridge.toV3Observable(this)
 
+
 fun Boolean.toIntValue() = if (this) 1 else 0
+
 
 fun CompletableEmitter.fromCompletable(completable: Completable) =
     completable.subscribeBy(
@@ -25,14 +27,21 @@ fun CompletableEmitter.fromCompletable(completable: Completable) =
         onError = { e -> this.onError(e) }
     )
 
-// This extension function is used to forward the items of an Observable after a certain condition is met.
-fun <T : Any> Observable<T>.forwardOnceTrue(pollFrequencyInMillis: Long, predicate: () -> Boolean): Observable<T> =
+
+// This extension function is used to forward the items from an Observable after a certain condition is met,
+// starting from the latest item emitted before the condition was met.
+fun <T : Any> Observable<T>.forwardLatestOnceTrue(
+    pollFrequency: Long = 50L,
+    timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
+    predicate: () -> Boolean
+): Observable<T> =
     this.switchMap { item ->
-        Observable.interval(0, pollFrequencyInMillis, TimeUnit.MILLISECONDS)
+        Observable.interval(0, pollFrequency, timeUnit)
             .takeUntil { predicate() }
             .filter { predicate() }
             .map { item }
     }
+
 
 fun executeTimedDisposable(
     delayInMillis: Long,
@@ -47,6 +56,7 @@ fun executeTimedDisposable(
             disposable.dispose()
         }.addTo(disposable)
 }
+
 
 // We have to use reflection to get access to the SharedPreferences object being wrapped by the RxSharedPreferences instance,
 // since its methods are not accessible through the Rx wrapper.

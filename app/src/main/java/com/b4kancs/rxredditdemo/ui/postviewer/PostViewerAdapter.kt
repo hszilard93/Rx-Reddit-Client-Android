@@ -26,7 +26,7 @@ import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.ui.PostComparator
 import com.b4kancs.rxredditdemo.ui.uiutils.*
 import com.b4kancs.rxredditdemo.utils.executeTimedDisposable
-import com.b4kancs.rxredditdemo.utils.forwardOnceTrue
+import com.b4kancs.rxredditdemo.utils.forwardLatestOnceTrue
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.DataSource
 import com.bumptech.glide.load.engine.GlideException
@@ -84,7 +84,7 @@ class PostViewerAdapter(
 
         // Set up slideshow behaviour as well as continue slideshow after configuration change
         viewModel.slideShowOnOffSubject
-            .forwardOnceTrue(50L) { viewHolderMap.isNotEmpty() }
+            .forwardLatestOnceTrue(50L, TimeUnit.MILLISECONDS) { viewHolderMap.isNotEmpty() }
             .subscribeOn(Schedulers.computation())
             .observeOn(AndroidSchedulers.mainThread())
             .doOnNext { logcat(LogPriority.INFO) { "viewModel.slideShowOnOffSubject.onNext: $it" } }
