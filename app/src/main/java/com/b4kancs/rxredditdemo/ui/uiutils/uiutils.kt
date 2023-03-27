@@ -54,11 +54,11 @@ fun pixelToDp(px: Int, context: Context): Int = (px / context.resources.displayM
 fun Int.pxToDp(context: Context): Int = pixelToDp(this, context)
 
 fun animateViewHeightChange(
-        view: View,
-        oldHeight: Int,
-        newHeight: Int,
-        duration: Long,
-        endWithThis: () -> Unit = {}
+    view: View,
+    oldHeight: Int,
+    newHeight: Int,
+    duration: Long,
+    endWithThis: () -> Unit = {}
 ) {
     val slideAnimator = ValueAnimator
         .ofInt(oldHeight, newHeight)
@@ -112,12 +112,14 @@ fun hideKeyboard(view: View) {
 enum class SnackType { ERROR, SUCCESS }
 
 fun makeSnackBar(
-        view: View,
-        stringId: Int?,
-        message: String = "",
-        type: SnackType = SnackType.SUCCESS,
-        length: Int = Snackbar.LENGTH_SHORT
+    view: View,
+    stringId: Int? = null,
+    arguments: List<String>? = null,
+    message: String = "",
+    type: SnackType = SnackType.SUCCESS,
+    length: Int = Snackbar.LENGTH_SHORT
 ): Snackbar {
+    // Determine the color of the snackbar based on its type
     val typedValue = TypedValue()
     val theme = view.context.theme
     if (type == SnackType.SUCCESS) {
@@ -135,20 +137,25 @@ fun makeSnackBar(
     }
     val textColor = typedValue.data
 
-    val snackBar =
-        stringId?.let { Snackbar.make(view, stringId, length) } ?: Snackbar.make(view, message, length)
+    // Resolve the message based on the arguments passed.
+    val snackMessage =
+        if (stringId != null)
+            view.context.getString(stringId, *arguments?.toTypedArray() ?: emptyArray<String>())
+        else
+            message
 
-    return snackBar
+    return Snackbar
+        .make(view, snackMessage, length)
         .setBackgroundTint(backgroundColor)
         .setTextColor(textColor)
         .setTextMaxLines(10)
 }
 
 fun makeConfirmationDialog(
-        title: String,
-        message: String,
-        activity: Activity,
-        positiveAction: () -> Unit
+    title: String,
+    message: String,
+    activity: Activity,
+    positiveAction: () -> Unit
 ): AlertDialog {
     val builder = AlertDialog.Builder(activity)
     return builder

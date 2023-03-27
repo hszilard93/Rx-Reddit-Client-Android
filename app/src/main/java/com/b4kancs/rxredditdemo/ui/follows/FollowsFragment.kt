@@ -310,14 +310,17 @@ class FollowsFragment : BaseListingFragment() {
                                 .observeOn(AndroidSchedulers.mainThread())
                                 .subscribeBy(
                                     onComplete = {
-                                        makeSnackBar(binding.root, R.string.common_message_done).show()
+                                        makeSnackBar(
+                                            view = binding.root,
+                                            stringId = R.string.follows_snack_added,
+                                            arguments = listOf(currentFeed.name)
+                                        ).show()
                                     },
                                     onError = { _ ->
                                         makeSnackBar(
-                                            binding.root,
-                                            null,
-                                            "Could not perform action :(",
-                                            SnackType.ERROR
+                                            view = binding.root,
+                                            stringId = R.string.common_message_could_not_perform,
+                                            type = SnackType.ERROR
                                         ).show()
                                     }
                                 ).addTo(transientDisposables)
@@ -340,12 +343,16 @@ class FollowsFragment : BaseListingFragment() {
                                 .observeOn(AndroidSchedulers.mainThread())
                                 .subscribeBy(
                                     onComplete = {
-                                        makeSnackBar(binding.root, null, "${currentFeed.name} has been deleted!").show()
+                                        makeSnackBar(
+                                            view = binding.root,
+                                            stringId = R.string.follows_snack_deleted,
+                                            arguments = listOf(currentFeed.name)
+                                        ).show()
                                     },
                                     onError = { _ ->
                                         makeSnackBar(
-                                            binding.root,
-                                            R.string.common_message_could_not_perform,
+                                            view = binding.root,
+                                            stringId = R.string.common_message_could_not_perform,
                                             type = SnackType.ERROR
                                         ).show()
                                     }
@@ -369,12 +376,16 @@ class FollowsFragment : BaseListingFragment() {
                                 .observeOn(AndroidSchedulers.mainThread())
                                 .subscribeBy(
                                     onComplete = {
-                                        makeSnackBar(binding.root, R.string.follows_snack_subscribed).show()
+                                        makeSnackBar(
+                                            view = binding.root,
+                                            stringId = R.string.follows_snack_subscribed,
+                                            arguments = listOf(currentFeed.name)
+                                        ).show()
                                     },
                                     onError = { _ ->
                                         makeSnackBar(
-                                            binding.root,
-                                            R.string.common_message_could_not_perform,
+                                            view = binding.root,
+                                            stringId = R.string.common_message_could_not_perform,
                                             type = SnackType.ERROR
                                         ).show()
                                     }
@@ -397,7 +408,11 @@ class FollowsFragment : BaseListingFragment() {
                                 .observeOn(AndroidSchedulers.mainThread())
                                 .subscribeBy(
                                     onComplete = {
-                                        makeSnackBar(binding.root, R.string.follows_snack_unsubscribed).show()
+                                        makeSnackBar(
+                                            view = binding.root,
+                                            stringId = R.string.follows_snack_unsubscribed,
+                                            arguments = listOf(currentFeed.name)
+                                        ).show()
                                     },
                                     onError = { _ ->
                                         makeSnackBar(

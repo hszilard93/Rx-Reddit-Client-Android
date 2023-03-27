@@ -77,7 +77,11 @@ class SubredditsDrawerSearchListAdapter(
                             notifyDataSetChanged()
                         },
                         onError = {
-                            makeSnackBar(parent, null, "Action error! :(", SnackType.ERROR).show()
+                            makeSnackBar(
+                                view = parent,
+                                stringId = R.string.common_error_something_went_wrong,
+                                type = SnackType.ERROR
+                            ).show()
                         }
                     )
                     .addTo(disposables)

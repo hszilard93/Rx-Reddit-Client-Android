@@ -31,7 +31,6 @@ class FollowsDrawerListAdapter(
 
     private var disposables = CompositeDisposable()
     private var follows: List<UserFeed> = emptyList()
-    private val yourFeedsHeaderPosition = 1
 
     private val userFeedComparator = Comparator<UserFeed> { a, b ->
         if (a.status == b.status) return@Comparator a.name.compareTo(b.name)
@@ -176,8 +175,11 @@ class FollowsDrawerListAdapter(
                                         .observeOn(AndroidSchedulers.mainThread())
                                         .subscribeBy(
                                             onComplete = {
-                                                val message = c.getString(R.string.follows_snack_deleted, feed.name)
-                                                makeSnackBar(parent, null, message).show()
+                                                makeSnackBar(
+                                                    view = parent,
+                                                    stringId = R.string.follows_snack_deleted,
+                                                    arguments = listOf(feed.name)
+                                                ).show()
                                                 popupWindow.dismiss()
                                             },
                                             onError = { _ ->
@@ -201,8 +203,11 @@ class FollowsDrawerListAdapter(
                                         .observeOn(AndroidSchedulers.mainThread())
                                         .subscribeBy(
                                             onComplete = {
-                                                val message = c.getString(R.string.follows_snack_subscribed, feed.name)
-                                                makeSnackBar(parent, null, message).show()
+                                                makeSnackBar(
+                                                    view = parent,
+                                                    stringId = R.string.follows_snack_subscribed,
+                                                    arguments = listOf(feed.name)
+                                                ).show()
                                                 popupWindow.dismiss()
                                             },
                                             onError = { _ ->
@@ -226,14 +231,17 @@ class FollowsDrawerListAdapter(
                                         .observeOn(AndroidSchedulers.mainThread())
                                         .subscribeBy(
                                             onComplete = {
-                                                val message = c.getString(R.string.follows_snack_unsubscribed, feed.name)
-                                                makeSnackBar(parent, null, message).show()
+                                                makeSnackBar(
+                                                    view = parent,
+                                                    stringId = R.string.follows_snack_unsubscribed,
+                                                    arguments = listOf(feed.name)
+                                                ).show()
                                                 popupWindow.dismiss()
                                             },
                                             onError = { _ ->
                                                 makeSnackBar(
-                                                    parent,
-                                                    R.string.common_message_could_not_perform,
+                                                    view = parent,
+                                                    stringId = R.string.common_message_could_not_perform,
                                                     type = SnackType.ERROR
                                                 ).show()
                                                 popupWindow.dismiss()

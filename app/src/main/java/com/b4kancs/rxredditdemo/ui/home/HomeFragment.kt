@@ -239,9 +239,9 @@ class HomeFragment : BaseListingFragment() {
                                 .subscribeBy(
                                     onComplete = {
                                         makeSnackBar(
-                                            binding.root,
-                                            null,
-                                            "${currentSub.address} is set as the default subreddit!"
+                                            view = binding.root,
+                                            stringId = R.string.home_snack_sub_set_as_default,
+                                            arguments = listOf(currentSub.address)
                                         ).show()
                                     },
                                     onError = {
@@ -276,7 +276,7 @@ class HomeFragment : BaseListingFragment() {
                                         .observeOn(AndroidSchedulers.mainThread())
                                         .subscribeBy(
                                             onSuccess = {
-                                                makeSnackBar(binding.root, null, "Done!").show()
+                                                makeSnackBar(binding.root, R.string.common_message_done).show()
                                             },
                                             onError = {
                                                 makeSnackBar(
@@ -312,8 +312,11 @@ class HomeFragment : BaseListingFragment() {
                                         .observeOn(AndroidSchedulers.mainThread())
                                         .subscribeBy(
                                             onComplete = {
-                                                makeSnackBar(binding.root, null, "${updatedSub.address} has been deleted!")
-                                                    .show()
+                                                makeSnackBar(
+                                                    view = binding.root,
+                                                    stringId = R.string.home_snack_sub_been_deleted,
+                                                    arguments = listOf(updatedSub.address)
+                                                ).show()
                                             },
                                             onError = {
                                                 makeSnackBar(
@@ -385,14 +388,13 @@ class HomeFragment : BaseListingFragment() {
                                         .observeOn(AndroidSchedulers.mainThread())
                                         .subscribeBy(
                                             onSuccess = {
-                                                makeSnackBar(binding.root, null, "Done!").show()
+                                                makeSnackBar(binding.root, R.string.common_message_done).show()
                                             },
                                             onError = {
                                                 makeSnackBar(
-                                                    binding.root,
-                                                    null,
-                                                    "Could not perform action :(",
-                                                    SnackType.ERROR
+                                                    view = binding.root,
+                                                    stringId = R.string.common_message_could_not_perform,
+                                                    type = SnackType.ERROR
                                                 ).show()
                                             }
                                         )
@@ -423,14 +425,13 @@ class HomeFragment : BaseListingFragment() {
                                         .observeOn(AndroidSchedulers.mainThread())
                                         .subscribeBy(
                                             onSuccess = {
-                                                makeSnackBar(binding.root, null, "Done!").show()
+                                                makeSnackBar(binding.root, R.string.common_message_done).show()
                                             },
                                             onError = {
                                                 makeSnackBar(
-                                                    binding.root,
-                                                    null,
-                                                    "Could not perform action :(",
-                                                    SnackType.ERROR
+                                                    view = binding.root,
+                                                    stringId = R.string.common_message_could_not_perform,
+                                                    type = SnackType.ERROR
                                                 ).show()
                                             }
                                         )

@@ -57,6 +57,17 @@
     <string name="follows_no_posts_aggregate">You aren\'t following any users yet, so there is nothing to show here. Here\'s a cat instead!</string>
     <string name="follows_default_feed_name">Aggregate feed</string>
     <string name="follows_title_feed_name_template">/u/%1$s\'s posts</string>
+    <string name="favorites_snack_deleted_all">Favorites deleted!</string>
+    <string name="home_snack_sub_set_as_default">%1$s is set as the default subreddit!</string>
+    <string name="home_snack_sub_cant_be_set_as_default">Uh-oh! The sub couldn\'t be set as the default right now:(</string>
+    <string name="home_snack_sub_been_deleted">%1$s has been deleted!</string>
+    <string name="home_snack_sub_cant_be_deleted">Uh-oh! The sub couldn\'t be deleted right now :/</string>
+    <string name="pvf_snack_favorited">Post favorited!</string>
+    <string name="pvf_snack_favorite_failed">Failed to favorite post :(</string>
+    <string name="pvf_snack_unfavorited">Post no longer in Favorites!</string>
+    <string name="pvf_snack_unfavorite_failed">Failed to remove post from Favorites :(</string>
+    <string name="pvf_snack_picture_saved">Saved to Pictures!</string>
+    <string name="pvf_snack_backround_working_on_it">Working on it…</string>
     <string name="preference_category_generic_title">Generic preferences</string>
     <string name="preference_switch_unblur_nsfw_title">Don\'t blur NSFW posts</string>
     <string name="preference_switch_unblur_nsfw_summary">Toggle this if you want to have all NSFW content shown immediately.</string>

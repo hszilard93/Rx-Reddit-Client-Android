@@ -165,7 +165,11 @@ class SubredditsDrawerListAdapter(
             .subscribe {
                 viewModel.changeSubredditStatusByActionLogic(sub)
                     .doOnError {
-                        makeSnackBar(parent, null, "Uh oh, something went wrong :(", SnackType.ERROR).show()
+                        makeSnackBar(
+                            view = parent,
+                            stringId = R.string.common_error_something_went_wrong,
+                            type = SnackType.ERROR
+                        ).show()
                     }
                     .subscribe()
                     .addTo(disposables)
@@ -200,7 +204,11 @@ class SubredditsDrawerListAdapter(
                                         popupWindow.dismiss()
                                     },
                                     onError = {
-                                        makeSnackBar(parent, null, "Uh oh, something went wrong :(", SnackType.ERROR).show()
+                                        makeSnackBar(
+                                            view = parent,
+                                            stringId = R.string.common_error_something_went_wrong,
+                                            type = SnackType.ERROR
+                                        ).show()
                                     }
                                 ).addTo(disposables)
                         }.addTo(disposables)
@@ -218,15 +226,17 @@ class SubredditsDrawerListAdapter(
                                 .observeOn(AndroidSchedulers.mainThread())
                                 .subscribeBy(
                                     onComplete = {
-                                        makeSnackBar(parent, null, "${sub.address} has been deleted!").show()
+                                        makeSnackBar(
+                                            view = parent,
+                                            stringId = R.string.home_snack_sub_been_deleted
+                                        ).show()
                                         popupWindow.dismiss()
                                     },
                                     onError = {
                                         makeSnackBar(
-                                            parent,
-                                            null,
-                                            "Error: ${sub.address} could not be deleted :(",
-                                            SnackType.ERROR
+                                            view = parent,
+                                            stringId = R.string.home_snack_sub_cant_be_deleted,
+                                            type = SnackType.ERROR
                                         ).show()
                                     }
                                 )
@@ -245,15 +255,18 @@ class SubredditsDrawerListAdapter(
                                 .observeOn(AndroidSchedulers.mainThread())
                                 .subscribeBy(
                                     onComplete = {
-                                        makeSnackBar(parent, null, "${sub.address} is set as the default subreddit!").show()
+                                        makeSnackBar(
+                                            view = parent,
+                                            stringId = R.string.home_snack_sub_set_as_default,
+                                            arguments = listOf(sub.name)
+                                        ).show()
                                         popupWindow.dismiss()
                                     },
                                     onError = {
                                         makeSnackBar(
-                                            parent,
-                                            null,
-                                            "Error: ${sub.address} could not be set as the default subreddit :(",
-                                            SnackType.ERROR
+                                            view = parent,
+                                            stringId = R.string.home_snack_sub_cant_be_set_as_default,
+                                            type = SnackType.ERROR
                                         ).show()
                                     }
                                 ).addTo(disposables)

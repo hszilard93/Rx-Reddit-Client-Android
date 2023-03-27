@@ -597,14 +597,19 @@ class PostViewerAdapter(
                     .subscribeBy(
                         onComplete = {
                             logcat(LogPriority.INFO) { "Post ${post.name} was favorited." }
-                            makeSnackBar(view = favView, stringId = null, message = "Post favorited!")
-                                .show()
+                            makeSnackBar(
+                                view = favView,
+                                stringId = R.string.pvf_snack_favorited
+                            ).show()
                             isFavorite = true
                         },
                         onError = {
                             logcat(LogPriority.ERROR) { "Could not favorite post ${post.name} !\tMessage: ${it.message}" }
-                            makeSnackBar(view = favView, stringId = null, message = "Failed to favorite post :(", type = SnackType.ERROR)
-                                .show()
+                            makeSnackBar(
+                                view = favView,
+                                stringId = R.string.pvf_snack_favorite_failed,
+                                type = SnackType.ERROR
+                            ).show()
                             favView.setImageResource(R.drawable.ic_baseline_favorite_border_60)
                         }
                     )
@@ -618,16 +623,17 @@ class PostViewerAdapter(
                     .subscribeBy(
                         onComplete = {
                             logcat(LogPriority.INFO) { "Post ${post.name} was deleted from favorites." }
-                            makeSnackBar(view = favView, stringId = null, message = "Post no longer in Favorites!")
-                                .show()
+                            makeSnackBar(
+                                view = favView,
+                                stringId = R.string.pvf_snack_unfavorited
+                            ).show()
                             isFavorite = false
                         },
                         onError = {
                             logcat(LogPriority.ERROR) { "Error deleting post ${post.name} from favorites!\tMessage: ${it.message}" }
                             makeSnackBar(
                                 view = favView,
-                                stringId = null,
-                                message = "Failed to remove post from favorites :(",
+                                stringId = R.string.pvf_snack_unfavorite_failed,
                                 type = SnackType.ERROR
                             ).show()
                             favView.setImageResource(R.drawable.ic_baseline_favorite_filled_60)
@@ -715,8 +721,7 @@ class PostViewerAdapter(
                                             onComplete = {
                                                 makeSnackBar(
                                                     view = optionsImageView,
-                                                    stringId = null,
-                                                    message = "Saved to Pictures!",
+                                                    stringId = R.string.pvf_snack_picture_saved,
                                                 ).show()
                                             },
                                             onError = {
@@ -740,8 +745,7 @@ class PostViewerAdapter(
                                     popupWindow.dismiss()
                                     val workingOnItSnackbar = makeSnackBar(
                                         view = optionsImageView,
-                                        stringId = null,
-                                        message = "Working on it...",
+                                        stringId = R.string.pvf_snack_backround_working_on_it,
                                         length = Snackbar.LENGTH_INDEFINITE
                                     )
                                     workingOnItSnackbar.show()

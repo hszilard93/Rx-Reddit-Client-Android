@@ -48,7 +48,7 @@ fun executeTimedDisposable(
         }.addTo(disposable)
 }
 
-// We have to use reflection to get access to the SharedPreferences object being wrapped the RxSharedPreferences instance,
+// We have to use reflection to get access to the SharedPreferences object being wrapped by the RxSharedPreferences instance,
 // since its methods are not accessible through the Rx wrapper.
 fun RxSharedPreferences.getPreference(): SharedPreferences {
     val field = RxSharedPreferences::class.java.getDeclaredField("preferences")

@@ -183,16 +183,14 @@ class FavoritesFragment : BaseListingFragment() {
                                         onComplete = {
                                             makeSnackBar(
                                                 binding.root,
-                                                null,
-                                                "Favorites deleted!"
+                                                R.string.favorites_snack_deleted_all
                                             ).show()
                                         },
                                         onError = {
                                             makeSnackBar(
-                                                binding.root,
-                                                null,
-                                                "Could not perform action :(",
-                                                SnackType.ERROR
+                                                view = binding.root,
+                                                stringId = R.string.common_message_could_not_perform,
+                                                type = SnackType.ERROR
                                             ).show()
                                         }
                                     ).addTo(transientDisposables)
