@@ -59,7 +59,7 @@ class PostViewerViewModel(
     // We need the username for FollowsFragment as well as a Subject that will pass back a
         // Completable which will signal the success of the navigation.
         PublishSubject.create<Pair<String, PublishSubject<Completable>>>()
-    val pagerPositionBehaviorSubject: BehaviorSubject<Int> = BehaviorSubject.createDefault(originViewModel.rvPosition)
+    val pagerPositionBehaviorSubject: BehaviorSubject<Int> = BehaviorSubject.createDefault(originViewModel.rvStoredPosition)
     val slideShowOnOffSubject: BehaviorSubject<Boolean> = BehaviorSubject.create()
     var slideshowIntervalInSeconds: Long = 5L
         set(value) {
@@ -76,7 +76,7 @@ class PostViewerViewModel(
 
         pagerPositionBehaviorSubject
             .doOnNext { logcat { "pagerPositionBehaviorSubject.onNext: $it" } }
-            .subscribe { originViewModel.rvPosition = it }
+            .subscribe { originViewModel.saveRvPosition(it) }
             .addTo(disposables)
 
         rxSharedPreferences.getBoolean("pref_switch_unblur_nsfw")

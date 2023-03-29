@@ -53,7 +53,7 @@ class HomeViewModel(
         selectedSubredditChangedPublishSubject
             .subscribe { sub ->
                 logcat(LogPriority.INFO) { "selectedSubredditChangedSubject.onNext: sub = ${sub.name}" }
-                rvPosition = 0
+                rvStoredPosition = 0
             }
             .addTo(disposables)
 

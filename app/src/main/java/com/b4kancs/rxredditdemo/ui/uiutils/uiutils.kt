@@ -15,7 +15,11 @@ import androidx.core.view.isVisible
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.model.Post
 import com.google.android.material.snackbar.Snackbar
+import logcat.LogPriority
+import logcat.logcat
 import java.util.*
+
+private const val LOG_TAG = "uiUtils"
 
 const val ANIMATION_DURATION_LONG = 500L
 const val ANIMATION_DURATION_SHORT = 300L
@@ -33,16 +37,28 @@ enum class Orientation {
     }
 }
 
-fun calculateDateAuthorSubredditText(post: Post): String {
+fun calculateDateAuthorSubredditText(context: Context, post: Post): String {
     val postAgeInMinutes = (Date().time - (post.createdAt * 1000L)) / (60 * 1000L) // time difference in ms divided by a minute
     val postAge = when (postAgeInMinutes) {
-        in 0 until 60 -> postAgeInMinutes to "minute(s)"
-        in 60 until 1440 -> postAgeInMinutes / 60 to "hour(s)"
-        in 1440 until 525600 -> postAgeInMinutes / 1440 to "day(s)"
-        in 525600 until Long.MAX_VALUE -> postAgeInMinutes / 525600 to "year(s)"
-        else -> postAgeInMinutes to "ms"
+        in 0 until 60 -> postAgeInMinutes to context.getString(R.string.common_quantity_minutes)
+        in 60 until 1440 -> postAgeInMinutes / 60 to context.getString(R.string.common_quantity_hours)
+        in 1440 until 525600 -> postAgeInMinutes / 1440 to context.getString(R.string.common_quantity_days)
+        in 525600 until Long.MAX_VALUE -> postAgeInMinutes / 525600 to context.getString(R.string.common_quantity_years)
+        else -> {
+            logcat(LOG_TAG, LogPriority.ERROR) {
+                "Illegal post age!\n\tpost name = ${post.name}, subreddit = ${post.subreddit}" +
+                        "\n\tcreatedAt = ${post.createdAt}, current time = ${Date().time}"
+            }
+            0L to context.getString(R.string.common_quantity_minutes)
+        }
     }
-    return "posted ${postAge.first} ${postAge.second} ago by ${post.author} to r/${post.subreddit}"
+    return context.getString(
+        R.string.common_post_date_author_text,
+        postAge.first,
+        postAge.second,
+        post.author,
+        post.subreddit
+    )
 }
 
 fun dpToPixel(dp: Int, context: Context): Int = (dp * context.resources.displayMetrics.density).toInt()
@@ -87,21 +103,31 @@ fun animateViewHeightChange(
     animatorSet.start()
 }
 
-fun animateShowViewAlpha(view: View) {
-    view.alpha = 0f
-    view.isVisible = true
-    view.animate()
-        .alpha(1f)
-        .setDuration(ANIMATION_DURATION_LONG)
-        .start()
+fun animateShowViewAlpha(view: View, duration: Long = ANIMATION_DURATION_LONG) {
+    logcat(LOG_TAG) { "animateShowViewAlpha" }
+    if (!view.isVisible) {
+        view.alpha = 0f
+        view.isVisible = true
+        view.animate()
+            .alpha(1f)
+            .setDuration(duration)
+            .start()
+    }
+    else
+        logcat(LOG_TAG, LogPriority.WARN) { "animateShowViewAlpha: view is already visible" }
 }
 
-fun animateHideViewAlpha(view: View) {
-    view.animate()
-        .alpha(0f)
-        .setDuration(ANIMATION_DURATION_LONG)
-        .withEndAction { view.isVisible = false }
-        .start()
+fun animateHideViewAlpha(view: View, duration: Long = ANIMATION_DURATION_LONG) {
+    logcat(LOG_TAG) { "animateHideViewAlpha" }
+    if (view.isVisible) {
+        view.animate()
+            .alpha(0f)
+            .setDuration(duration)
+            .withEndAction { view.isVisible = false }
+            .start()
+    }
+    else
+        logcat(LOG_TAG, LogPriority.WARN) { "animateHideViewAlpha: view is already invisible" }
 }
 
 fun hideKeyboard(view: View) {
@@ -119,6 +145,7 @@ fun makeSnackBar(
     type: SnackType = SnackType.SUCCESS,
     length: Int = Snackbar.LENGTH_SHORT
 ): Snackbar {
+    logcat(LOG_TAG) { "makeSnackBar" }
     // Determine the color of the snackbar based on its type
     val typedValue = TypedValue()
     val theme = view.context.theme
@@ -157,6 +184,7 @@ fun makeConfirmationDialog(
     activity: Activity,
     positiveAction: () -> Unit
 ): AlertDialog {
+    logcat(LOG_TAG) { "makeConfirmationDialog" }
     val builder = AlertDialog.Builder(activity)
     return builder
         .setTitle(title)

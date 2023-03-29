@@ -16,8 +16,8 @@ import com.b4kancs.rxredditdemo.ui.main.MainActivity
 import com.b4kancs.rxredditdemo.ui.shared.BaseListingFragment
 import com.b4kancs.rxredditdemo.ui.shared.BaseListingFragmentViewModel.UiState
 import com.b4kancs.rxredditdemo.ui.shared.PostsVerticalRvAdapter
-import com.b4kancs.rxredditdemo.ui.uiutils.SnackType
-import com.b4kancs.rxredditdemo.ui.uiutils.makeSnackBar
+import com.b4kancs.rxredditdemo.ui.uiutils.*
+import com.b4kancs.rxredditdemo.utils.executeTimedDisposable
 import com.b4kancs.rxredditdemo.utils.forwardLatestOnceTrue
 import com.jakewharton.rxbinding4.view.clicks
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
@@ -85,7 +85,7 @@ class HomeFragment : BaseListingFragment() {
         logcat { "setUpBehaviourDisposables" }
 
         viewModel.selectedSubredditChangedPublishSubject
-            .throttleFirst(1, TimeUnit.SECONDS)
+            .throttleFirst(1, TimeUnit.SECONDS) // Won't accept more than one event in a second.
             .observeOn(AndroidSchedulers.mainThread())
             .doOnNext { logcat(LogPriority.INFO) { "selectedSubredditChangedSubject.doOnNext: ${it.name}" } }
             .subscribe { _ ->
@@ -101,18 +101,21 @@ class HomeFragment : BaseListingFragment() {
             .forwardLatestOnceTrue { _binding != null }
             .observeOn(AndroidSchedulers.mainThread())
             .distinctUntilChanged()
-            .doOnNext { logcat { "viewModel.uiStateBehaviorSubject.onNext" } }
+            .doOnNext { logcat { "viewModel.uiStateBehaviorSubject.onNext: uiState = $it" } }
             .subscribe { uiState ->
-                logcat { "uiState = $uiState" }
                 with(binding) {
                     when (uiState) {
                         UiState.NORMAL -> {
-                            rvHomePosts.isVisible = true
-                            linearLayoutHomeErrorContainer.isVisible = false
-                            progressBarHomeLarge.isVisible = false
+                            logcat(LogPriority.INFO) { "Scrolling to position: ${viewModel.rvStoredPosition}" }
+                            binding.rvHomePosts.scrollToPosition(viewModel.rvStoredPosition)
+                            executeTimedDisposable(AVOID_RV_FLICKER_DELAY_IN_MILLIS) {   // Eliminates flickering.
+                                animateShowViewAlpha(rvHomePosts, ANIMATION_DURATION_SHORT)
+                                linearLayoutHomeErrorContainer.isVisible = false
+                                progressBarHomeLarge.isVisible = false
+                            }
                         }
                         UiState.LOADING -> {
-                            rvHomePosts.isVisible = false
+                            animateHideViewAlpha(rvHomePosts, ANIMATION_DURATION_SHORT)
                             linearLayoutHomeErrorContainer.isVisible = false
                             progressBarHomeLarge.isVisible = true
                         }
@@ -132,7 +135,8 @@ class HomeFragment : BaseListingFragment() {
                             textViewHomeError.text = errorMessage
                             imageViewHomeError.setImageResource(errorImageId)
                             progressBarHomeLarge.isVisible = false
-                            rvHomePosts.isVisible = false
+//                            rvHomePosts.isVisible = false
+                            rvHomePosts.isVisible = true // When visible, a refresh can be initiated via the SwipeRefreshLayout.
                         }
                         UiState.NO_CONTENT -> {
                             val errorMessage = getString(R.string.home_message_no_posts_in_sub)
@@ -141,7 +145,8 @@ class HomeFragment : BaseListingFragment() {
                             textViewHomeError.text = errorMessage
                             imageViewHomeError.setImageResource(errorImageId)
                             progressBarHomeLarge.isVisible = false
-                            rvHomePosts.isVisible = false
+//                            rvHomePosts.isVisible = false
+                            rvHomePosts.isVisible = true // When visible, a refresh can be initiated via the SwipeRefreshLayout.
                         }
                         else -> {
                             logcat(LogPriority.ERROR) { "uiState error: state $uiState is illegal in HomeFragment." }
@@ -191,8 +196,7 @@ class HomeFragment : BaseListingFragment() {
             .onEach {
                 logcat(LogPriority.INFO) { "postsHomeAdapter.loadStateFlow.onEach loadStates.refresh == LoadState.NotLoading" }
                 if (adapter.itemCount > 1) {
-                    logcat(LogPriority.INFO) { "Scrolling to position: ${viewModel.rvPosition}" }
-                    binding.rvHomePosts.scrollToPosition(viewModel.rvPosition)
+                    viewModel.uiStateBehaviorSubject.onNext(UiState.NORMAL)
                 }
                 else
                     viewModel.uiStateBehaviorSubject.onNext(UiState.NO_CONTENT)
@@ -356,7 +360,7 @@ class HomeFragment : BaseListingFragment() {
                 }.addTo(transientDisposables)
         }
 
-        fun setUpAddToFavorites(menuItems: Sequence<MenuItem>) {
+        fun setUpAddToFavoritesMenuItem(menuItems: Sequence<MenuItem>) {
             mergedCurrentSubUpdateObservable
                 .subscribe { currentSub ->
                     // The sub from the selectedSubredditReplayObservable may not reflect changes in Status, only the DB is always up to date.
@@ -392,7 +396,7 @@ class HomeFragment : BaseListingFragment() {
                 }.addTo(transientDisposables)
         }
 
-        fun setUpRemoveFromFavorites(menuItems: Sequence<MenuItem>) {
+        fun setUpRemoveFromFavoritesMenuItem(menuItems: Sequence<MenuItem>) {
             mergedCurrentSubUpdateObservable
                 .subscribe { currentSub ->
                     // The sub from the selectedSubredditReplayObservable may not reflect changes in Status, only the DB is always up to date.
@@ -429,15 +433,23 @@ class HomeFragment : BaseListingFragment() {
                 }.addTo(transientDisposables)
         }
 
+        fun setUpRefreshFeedMenuItem(menuItems: Sequence<MenuItem>) {
+            val refreshFeedMenuItem = menuItems.find { it.itemId == R.id.menu_item_toolbar_subreddit_refresh }
+            refreshFeedMenuItem?.isVisible = true
+            refreshFeedMenuItem?.clicks()
+                ?.doOnNext { logcat(LogPriority.INFO) { "refreshFeedMenuItem.clicks.onNext" } }
+                ?.subscribe { viewModel.triggerRefreshFeed() }
+                ?.addTo(transientDisposables)
+        }
+
         val mainActivity = (activity as MainActivity)
         mainActivity.invalidateOptionsMenu()
 
         // The menu is usually not ready to be used right away. We might get a wrong reference to the menu, which leads to bugs,
         // or no reference at all, which would lead to a crash. Therefore the initial delay, the filters and the repeated tries.
-        // How can such a supposedly simple thing lead to so much wasted time and frustration...
-        Observable.interval(250, 100, TimeUnit.MILLISECONDS)
-            .filter { mainActivity.menu != null && !enterAnimationInProgress }
-            .take(1)    // Wait until the menu is ready.
+        // ((How can such a supposedly simple thing lead to so much wasted time and frustration...))
+        Observable.timer(100, TimeUnit.MILLISECONDS)
+            .forwardLatestOnceTrue(250, TimeUnit.MILLISECONDS) { mainActivity.menu != null && !enterAnimationInProgress }
             .observeOn(AndroidSchedulers.mainThread())
             .doOnNext { logcat { "menu is ready .onNext" } }
             .subscribe { _ ->
@@ -454,9 +466,10 @@ class HomeFragment : BaseListingFragment() {
                 setUpRemoveFromYourSubsMenuItem(menuItems)
                 setUpDeleteFromSubsMenuItem(menuItems)
                 setUpAddToYourSubsMenuItem(menuItems)
-                setUpAddToFavorites(menuItems)
-                setUpRemoveFromFavorites(menuItems)
+                setUpAddToFavoritesMenuItem(menuItems)
+                setUpRemoveFromFavoritesMenuItem(menuItems)
                 setUpGoToSettingsMenuItem(menuItems)
+                setUpRefreshFeedMenuItem(menuItems)
             }.addTo(transientDisposables)
     }
 

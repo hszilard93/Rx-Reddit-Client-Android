@@ -43,6 +43,10 @@ import java.util.concurrent.TimeUnit
 */
 abstract class BaseListingFragment : Fragment() {
 
+    companion object {
+        const val AVOID_RV_FLICKER_DELAY_IN_MILLIS = 200L
+    }
+
     abstract val viewModel: BaseListingFragmentViewModel
     protected val disposables = CompositeDisposable()
     protected val transientDisposables = CompositeDisposable()
@@ -187,11 +191,14 @@ abstract class BaseListingFragment : Fragment() {
     protected fun savePositionFromRv(recyclerView: RecyclerView) {
         logcat { "onSaveInstanceStateSavePositionForRv" }
         (recyclerView.layoutManager as CustomLinearLayoutManager).let {
+            // currentPosition is the position of the first completely visible item,
+            // or if no item is completely visible, the first visible item.
             var currentPosition = it.findFirstCompletelyVisibleItemPosition()
             if (currentPosition == RecyclerView.NO_POSITION)
                 currentPosition = it.findFirstVisibleItemPosition()
+            // Save the position in the ViewModel.
             if (currentPosition != RecyclerView.NO_POSITION)
-                viewModel.rvPosition = currentPosition
+                viewModel.saveRvPosition(currentPosition)
         }
     }
 
@@ -297,7 +304,7 @@ abstract class BaseListingFragment : Fragment() {
         // This is only useful when returning from a PostViewerFragment, to trigger the delayed transition
         postsAdapter.readyForTransitionSubject
             .observeOn(AndroidSchedulers.mainThread())
-            .filter { posOfTheReadyImage -> posOfTheReadyImage == viewModel.rvPosition }
+            .filter { posOfTheReadyImage -> posOfTheReadyImage == viewModel.rvStoredPosition }
 //            .take(1)
             .doOnNext { logcat(LogPriority.INFO) { "readyToBeDrawnSubject.onNext: pos = $it" } }
             .subscribe { pos ->
@@ -334,10 +341,16 @@ abstract class BaseListingFragment : Fragment() {
 
         val swipeRefreshLayout = recyclerView.parent as SwipeRefreshLayout
         swipeRefreshLayout.setOnRefreshListener {
-            viewModel.uiStateBehaviorSubject.onNext(UiState.LOADING)
+            viewModel.uiStateBehaviorSubject.onNext(UiState.LOADING) // This would get triggered later anyway but triggering it here helps with UI junk.
             postsAdapter.refresh()
-            recyclerView.scrollToPosition(0)
             swipeRefreshLayout.isRefreshing = false
         }
+
+        viewModel.refreshTriggerObservable
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe {
+                viewModel.uiStateBehaviorSubject.onNext(UiState.LOADING) // This would get triggered later anyway but triggering it here helps with UI junk.
+                postsAdapter.refresh()
+            }.addTo(disposables)
     }
 }

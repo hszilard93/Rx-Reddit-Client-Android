@@ -260,7 +260,7 @@ class PostViewerAdapter(
                 textViewPostLowerScore.text = post.score.toString()
 
                 textViewPostLowerComments.text = context.getString(R.string.post_viewer_comments, post.numOfComments)
-                textViewPostLowerDateAuthor.text = calculateDateAuthorSubredditText(post)
+                textViewPostLowerDateAuthor.text = calculateDateAuthorSubredditText(context, post)
 
                 hudElements.addAll(
                     listOf<View>(

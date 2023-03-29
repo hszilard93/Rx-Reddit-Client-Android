@@ -10,6 +10,7 @@ import android.view.WindowManager
 import android.widget.ImageView
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.view.isVisible
+import androidx.paging.CombinedLoadStates
 import androidx.paging.LoadState
 import androidx.paging.PagingDataAdapter
 import androidx.recyclerview.widget.RecyclerView
@@ -45,7 +46,7 @@ class PostsVerticalRvAdapter(
 //    var disableTransformations: Boolean,
     val viewModel: BaseListingFragmentViewModel
 ) :
-    PagingDataAdapter<Post, RecyclerView.ViewHolder>(PostComparator) {
+        PagingDataAdapter<Post, RecyclerView.ViewHolder>(PostComparator) {
 
     companion object {
         private const val ITEM_VIEW_TYPE_POST = 1
@@ -109,6 +110,10 @@ class PostsVerticalRvAdapter(
                 favoriteIndicatorImageView.isVisible = false
             }
         }
+        else if (holder is SmallBottomLoadingIndicatorViewHolder) {
+            // Remove the listener to avoid memory leaks
+            holder.loadStateListener?.let { this@PostsVerticalRvAdapter.removeLoadStateListener(it) }
+        }
         super.onViewRecycled(holder)
     }
 
@@ -128,7 +133,7 @@ class PostsVerticalRvAdapter(
             with(binding) {
                 titleTextView.text = post.title
                 commentsTextView.text = "${post.numOfComments} comments"
-                dateAuthorTextView.text = calculateDateAuthorSubredditText(post)
+                dateAuthorTextView.text = calculateDateAuthorSubredditText(context, post)
                 scoreTextView.text = "${post.score}"
 
                 viewModel.getFavoritePosts()
@@ -146,7 +151,8 @@ class PostsVerticalRvAdapter(
                 if (post.crossPostFrom != null) {
                     crossPostTextView.visibility = View.VISIBLE
                     crossPostTextView.text = "xpost from r/${post.crossPostFrom}"
-                } else {
+                }
+                else {
                     crossPostTextView.visibility = View.GONE
                 }
 
@@ -202,7 +208,8 @@ class PostsVerticalRvAdapter(
                             postImageView.performClick()
                         }
                         .addTo(disposables)
-                } else {
+                }
+                else {
                     subscribeForRegularClicks()
                 }
 
@@ -287,7 +294,7 @@ class PostsVerticalRvAdapter(
 //                            if (disableTransformations)
 //                                imageView.layoutParams.height = newImageViewHeight
 //                            else
-                                animateViewHeightChange(imageView, oldImageViewHeight, newImageViewHeight, 150)
+                            animateViewHeightChange(imageView, oldImageViewHeight, newImageViewHeight, 150)
                         }
 
                         readyForTransitionSubject.onNext(layoutPosition)
@@ -300,7 +307,8 @@ class PostsVerticalRvAdapter(
                                 DrawableCrossFadeFactory.Builder().setCrossFadeEnabled(false).build()
                             )
                         )
-                    } else {
+                    }
+                    else {
                         placeholder(R.drawable.ic_download)
                     }
                     if (toBlur) {
@@ -317,15 +325,18 @@ class PostsVerticalRvAdapter(
     // https://developer.android.com/topic/libraries/architecture/paging/load-state#kotlin
     inner class SmallBottomLoadingIndicatorViewHolder(val view: View) : RecyclerView.ViewHolder(view) {
 
+        var loadStateListener: ((CombinedLoadStates) -> Unit)? = null
+
         fun bind() {
             logcat { "SmallBottomLoadingIndicatorViewHolder.bind" }
             AdapterCommonLoadingListItemBinding.bind(view)
 
-            this@PostsVerticalRvAdapter.addLoadStateListener { combinedLoadStates ->
+            loadStateListener = { combinedLoadStates ->
                 logcat { "combinedLoadState = ${combinedLoadStates.refresh}, layoutPosition = $layoutPosition" }
                 view.isVisible = combinedLoadStates.source.append is LoadState.Loading && layoutPosition >= 1
                 view.layoutParams.height = if (view.isVisible) WindowManager.LayoutParams.WRAP_CONTENT else 0
             }
+            this@PostsVerticalRvAdapter.addLoadStateListener(loadStateListener!!)
         }
     }
 

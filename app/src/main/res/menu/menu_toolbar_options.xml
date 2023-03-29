@@ -4,6 +4,11 @@
     <group android:id="@+id/menu_group_toolbar_subreddit_actions">
 
         <item
+            android:id="@+id/menu_item_toolbar_subreddit_refresh"
+            android:title="@string/common_action_refresh"
+            android:visible="false" />
+
+        <item
             android:id="@+id/menu_item_toolbar_subreddit_set_default"
             android:title="@string/home_action_set_as_default_sub"
             android:visible="false" />
@@ -37,12 +42,22 @@
     <group android:id="@+id/menu_group_toolbar_favorites_actions">
 
         <item
+            android:id="@+id/menu_item_toolbar_favorites_refresh"
+            android:title="@string/common_action_refresh"
+            android:visible="false" />
+
+        <item
             android:id="@+id/menu_item_toolbar_favorites_delete_all"
             android:title="@string/favorites_action_delete_all"
             android:visible="false" />
     </group>
 
     <group android:id="@+id/menu_group_toolbar_follows_actions">
+
+        <item
+            android:id="@+id/menu_item_toolbar_follows_refresh"
+            android:title="@string/common_action_refresh"
+            android:visible="false" />
 
         <item
             android:id="@+id/menu_item_toolbar_follows_add"

@@ -20,8 +20,8 @@ import com.b4kancs.rxredditdemo.ui.main.MainActivity
 import com.b4kancs.rxredditdemo.ui.shared.BaseListingFragment
 import com.b4kancs.rxredditdemo.ui.shared.BaseListingFragmentViewModel.UiState
 import com.b4kancs.rxredditdemo.ui.shared.PostsVerticalRvAdapter
-import com.b4kancs.rxredditdemo.ui.uiutils.SnackType
-import com.b4kancs.rxredditdemo.ui.uiutils.makeSnackBar
+import com.b4kancs.rxredditdemo.ui.uiutils.*
+import com.b4kancs.rxredditdemo.utils.executeTimedDisposable
 import com.b4kancs.rxredditdemo.utils.forwardLatestOnceTrue
 import com.jakewharton.rxbinding4.view.clicks
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
@@ -126,7 +126,7 @@ class FollowsFragment : BaseListingFragment() {
     private fun setUpBehaviourDisposables() {
         logcat { "setUpBehaviourDisposables" }
 
-        // This subscription is for refreshing the feed. Does NOT need to immediately execute upon subscription,
+        // This subscription is for reloading the feed. Does NOT need to immediately execute upon subscription,
         // hence the distinct until changed.
         viewModel.currentFeedBehaviorSubject
             .forwardLatestOnceTrue { _binding != null }
@@ -160,21 +160,23 @@ class FollowsFragment : BaseListingFragment() {
     override fun setUpUiStatesBehaviour() {
         logcat { "setUpUiStatesBehaviour" }
         viewModel.uiStateBehaviorSubject
-            .doOnNext { logcat { "viewModel.uiStateBehaviorSubject.onNext" } }
             .forwardLatestOnceTrue { _binding != null }
             .observeOn(AndroidSchedulers.mainThread())
+            .doOnNext { logcat { "viewModel.uiStateBehaviorSubject.onNext: uiState = $it" } }
             .subscribe { uiState ->
                 with(binding) {
                     when (uiState) {
                         UiState.NORMAL -> {
-                            rvFollowsPosts.isVisible = true
-                            linearLayoutFollowsErrorContainer.isVisible = false
-                            progressBarFollowsLarge.isVisible = false
-                            logcat { "Scrolling to position: ${viewModel.rvPosition}" }
-                            binding.rvFollowsPosts.scrollToPosition(viewModel.rvPosition)
+                            logcat { "Scrolling to position: ${viewModel.rvStoredPosition}" }
+                            binding.rvFollowsPosts.scrollToPosition(viewModel.rvStoredPosition)
+                            executeTimedDisposable(AVOID_RV_FLICKER_DELAY_IN_MILLIS) {
+                                animateShowViewAlpha(binding.rvFollowsPosts, ANIMATION_DURATION_SHORT)
+                                linearLayoutFollowsErrorContainer.isVisible = false
+                                progressBarFollowsLarge.isVisible = false
+                            }
                         }
                         UiState.LOADING -> {
-                            rvFollowsPosts.isVisible = false
+                            animateHideViewAlpha(binding.rvFollowsPosts, ANIMATION_DURATION_SHORT)
                             linearLayoutFollowsErrorContainer.isVisible = false
                             progressBarFollowsLarge.isVisible = true
                         }
@@ -194,7 +196,8 @@ class FollowsFragment : BaseListingFragment() {
                             textViewFollowsError.text = errorMessage
                             imageViewFollowsError.setImageResource(errorImageId)
                             progressBarFollowsLarge.isVisible = false
-                            rvFollowsPosts.isVisible = false
+//                            rvFollowsPosts.isVisible = false
+                            rvFollowsPosts.isVisible = true // When visible, a refresh can be initiated via the SwipeRefreshLayout.
                         }
                         UiState.NO_CONTENT -> {
                             val errorMessage = getString(R.string.follows_message_no_posts_for_user)
@@ -203,7 +206,8 @@ class FollowsFragment : BaseListingFragment() {
                             textViewFollowsError.text = errorMessage
                             imageViewFollowsError.setImageResource(errorImageId)
                             progressBarFollowsLarge.isVisible = false
-                            rvFollowsPosts.isVisible = false
+//                            rvFollowsPosts.isVisible = false
+                            rvFollowsPosts.isVisible = true // When visible, a refresh can be initiated via the SwipeRefreshLayout.
                         }
                         UiState.NO_CONTENT_AGGREGATE -> {
                             val errorMessage = getString(R.string.follows_no_posts_aggregate)
@@ -270,8 +274,8 @@ class FollowsFragment : BaseListingFragment() {
             .onEach {
                 logcat(LogPriority.INFO) { "postFollowsAdapter.loadStateFlow.onEach loadStates.refresh == LoadState.NotLoading" }
                 if (adapter.itemCount > 1) {
-                    logcat(LogPriority.INFO) { "Scrolling to position: ${viewModel.rvPosition}" }
-                    binding.rvFollowsPosts.scrollToPosition(viewModel.rvPosition)
+                    logcat(LogPriority.INFO) { "Scrolling to position: ${viewModel.rvStoredPosition}" }
+                    binding.rvFollowsPosts.scrollToPosition(viewModel.rvStoredPosition)
                 }
                 else {
                     if (viewModel.currentUserFeed.status == UserFeed.Status.AGGREGATE)
@@ -427,12 +431,20 @@ class FollowsFragment : BaseListingFragment() {
                 }.addTo(transientDisposables)
         }
 
+        fun setUpRefreshMenuItem(menuItems: Sequence<MenuItem>) {
+            val refreshFeedMenuItem = menuItems.find { it.itemId == R.id.menu_item_toolbar_follows_refresh }
+            refreshFeedMenuItem?.isVisible = true
+            refreshFeedMenuItem?.clicks()
+                ?.doOnNext { logcat(LogPriority.INFO) { "refreshFeedMenuItem.clicks.onNext" } }
+                ?.subscribe { viewModel.triggerRefreshFeed() }
+                ?.addTo(transientDisposables)
+        }
+
         val mainActivity = (activity as MainActivity)
         mainActivity.invalidateOptionsMenu()
 
-        Observable.interval(100, TimeUnit.MILLISECONDS)
-            .filter { mainActivity.menu != null && !enterAnimationInProgress }
-            .take(1)    // Try until the menu is ready, then do once.
+        Observable.timer(100, TimeUnit.MILLISECONDS)
+            .forwardLatestOnceTrue { mainActivity.menu != null && !enterAnimationInProgress }
             .observeOn(AndroidSchedulers.mainThread())
             .doOnNext { logcat { "menu is ready .onNext" } }
             .subscribe { _ ->
@@ -450,6 +462,7 @@ class FollowsFragment : BaseListingFragment() {
                 subscribeToUserFeedMenuItem(menuItems)
                 unsubscribeFromUserFeedMenuItem(menuItems)
                 setUpGoToSettingsMenuItem(menuItems)
+                setUpRefreshMenuItem(menuItems)
             }
             .addTo(transientDisposables)
     }

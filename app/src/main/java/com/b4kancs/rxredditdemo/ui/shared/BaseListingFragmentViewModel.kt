@@ -14,6 +14,7 @@ import io.reactivex.rxjava3.core.Single
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.addTo
 import io.reactivex.rxjava3.subjects.BehaviorSubject
+import io.reactivex.rxjava3.subjects.PublishSubject
 import logcat.logcat
 
 abstract class BaseListingFragmentViewModel(
@@ -32,14 +33,18 @@ abstract class BaseListingFragmentViewModel(
      */
 
     val uiStateBehaviorSubject: BehaviorSubject<UiState> = BehaviorSubject.createDefault(UiState.LOADING)
+    private val refreshTriggerSubject: PublishSubject<Unit> = PublishSubject.create()
+    val refreshTriggerObservable: Observable<Unit> = refreshTriggerSubject.hide()   // I should use this `backing subject` pattern more.
     val disposables = CompositeDisposable()
     var shouldBlurNsfwPosts = true
-    var rvPosition: Int = 0
+    var rvStoredPosition: Int = 0
+        // We keep track of the position of the RecyclerView here for restoring it after a configuration change or to manipulate it
+        // in other ways. It gets used after uiStateBehaviorSubject signals NORMAL state, for example.
         get() {
             logcat { "rvPosition.get" }
             return field
         }
-        set(value) {
+        protected set(value) {
             logcat { "rvPosition.set: value = $value" }
             field = value
         }
@@ -47,6 +52,16 @@ abstract class BaseListingFragmentViewModel(
     abstract val postsCachedPagingObservable: Observable<PagingData<Post>>
 
     init {
+        uiStateBehaviorSubject
+            .doOnNext { logcat { "uiStateBehaviorSubject.onNext: it = $it" } }
+            .subscribe()
+            .addTo(disposables)
+
+        refreshTriggerSubject
+            .doOnNext { logcat { "refreshTriggerSubject.onNext" } }
+            .subscribe()
+            .addTo(disposables)
+
         rxSharedPreferences.getBoolean("pref_switch_unblur_nsfw").asObservable().toV3Observable()
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe { shouldBlurNsfwPosts = it.not() }
@@ -68,5 +83,16 @@ abstract class BaseListingFragmentViewModel(
     fun dontBlurThisPostAnymore(post: Post) {
         logcat { "dontBlurThisPostAnymore: post = ${post.name}" }
         postsPropertiesRepository.addPostToDontBlurThesePostsSet(post)
+    }
+
+    fun triggerRefreshFeed() {
+        logcat { "refreshFeed" }
+        rvStoredPosition = 0
+        refreshTriggerSubject.onNext(Unit)
+    }
+
+    fun saveRvPosition(position: Int) {
+        logcat { "saveRvPosition: position = $position" }
+        rvStoredPosition = position
     }
 }

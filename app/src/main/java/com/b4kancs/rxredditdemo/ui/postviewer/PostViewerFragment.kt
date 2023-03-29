@@ -238,7 +238,7 @@ class PostViewerFragment : Fragment() {
             logcat(LogPriority.INFO) { "Transition name = $imageTransitionName" }
             imageTransitionName?.let { (sharedElementReturnTransition as Transition).addTarget(it) }
 
-            viewModel.originViewModel.rvPosition = viewModel.pagerPositionBehaviorSubject.value!!
+            viewModel.originViewModel.saveRvPosition(viewModel.pagerPositionBehaviorSubject.value!!)
             findNavController().popBackStack()
         }
     }

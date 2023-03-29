@@ -15,9 +15,8 @@ import com.b4kancs.rxredditdemo.ui.main.MainActivity
 import com.b4kancs.rxredditdemo.ui.shared.BaseListingFragment
 import com.b4kancs.rxredditdemo.ui.shared.BaseListingFragmentViewModel.UiState
 import com.b4kancs.rxredditdemo.ui.shared.PostsVerticalRvAdapter
-import com.b4kancs.rxredditdemo.ui.uiutils.SnackType
-import com.b4kancs.rxredditdemo.ui.uiutils.makeConfirmationDialog
-import com.b4kancs.rxredditdemo.ui.uiutils.makeSnackBar
+import com.b4kancs.rxredditdemo.ui.uiutils.*
+import com.b4kancs.rxredditdemo.utils.executeTimedDisposable
 import com.b4kancs.rxredditdemo.utils.forwardLatestOnceTrue
 import com.jakewharton.rxbinding4.view.clicks
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
@@ -79,19 +78,21 @@ class FavoritesFragment : BaseListingFragment() {
             .forwardLatestOnceTrue { _binding != null }
             .observeOn(AndroidSchedulers.mainThread())
             .distinctUntilChanged()
-            .doOnNext { logcat { "viewModel.uiStateBehaviorSubject.onNext" } }
+            .doOnNext { logcat { "viewModel.uiStateBehaviorSubject.onNext: uiState = $it" } }
             .subscribe { uiState ->
                 with(binding) {
                     when (uiState) {
                         UiState.NORMAL -> {
-                            rvFavoritesPosts.isVisible = true
-                            linearLayoutFavoritesErrorContainer.isVisible = false
-                            progressBarFavoritesLarge.isVisible = false
-                            logcat(LogPriority.INFO) { "Scrolling to position: ${viewModel.rvPosition}" }
-                            binding.rvFavoritesPosts.scrollToPosition(viewModel.rvPosition)
+                            logcat(LogPriority.INFO) { "Scrolling to position: ${viewModel.rvStoredPosition}" }
+                            binding.rvFavoritesPosts.scrollToPosition(viewModel.rvStoredPosition)
+                            executeTimedDisposable(AVOID_RV_FLICKER_DELAY_IN_MILLIS) {
+                                animateShowViewAlpha(rvFavoritesPosts, ANIMATION_DURATION_SHORT)
+                                linearLayoutFavoritesErrorContainer.isVisible = false
+                                progressBarFavoritesLarge.isVisible = false
+                            }
                         }
                         UiState.LOADING -> {
-                            rvFavoritesPosts.isVisible = false
+                            animateHideViewAlpha(rvFavoritesPosts, ANIMATION_DURATION_SHORT)
                             linearLayoutFavoritesErrorContainer.isVisible = false
                             progressBarFavoritesLarge.isVisible = true
                         }
@@ -100,18 +101,20 @@ class FavoritesFragment : BaseListingFragment() {
                             val errorImageId = R.drawable.im_error_network
                             textViewFavoritesError.text = errorMessage
                             imageViewFavoritesError.setImageResource(errorImageId)
-                            rvFavoritesPosts.isVisible = false
                             linearLayoutFavoritesErrorContainer.isVisible = true
                             progressBarFavoritesLarge.isVisible = false
+//                            rvFavoritesPosts.isVisible = false
+                            rvFavoritesPosts.isVisible = true // When visible, a refresh can be initiated via the SwipeRefreshLayout.
                         }
                         UiState.NO_CONTENT -> {
                             val errorMessage = getString(R.string.favorites_no_media)
                             val errorImageId = R.drawable.im_error_no_content_bird
                             textViewFavoritesError.text = errorMessage
                             imageViewFavoritesError.setImageResource(errorImageId)
-                            rvFavoritesPosts.isVisible = false
                             linearLayoutFavoritesErrorContainer.isVisible = true
                             progressBarFavoritesLarge.isVisible = false
+//                            rvFavoritesPosts.isVisible = false
+                            rvFavoritesPosts.isVisible = true // When visible, a refresh can be initiated via the SwipeRefreshLayout.
                         }
                         else -> {
                             logcat(LogPriority.ERROR) { "uiState error: state $uiState is illegal in FavoritesFragment." }
@@ -147,7 +150,7 @@ class FavoritesFragment : BaseListingFragment() {
             .onEach {
                 logcat(LogPriority.VERBOSE) { "postsFavoritesAdapter.loadStateFlow.onEach loadStates.refresh == LoadState.NotLoading" }
                 if (adapter.itemCount > 1) {
-                    if (viewModel.uiStateBehaviorSubject.value != UiState.NORMAL) {
+                    if (viewModel.uiStateBehaviorSubject.value != UiState.NORMAL) { // TODO check if necessary because of distinctUntilChanged
                         viewModel.uiStateBehaviorSubject.onNext(UiState.NORMAL)
                     }
                 }
@@ -201,13 +204,23 @@ class FavoritesFragment : BaseListingFragment() {
                 }.addTo(transientDisposables)
         }
 
+        fun setUpRefreshFeedMenuItem(menuItems: Sequence<MenuItem>) {
+            logcat(LogPriority.VERBOSE) { "setUpOptionsMenu:setUpRefreshFeedMenuItem" }
+            val refreshFeedMenuItem = menuItems
+                .find { it.itemId == R.id.menu_item_toolbar_favorites_refresh }
+
+            refreshFeedMenuItem?.clicks()
+                ?.doOnNext { logcat(LogPriority.INFO) { "refreshFeedMenuItem.clicks.onNext" } }
+                ?.subscribe { viewModel.triggerRefreshFeed() }
+                ?.addTo(transientDisposables)
+        }
+
         val mainActivity = (activity as MainActivity)
         mainActivity.invalidateOptionsMenu()
 
         // If we don't wait an adequate amount, we might not get a reference to the options menu.
-        Observable.interval(100, TimeUnit.MILLISECONDS)
-            .filter { mainActivity.menu != null && !enterAnimationInProgress }     // Wait until the menu is ready.
-            .take(1)
+        Observable.timer(100, TimeUnit.MILLISECONDS)
+            .forwardLatestOnceTrue { mainActivity.menu != null && !enterAnimationInProgress } // Wait until the menu is ready.
             .observeOn(AndroidSchedulers.mainThread())
             .doOnNext { logcat { "menu is ready .onNext" } }
             .subscribe {
@@ -222,6 +235,7 @@ class FavoritesFragment : BaseListingFragment() {
                 }
                 setUpClearAllFavoritesMenuItem(menuItems)
                 setUpGoToSettingsMenuItem(menuItems)
+                setUpRefreshFeedMenuItem(menuItems)
             }
             .addTo(transientDisposables)
     }

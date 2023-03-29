@@ -98,4 +98,10 @@
     <string name="settings_title">Settings</string>
     <string name="follows_subscriptions_feed_name">Subscriptions</string>
     <string name="follows_subscriptions_notification_message">%1$d users you\'re subscribed to have new posts. Check them out!</string>
+    <string name="common_action_refresh">Refresh</string>
+    <string name="common_quantity_minutes">minute(s)</string>
+    <string name="common_quantity_hours">hour(s)</string>
+    <string name="common_quantity_days">day(s)</string>
+    <string name="common_quantity_years">year(s)</string>
+    <string name="common_post_date_author_text">posted %1$d %2$s ago by %3$s to r/%4$s</string>
 </resources>
