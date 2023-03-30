@@ -6,314 +6,203 @@ import com.b4kancs.rxredditdemo.data.utils.JsonPostsFeedHelper
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.model.UserFeed
 import com.b4kancs.rxredditdemo.repository.FollowsRepository
-import io.reactivex.rxjava3.core.Maybe
 import io.reactivex.rxjava3.core.Single
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.addTo
 import io.reactivex.rxjava3.kotlin.subscribeBy
 import io.reactivex.rxjava3.schedulers.Schedulers
-import io.reactivex.rxjava3.subjects.PublishSubject
+import io.reactivex.rxjava3.subjects.BehaviorSubject
 import logcat.LogPriority
 import logcat.logcat
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
 
-// Creates a combined feed of any number of UserFeeds.
 abstract class AbstractCombinedFeedLoader(
     protected val jsonService: RedditJsonService,
     protected val followsRepository: FollowsRepository
 ) {
 
-    private class FeedsDownloadException : Exception()
+    companion object {
+        const val SINGLE_FEED_DOWNLOAD_SIZE = 20
+    }
 
     protected val disposables = CompositeDisposable()
-    protected val userNameToPostsSortedMap = ConcurrentHashMap<String, List<Post>?>()
-    protected val usersWithNoMorePostsSet = Collections.newSetFromMap(ConcurrentHashMap<String, Boolean>())
     protected var requiredFeedSize = 0
+    protected val userNameToPostsSortedMap = ConcurrentHashMap<String, List<Post>>()
+    protected val usersWithNoMorePostsSet = Collections.newSetFromMap(ConcurrentHashMap<String, Boolean>())
+    protected var lastServedPost: Post? = null
 
     // Determines the feeds to be downloaded, i.e. all followed feeds (combined) or just the subscribed feeds (used for notifications).
     abstract fun getAllFeedsToBeDownloaded(): List<UserFeed>
 
 
-    // Starting point to the logic, returns downloaded feeds.
-    fun loadCombinedFeeds(pageSize: Int, after: String?): Single<PagingSource.LoadResult<String, Post>> {
-        logcat { "loadAggregateFeeds: loadSize = $pageSize, after = $after" }
-
-        if (after == null) {
-            // Request is for a new combined feed.
-            logcat(LogPriority.INFO) { "Starting to load new combined feed." }
-            // If we have existing feed data, reset them.
-            if (userNameToPostsSortedMap.values.isNotEmpty()) clearData()
-
-            // For this function and others in the class, UserFeeds will be represented by their name properties,
-            // and will be called users (user = UserFeed.name).
-            requiredFeedSize = pageSize
-            return Single.create { emitter ->
-                // Download initial batch of feeds
-                downloadInitialBatchOfPosts(pageSize / 2)
-                    .observeOn(Schedulers.computation())
-                    .subscribeBy(
-                        onSuccess = { initialFeedsMap ->
-                            logcat { "Initial feeds downloaded." }
-                            updateLatestPostsForUsers(initialFeedsMap)
-                            processInitialBatchForResult(initialFeedsMap, pageSize)
-                                .subscribe { result -> emitter.onSuccess(result) }
-                                .addTo(disposables)
-                        },
-                        onComplete = {
-                            logcat(LogPriority.INFO) { "There were no feeds to download. Returning empty list." }
-                            emitter.onSuccess(PagingSource.LoadResult.Page(emptyList(), null, null))
-                        },
-                        onError = { e ->
-                            logcat(LogPriority.ERROR) { "Could not download combined posts. Message: ${e.message}" }
-                            emitter.onSuccess(PagingSource.LoadResult.Error(e))
-                        }
-                    )
-                    .addTo(disposables)
+    // Start point of the logic, called by the PagingSource.
+    fun loadCombinedFeed(pageSize: Int, after: String?): Single<PagingSource.LoadResult<String, Post>> {
+        logcat { "loadCombinedFeed: pageSize = $pageSize, after = $after" }
+        requiredFeedSize = pageSize
+        val shouldContinueExistingFeed = after != null
+        if (!shouldContinueExistingFeed) {
+            logcat(LogPriority.INFO) { "Starting to download new combined feed." }
+            clearState()
+            val feedsToDownload = getAllFeedsToBeDownloaded()
+            for (feed in feedsToDownload) {
+                userNameToPostsSortedMap[feed.name] = emptyList()
             }
         }
-        else {
-            // Request is to continue loading posts into an existing combined feed.
-            logcat(LogPriority.INFO) { "Continuing to load existing combined feed. after = $after" }
-            requiredFeedSize += pageSize
-            return recursivelyDownloadFeedsUntilDone(emptyMap(), pageSize)
-        }
-    }
 
-    // Download the initial batch of posts from the required users.
-    protected fun downloadInitialBatchOfPosts(loadSize: Int): Maybe<Map<String, List<Post>?>> {
-        logcat { "downloadAllFeeds: loadSize = $loadSize" }
-
-        val usersToDownloadFrom = getAllFeedsToBeDownloaded().map { it.name }
-        val feedsStillLoading = usersToDownloadFrom.toMutableSet()
-        val feedsSuccessfullyLoaded = Collections.newSetFromMap(ConcurrentHashMap<String, Boolean>())
-        val feedFinishedLoadingSubject = PublishSubject.create<String>()
-        val userToPostsMap = ConcurrentHashMap<String, List<Post>>()
-
-        if (usersToDownloadFrom.isEmpty())
-            return Maybe.empty()
-
-        for (user in usersToDownloadFrom) {
-            downloadSingleFeedAutoContinueFromLastPost(user, loadSize)
+        return Single.create { emitter ->
+            downloadFeedsRecursivelyUntilDone()
                 .subscribeBy(
-                    onSuccess = { posts ->
-                        logcat { "Downloaded ${posts.size} posts from user $user." }
-                        // It is safe to concurrently modify a regular hashmap as long as we aren't touching the same keys... I think!
-                        userToPostsMap[user] = posts.sortedByDescending { it.createdAt }
-                        feedsSuccessfullyLoaded.add(user)
-                        feedFinishedLoadingSubject.onNext(user)
-                    },
-                    onError = { e ->
-                        logcat(LogPriority.WARN) { "Error getting user feed ${user}. Message: ${e.message}" }
-                        userToPostsMap[user] = emptyList()
-                        feedFinishedLoadingSubject.onNext(user)
-                    }
-                ).addTo(disposables)
-        }
-
-        // Returns with success if we have finished downloading from all the feeds and have at least a few posts to show for it.
-        return Maybe.create { emitter ->
-            // This subject will call onComplete() when the required number of posts has been downloaded from all the required feeds.
-            feedFinishedLoadingSubject
-                .observeOn(Schedulers.computation())
-                .subscribeBy(
-                    onNext = { user ->
-                        logcat { "feedFinishedLoadingSubject.onNext" }
-                        feedsStillLoading.remove(user)
-                        if (feedsStillLoading.isEmpty())
-                            feedFinishedLoadingSubject.onComplete()
-                    },
-                    onComplete = {
-                        logcat { "feedFinishedLoadingSubject.onComplete" }
-                        // We were able to download all/some of the feeds.
-                        if (userToPostsMap.values.flatten().isNotEmpty())
-                            emitter.onSuccess(userToPostsMap)
-                        // Else we either have encountered errors or the feeds are simply empty.
-                        else {
-                            if (feedsSuccessfullyLoaded.isEmpty()) { // Likely a network error.
-                                logcat(LogPriority.ERROR) { "'Tis a network error, m'lord. It took all of them!" }
-                                emitter.onError(FeedsDownloadException())
-                            }
-                            else {   // The followed users could have been deleted etc. Unlikely but can happen.
-                                logcat(LogPriority.WARN) { "There is nothing to see here. (All downloaded user feeds are empty.)" }
-                                emitter.onSuccess(userToPostsMap)
-                            }
+                    onSuccess = { (resultPosts, lastServedPostName) ->
+                        logcat(LogPriority.INFO) {
+                            "onSuccess: resultPosts.size = ${resultPosts.size}, lastServedPostName = $lastServedPostName"
                         }
-                    },
-                    onError = { _ ->
-                        logcat(LogPriority.ERROR) { "feedFinishedLoadingSubject.onError" }
-                        emitter.onError(
-                            java.lang.IllegalStateException("feedFinishedLoadingSubject.onError\t!This state should not have been reached!")
+                        if (resultPosts.isEmpty()) {
+                            logcat(LogPriority.ERROR) { "No more posts could be downloaded. Probably a network error!" }
+                        }
+                        emitter.onSuccess(
+                            PagingSource.LoadResult.Page(
+                                data = resultPosts,
+                                prevKey = null,
+                                nextKey = lastServedPostName
+                            )
                         )
+                        disposables.clear()
+                    },
+                    onError = {
+                        emitter.onError(it)
+                        disposables.clear()
                     }
                 )
                 .addTo(disposables)
         }
+
     }
 
-    protected fun processInitialBatchForResult(
-        initialFeedsMap: Map<String, List<Post>?>,
-        pageSize: Int
-    ): Single<PagingSource.LoadResult<String, Post>> {
-        logcat { "processInitialBatchForResult" }
-
-        // If the batch is empty, we have no posts to download.
-        if (initialFeedsMap.values.isEmpty()) {
-            // The resulting list might be empty, if the feeds we follow don't have any posts, have been deleted, etc.
-            logcat(LogPriority.INFO) { "Initial batch is empty. Returning empty feed." }
-            val resultingPostsList = userNameToPostsSortedMap
-                .flatMap { (_, v) -> v ?: emptyList() }
-                .sortedByDescending { it.createdAt }
-
-            return Single.just(
-                PagingSource.LoadResult.Page(
-                    resultingPostsList,
-                    prevKey = null,
-                    nextKey = resultingPostsList.lastOrNull()?.name
-                )
-            )
+    protected fun downloadFeedsRecursivelyUntilDone(): Single<Pair<List<Post>, String?>> {
+        logcat { "continueDownloadingFeedsUntilDoneRecursively" }
+        logcat(LogPriority.VERBOSE) {
+            "userNameToPostsSortedMap = \n\t${
+                userNameToPostsSortedMap.map { (user, posts) -> "$user: ${posts.size}" }
+            }" + "\nusersWithNoMorePostsSet = ${usersWithNoMorePostsSet.size}"
         }
 
-        return recursivelyDownloadFeedsUntilDone(initialFeedsMap, pageSize)
-    }
+        val allPostsInFeedFlattened = userNameToPostsSortedMap.values.flatten().sortedByDescending { it.createdAt }
+        // the earliest last post of all downloaded feeds (that have not run out).
+        val earliestLastPost = userNameToPostsSortedMap
+            .filterKeys { user -> !usersWithNoMorePostsSet.contains(user) }
+            .filterValues { posts -> posts.isNotEmpty() }
+            .maxByOrNull { (_, posts) -> posts.last().createdAt }
+            ?.value?.last()
 
+        // Return condition #1: Check if there are enough posts to serve.
+        if (earliestLastPost != null) {
+            val iOfEarliestLastPost = allPostsInFeedFlattened.indexOf(earliestLastPost)
+            val iOfLastServedPost = allPostsInFeedFlattened.indexOf(lastServedPost)
 
-    protected fun recursivelyDownloadFeedsUntilDone(
-        newFeedsMap: Map<String, List<Post>?>,
-        pageSize: Int
-    ): Single<PagingSource.LoadResult<String, Post>> {
-        logcat { "recursivelyDownloadFeedsUntilDone: newFeedsMap.size = ${newFeedsMap.size}, pageSize = $pageSize" }
-
-        // We have some processing to do.
-        // Our goal is to construct a combined feed of posts of size >= loadSize in chronological order,
-        // where we can know that no user's posts have been left out of the order.
-        // For this, the [user with the youngest oldest post]'s oldest post
-        // must fit into the list of all posts at an index >= loadSize (we are done).
-        // If a user has no more posts, his oldest post is no longer taken into account in this calculation.
-        // If all user's have run out of posts, we are also done.
-
-        val userNameToOldestPostMap = HashMap<String, Post>()
-        newFeedsMap.forEach { (user, posts) ->
-            if (!posts.isNullOrEmpty()) {
-                logcat { "Evaluating posts from $user on thread ${Thread.currentThread()}" }
-                posts.mapIndexed { i, p -> logcat { "\t$i\t${p.name}, ${p.title}}" } }
-
-                logcat { "Adding ${posts.size} posts to userNameToPostsMap[$user] (size = ${userNameToPostsSortedMap[user]?.size})." }
-                val usersPreviousPosts = userNameToPostsSortedMap[user] ?: arrayListOf()
-                // We store the posts in chronological order.
-                val usersUpdatedPosts = (usersPreviousPosts + posts).sortedByDescending { post -> post.createdAt }
-                userNameToPostsSortedMap[user] = usersUpdatedPosts
+            logcat {
+                "allPostsInFeedFlattened.size = ${allPostsInFeedFlattened.size}, earliestLastPost = ${earliestLastPost.name}, " +
+                        "iOfEarliestLastPost = $iOfEarliestLastPost, iOfLastServedPost = $iOfLastServedPost"
             }
-            else {
-                logcat { "$user has run out of posts." }
-                usersWithNoMorePostsSet.add(user)
-            }
-            // Store the oldest post of the user that we've downloaded so far. Null in case of a download error.
-            userNameToPostsSortedMap[user]?.let { updatedPosts ->
-                logcat(LogPriority.VERBOSE) { "updatedPosts:" }
-                updatedPosts.mapIndexed { i, it -> logcat(LogPriority.VERBOSE) { "\t$i.\t${it.name}, ${it.title}, ${it.createdAt}\n" } }
-                userNameToOldestPostMap[user] = updatedPosts.last()
+
+            if (iOfEarliestLastPost - iOfLastServedPost >= requiredFeedSize) {
+                logcat { "There are enough posts to serve." }
+                val iOfLastToServe = iOfLastServedPost + requiredFeedSize
+                lastServedPost = allPostsInFeedFlattened[iOfLastToServe]
+                val resultList = allPostsInFeedFlattened.subList(iOfLastServedPost + 1, iOfLastToServe + 1)
+                return Single.just(Pair(resultList, lastServedPost!!.name))
             }
         }
 
-        logcat {
-            "userNameToOldestPostMap.size = ${userNameToOldestPostMap.size}, " +
-                    "values = ${userNameToOldestPostMap.values.map { it.name }}"
+        // Return condition #2: Check if all feeds have run out.
+        if (usersWithNoMorePostsSet.size == userNameToPostsSortedMap.size) {
+            logcat { "All feeds have run out." }
+            val iOfLastServedPost = allPostsInFeedFlattened.indexOf(lastServedPost)
+            val iOfLastPostToServe = minOf(iOfLastServedPost + requiredFeedSize, allPostsInFeedFlattened.size - 1)
+            val resultList = allPostsInFeedFlattened.subList(iOfLastServedPost + 1, iOfLastPostToServe + 1)
+            val lastServedPost = if (resultList.size < requiredFeedSize) null else resultList.last()
+            return Single.just(Pair(resultList, lastServedPost?.name))
         }
 
-        val (youngestOldestUser, youngestOldestPost) = userNameToOldestPostMap
-            .map { (user, post) -> user to post }
-            .filter { (user, _) -> user !in usersWithNoMorePostsSet }
-            .fold(Pair<String?, Post?>(null, null)) { (youngestUser, youngestPost), (user, post) ->
-                logcat { "evaluating $user, ${post.name} against $youngestUser, ${youngestPost?.name}" }
-                if (youngestPost == null) user to post
-                else if (post.createdAt > youngestPost.createdAt) user to post
-                else youngestUser to youngestPost
-            }
+        // Download more posts.
 
-        logcat { "youngestOldestUser = $youngestOldestUser, youngestOldestPost = $youngestOldestPost" }
+        /*
+        // One possible strategy is to only download the feed of the earliest last post, and see if we have enough posts to serve.
+        // The downside of this is that it would be always downloading feeds in a sequential order, and the user would have to wait until
+        // we have downloaded enough feeds to have a complete new page.
 
-        val allPostsInFeedFlattened = userNameToPostsSortedMap
-            .flatMap { (_, posts) -> posts ?: emptyList() }
-            .sortedByDescending { post -> post.createdAt }
-        val youngestOldestPostsIndexInFeed = allPostsInFeedFlattened.indexOf(youngestOldestPost)
+        val feedsToDownload: List<String> =
+            // If we haven't downloaded any feeds yet, download all feeds.
+            if (allPostsInFeedFlattened.isEmpty()) userNameToPostsSortedMap.keys().toList()
+            // Else download only the feed of the earliest last post, and see if we have enough posts to serve.
+            else listOf(earliestLastPost!!.author)
 
-        if (youngestOldestPost == null || youngestOldestPostsIndexInFeed >= requiredFeedSize - 1) {   // We are done.
-            val resultList = allPostsInFeedFlattened.subList(requiredFeedSize - pageSize, allPostsInFeedFlattened.size)
-            val nextKey = if (resultList.size == pageSize) resultList.last().name else null
-            logcat(LogPriority.INFO) {
-                "Returning page of last ${resultList.size} elements of combined feed with size ${allPostsInFeedFlattened.size}. " +
-                        "nextKey = $nextKey"
-            }
-
-            return Single.just(
-                PagingSource.LoadResult.Page(
-                    resultList,
-                    prevKey = null,
-                    nextKey = nextKey
-                )
-            )
-        }
-        else {  // Download the feed with the youngestOldestPost and start processing again.
-            return Single.create { emitter ->
-                logcat { "Continuing by downloading feed $youngestOldestUser from ${youngestOldestPost.name}" }
-                downloadSingleFeedAutoContinueFromLastPost(
-                    name = youngestOldestUser!!,
-                    loadSize = pageSize / 2
-                )
+        // Instead, we will download a batch of all feeds (that have not run out) at once, in parallel, and see if we have a full page yet.
+        // This will be more wasteful of data, but it's on the order of megabytes at most, and the user will not have to wait so much.
+        */
+        val feedsToDownload = userNameToPostsSortedMap.filterKeys { user -> !usersWithNoMorePostsSet.contains(user) }.keys.toList()
+        val numberOfFeedsStillDownloadingBehaviorSubject = BehaviorSubject.createDefault(feedsToDownload.size)
+        feedsToDownload
+            .forEach { feedName ->
+                downloadSingleFeedContinuingFromLastPost(feedName)
                     .subscribeBy(
                         onSuccess = { posts ->
-                            recursivelyDownloadFeedsUntilDone(mapOf(youngestOldestUser to posts), pageSize)
-                                .subscribe { result ->
-                                    emitter.onSuccess(result)
-                                }
-                                .addTo(disposables)
+                            logcat(LogPriority.VERBOSE) { "Successfully downloaded feed: $feedName. posts.size = ${posts.size}" }
+                            userNameToPostsSortedMap.merge(feedName, posts.sortedByDescending { it.createdAt }) {
+                                    old, new -> (old + new).distinctBy { it.name }
+                            }
+                            // Check if the feed has 'run out'.
+                            if (posts.isEmpty()) {
+                                usersWithNoMorePostsSet.add(feedName)
+                            }
+                            numberOfFeedsStillDownloadingBehaviorSubject.onNext(numberOfFeedsStillDownloadingBehaviorSubject.value!! - 1)
                         },
                         onError = { e ->
-                            logcat(LogPriority.ERROR) { "Could not download combined posts. Message: ${e.message}" }
-                            emitter.onSuccess(PagingSource.LoadResult.Error(e))
+                            logcat(LogPriority.ERROR) { "Error downloading feed: $feedName. Message: ${e.message}" }
+                            usersWithNoMorePostsSet.add(feedName)
+                            numberOfFeedsStillDownloadingBehaviorSubject.onNext(numberOfFeedsStillDownloadingBehaviorSubject.value!! - 1)
                         }
-                    ).addTo(disposables)
+                    )
+                    .addTo(disposables)
             }
+        // Continue processing after all the feeds have finished downloading.
+        return Single.create { emitter ->
+            numberOfFeedsStillDownloadingBehaviorSubject
+                .filter { it == 0 }
+                .firstOrError()
+                .subscribe { _ ->
+                    logcat { "Finished downloading a batch of feeds. Continuing processing." }
+                    downloadFeedsRecursivelyUntilDone()
+                        .subscribeBy(
+                            onSuccess = { result -> emitter.onSuccess(result) },
+                            onError = { emitter.onError(it) }
+                        )
+                        .addTo(disposables)
+                }.addTo(disposables)
         }
     }
 
+    protected fun downloadSingleFeedContinuingFromLastPost(name: String): Single<List<Post>> {
+        logcat { "downloadSingleFeed: name = $name" }
 
-    protected fun downloadSingleFeedAutoContinueFromLastPost(name: String, loadSize: Int): Single<List<Post>> {
-        logcat { "downloadSingleFeed: name = $name, loadSize = $loadSize" }
-
-        // Check
-        val lastDownloadedPostName = userNameToPostsSortedMap[name]?.last()?.name
+        val lastDownloadedPostName = userNameToPostsSortedMap[name]?.lastOrNull()?.name
             ?.also {
-                logcat { "after = $it" }
+                logcat(LogPriority.VERBOSE) { "\t\tafter = $it" }
             }
 
-        val request = jsonService.getUsersPostsJson(name, loadSize, lastDownloadedPostName)
+        val request = jsonService.getUsersPostsJson(name, SINGLE_FEED_DOWNLOAD_SIZE, lastDownloadedPostName)
             .subscribeOn(Schedulers.io())
             .observeOn(Schedulers.computation())
+            .timeout(10, TimeUnit.SECONDS)
+            .retry(3)
 
         return JsonPostsFeedHelper.fromGetUsersPostsJsonCallToListOfPostsAsSingle(request)
     }
 
-
-    // After we've downloaded the initial batch of posts for every followed feed, let's update their last known posts in the database.
-    // This is then used in the notification logic, determining whether we should show the user a notification about new posts from
-    // the feeds they're subscribed to.
-    private fun updateLatestPostsForUsers(initialFeedsMap: Map<String, List<Post>?>) {
-        logcat { "updateLatestPostsForUsers" }
-        for ((userName, posts) in initialFeedsMap) {
-            posts?.maxByOrNull { it.createdAt }?.let { latestPost ->
-                followsRepository.updateUsersLatestPost(userName, latestPost.name).subscribe().addTo(disposables)
-            }
-        }
-    }
-
-
-    // Resets the state of the loader.
-    protected fun clearData() {
-        logcat { "clearData" }
-        disposables.clear()
+    protected fun clearState() {
         userNameToPostsSortedMap.clear()
         usersWithNoMorePostsSet.clear()
+        lastServedPost = null
     }
 }

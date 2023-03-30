@@ -161,6 +161,7 @@ class FollowsFragment : BaseListingFragment() {
         logcat { "setUpUiStatesBehaviour" }
         viewModel.uiStateBehaviorSubject
             .forwardLatestOnceTrue { _binding != null }
+            .distinctUntilChanged()
             .observeOn(AndroidSchedulers.mainThread())
             .doOnNext { logcat { "viewModel.uiStateBehaviorSubject.onNext: uiState = $it" } }
             .subscribe { uiState ->
@@ -274,8 +275,9 @@ class FollowsFragment : BaseListingFragment() {
             .onEach {
                 logcat(LogPriority.INFO) { "postFollowsAdapter.loadStateFlow.onEach loadStates.refresh == LoadState.NotLoading" }
                 if (adapter.itemCount > 1) {
-                    logcat(LogPriority.INFO) { "Scrolling to position: ${viewModel.rvStoredPosition}" }
-                    binding.rvFollowsPosts.scrollToPosition(viewModel.rvStoredPosition)
+//                    logcat(LogPriority.INFO) { "Scrolling to position: ${viewModel.rvStoredPosition}" }
+//                    binding.rvFollowsPosts.scrollToPosition(viewModel.rvStoredPosition)
+                    viewModel.uiStateBehaviorSubject.onNext(UiState.NORMAL)
                 }
                 else {
                     if (viewModel.currentUserFeed.status == UserFeed.Status.AGGREGATE)

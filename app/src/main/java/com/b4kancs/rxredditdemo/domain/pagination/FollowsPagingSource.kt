@@ -40,7 +40,7 @@ class FollowsPagingSource(
             // poses an issue.
             val aggregateFeedLoader: AbstractCombinedFeedLoader by inject(combinedFeedLoaderType)
 
-            return aggregateFeedLoader.loadCombinedFeeds(params.loadSize, params.key)
+            return aggregateFeedLoader.loadCombinedFeed(params.loadSize, params.key)
         }
 
         // Load regular user feeds.

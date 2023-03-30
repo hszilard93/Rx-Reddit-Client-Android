@@ -196,7 +196,7 @@ class PostsVerticalRvAdapter(
                             logcat { "Unblurring NSFW image." }
                             nsfwTagTextView.isVisible = false
                             viewModel.dontBlurThisPostAnymore(post)
-                            positionSubject.onNext(currentGalleryPosition)
+                            positionSubject.onNext(currentGalleryPosition!!)
                             subscribeForRegularClicks()
                         }
                         .addTo(disposables)
