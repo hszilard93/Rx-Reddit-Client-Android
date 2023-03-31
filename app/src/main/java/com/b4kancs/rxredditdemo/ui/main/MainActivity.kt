@@ -163,12 +163,6 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-//        val navController = findNavController(R.id.fragment_main_nav_host)
-//        val currentFragment = supportFragmentManager.primaryNavigationFragment?.childFragmentManager?.fragments?.first()
-//        if (currentFragment is FollowsFragment) {
-//            navController.navigateUp()
-//        }
-//        else
         super.onBackPressed()
     }
 
