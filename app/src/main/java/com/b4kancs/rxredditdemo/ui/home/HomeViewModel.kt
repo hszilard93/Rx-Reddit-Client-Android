@@ -7,7 +7,7 @@ import androidx.paging.PagingData
 import androidx.paging.rxjava3.cachedIn
 import androidx.paging.rxjava3.observable
 import com.b4kancs.rxredditdemo.data.networking.RedditJsonService
-import com.b4kancs.rxredditdemo.domain.pagination.SubredditsPagingSource
+import com.b4kancs.rxredditdemo.repository.pagination.SubredditsPagingSource
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.model.Subreddit
 import com.b4kancs.rxredditdemo.repository.FavoritePostsRepository

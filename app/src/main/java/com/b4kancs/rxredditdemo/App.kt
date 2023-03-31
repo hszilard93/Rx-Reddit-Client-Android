@@ -10,8 +10,8 @@ import com.b4kancs.rxredditdemo.data.networking.RedditJsonHelper
 import com.b4kancs.rxredditdemo.data.networking.RedditJsonService
 import com.b4kancs.rxredditdemo.domain.notification.SubscriptionsNotificationManager
 import com.b4kancs.rxredditdemo.domain.notification.SubscriptionsNotificationScheduler
-import com.b4kancs.rxredditdemo.domain.pagination.AggregateFeedLoader
-import com.b4kancs.rxredditdemo.domain.pagination.SubscriptionsFeedLoader
+import com.b4kancs.rxredditdemo.repository.pagination.AggregateFeedLoader
+import com.b4kancs.rxredditdemo.repository.pagination.SubscriptionsFeedLoader
 import com.b4kancs.rxredditdemo.repository.FavoritePostsRepository
 import com.b4kancs.rxredditdemo.repository.FollowsRepository
 import com.b4kancs.rxredditdemo.repository.PostsPropertiesRepository

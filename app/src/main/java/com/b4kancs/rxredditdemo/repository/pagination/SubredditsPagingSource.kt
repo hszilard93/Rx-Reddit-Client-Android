@@ -1,4 +1,4 @@
-package com.b4kancs.rxredditdemo.domain.pagination
+package com.b4kancs.rxredditdemo.repository.pagination
 
 import androidx.paging.PagingState
 import androidx.paging.rxjava3.RxPagingSource

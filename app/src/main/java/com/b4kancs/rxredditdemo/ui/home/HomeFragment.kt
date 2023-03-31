@@ -10,7 +10,7 @@ import androidx.paging.LoadState
 import androidx.viewbinding.ViewBinding
 import com.b4kancs.rxredditdemo.R
 import com.b4kancs.rxredditdemo.databinding.FragmentHomeBinding
-import com.b4kancs.rxredditdemo.domain.pagination.SubredditsPagingSource
+import com.b4kancs.rxredditdemo.repository.pagination.SubredditsPagingSource
 import com.b4kancs.rxredditdemo.model.Subreddit.Status
 import com.b4kancs.rxredditdemo.ui.main.MainActivity
 import com.b4kancs.rxredditdemo.ui.shared.BaseListingFragment

@@ -9,7 +9,7 @@ import androidx.paging.rxjava3.observable
 import com.b4kancs.rxredditdemo.data.networking.RedditJsonService
 import com.b4kancs.rxredditdemo.domain.notification.SubscriptionsNotificationManager
 import com.b4kancs.rxredditdemo.domain.notification.SubscriptionsNotificationScheduler
-import com.b4kancs.rxredditdemo.domain.pagination.FollowsPagingSource
+import com.b4kancs.rxredditdemo.repository.pagination.FollowsPagingSource
 import com.b4kancs.rxredditdemo.model.Post
 import com.b4kancs.rxredditdemo.model.UserFeed
 import com.b4kancs.rxredditdemo.repository.FavoritePostsRepository
